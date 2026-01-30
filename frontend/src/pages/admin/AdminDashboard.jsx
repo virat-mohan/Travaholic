@@ -1034,6 +1034,61 @@ const AdminBookings = () => {
           <p className="text-muted-foreground">No bookings found</p>
         </div>
       )}
+
+      {/* Payment Modal */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {paymentModalData.paymentType === 'advance' ? 'Record Advance Payment' : 'Record Full Payment'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="text-sm font-medium">Amount Received (₹)</label>
+              <Input
+                type="number"
+                value={paymentModalData.amount}
+                onChange={(e) => setPaymentModalData({ ...paymentModalData, amount: parseFloat(e.target.value) || 0 })}
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Payment Mode</label>
+              <Select 
+                value={paymentModalData.paymentMode} 
+                onValueChange={(v) => setPaymentModalData({ ...paymentModalData, paymentMode: v })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="upi">UPI</SelectItem>
+                  <SelectItem value="online">Online Transfer (NEFT/IMPS)</SelectItem>
+                  <SelectItem value="card">Card Payment</SelectItem>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {paymentModalData.paymentType === 'full' && (
+              <div className="bg-green-50 border border-green-200 p-3 rounded text-sm">
+                <p className="text-green-800">
+                  Marking full payment will automatically confirm the booking and send a confirmation to the guest.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={markPaymentReceived} className="btn-luxury">
+              Confirm Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
