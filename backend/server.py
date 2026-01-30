@@ -818,6 +818,501 @@ async def create_booking(booking_data: BookingCreate):
     
     return booking
 
+# ==================== MANUAL BOOKING (ADMIN) ====================
+
+def generate_booking_confirmation_pdf(booking_data: dict, villa: dict) -> BytesIO:
+    """Generate a professional booking confirmation PDF"""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
+    
+    # Colors
+    teal = colors.Color(0.2, 0.5, 0.5)
+    dark_teal = colors.Color(0.1, 0.3, 0.35)
+    grey = colors.Color(0.4, 0.4, 0.4)
+    light_grey = colors.Color(0.95, 0.95, 0.95)
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='TitleStyle', fontName='Helvetica-Bold', fontSize=20, textColor=dark_teal, alignment=TA_CENTER, spaceAfter=20))
+    styles.add(ParagraphStyle(name='SubtitleStyle', fontName='Helvetica', fontSize=12, textColor=grey, alignment=TA_CENTER, spaceAfter=30))
+    styles.add(ParagraphStyle(name='SectionHeader', fontName='Helvetica-Bold', fontSize=14, textColor=teal, spaceBefore=20, spaceAfter=10))
+    styles.add(ParagraphStyle(name='BodyText', fontName='Helvetica', fontSize=10, textColor=grey, spaceAfter=6, leading=14))
+    styles.add(ParagraphStyle(name='BoldText', fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, spaceAfter=6))
+    styles.add(ParagraphStyle(name='SmallText', fontName='Helvetica', fontSize=9, textColor=grey, spaceAfter=4))
+    styles.add(ParagraphStyle(name='Footer', fontName='Helvetica', fontSize=8, textColor=grey, alignment=TA_CENTER))
+    
+    elements = []
+    
+    # Logo and Header
+    elements.append(Paragraph("TRAVAHOLIC STAYS", styles['TitleStyle']))
+    elements.append(Paragraph("Luxury Villa Rentals in Goa", styles['SubtitleStyle']))
+    elements.append(Spacer(1, 10))
+    
+    # Booking Confirmation Header
+    elements.append(Paragraph("BOOKING CONFIRMATION", styles['SectionHeader']))
+    elements.append(Paragraph(f"Date: {datetime.now().strftime('%d %B %Y')}", styles['BodyText']))
+    elements.append(Paragraph(f"Booking ID: {booking_data.get('booking_id', 'N/A')}", styles['BodyText']))
+    elements.append(Spacer(1, 10))
+    
+    # Greeting
+    elements.append(Paragraph(f"Dear {booking_data['guest_name']},", styles['BoldText']))
+    elements.append(Paragraph("Greetings from Travaholic Stays! We look forward to hosting you in Goa.", styles['BodyText']))
+    elements.append(Spacer(1, 15))
+    
+    # Villa Details Section
+    elements.append(Paragraph("VILLA DETAILS", styles['SectionHeader']))
+    villa_data = [
+        ['Villa:', villa.get('name', 'N/A')],
+        ['Location:', f"{villa.get('location', '')}, {villa.get('region', 'Goa')}"],
+        ['Bedrooms:', f"{villa.get('bedrooms', 3)} BHK"],
+    ]
+    villa_table = Table(villa_data, colWidths=[100, 380])
+    villa_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), teal),
+        ('TEXTCOLOR', (1, 0), (1, -1), grey),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(villa_table)
+    elements.append(Spacer(1, 15))
+    
+    # Booking Dates
+    elements.append(Paragraph("BOOKING DETAILS", styles['SectionHeader']))
+    booking_details = [
+        ['Check-in:', f"{booking_data['check_in']} (2:00 PM)"],
+        ['Check-out:', f"{booking_data['check_out']} (11:00 AM)"],
+        ['Number of Nights:', str(booking_data.get('total_nights', booking_data.get('num_nights', 'N/A')))],
+        ['Number of Guests:', f"{booking_data['num_guests']} pax"],
+    ]
+    booking_table = Table(booking_details, colWidths=[120, 360])
+    booking_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), teal),
+        ('TEXTCOLOR', (1, 0), (1, -1), grey),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(booking_table)
+    elements.append(Spacer(1, 15))
+    
+    # Pricing Section
+    elements.append(Paragraph("PRICING BREAKDOWN", styles['SectionHeader']))
+    tariff_per_night = booking_data.get('tariff_per_night', booking_data.get('base_price', 0))
+    total_amount = booking_data.get('total_booking_amount', booking_data.get('total_amount', 0))
+    security = booking_data.get('security_deposit', 20000)
+    
+    pricing_data = [
+        ['Tariff per night:', f"₹{tariff_per_night:,.0f}"],
+        ['Total Booking Amount:', f"₹{total_amount:,.0f} (Inclusive of GST)"],
+        ['Security Deposit:', f"₹{security:,.0f} (Refundable)"],
+    ]
+    
+    if booking_data.get('extra_pax_charge', 0) > 0:
+        pricing_data.insert(1, ['Extra Pax Charge:', f"₹{booking_data['extra_pax_charge']:,.0f}"])
+    
+    if booking_data.get('advance_amount', 0) > 0:
+        pricing_data.append(['Advance Paid:', f"₹{booking_data['advance_amount']:,.0f}"])
+        balance = booking_data.get('balance_amount', total_amount - booking_data['advance_amount'])
+        pricing_data.append(['Balance Due:', f"₹{balance:,.0f}"])
+    
+    pricing_table = Table(pricing_data, colWidths=[150, 330])
+    pricing_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), teal),
+        ('TEXTCOLOR', (1, 0), (1, -1), grey),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND', (0, -1), (-1, -1), light_grey),
+    ]))
+    elements.append(pricing_table)
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph("* Security deposit is refundable in case of no damage. Please hand it over to the caretaker at the property along with your IDs.", styles['SmallText']))
+    elements.append(Spacer(1, 15))
+    
+    # Bank Details
+    elements.append(Paragraph("BANK DETAILS FOR PAYMENT", styles['SectionHeader']))
+    bank_data = [
+        ['Bank:', 'Standard Chartered Bank'],
+        ['Account Name:', 'TRAVAHOLIC'],
+        ['Account No:', '52105900326'],
+        ['IFSC:', 'SCBL0036033'],
+        ['Branch:', 'GK-1, Delhi'],
+    ]
+    bank_table = Table(bank_data, colWidths=[120, 360])
+    bank_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), teal),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('BACKGROUND', (0, 0), (-1, -1), light_grey),
+        ('BOX', (0, 0), (-1, -1), 1, teal),
+    ]))
+    elements.append(bank_table)
+    elements.append(Spacer(1, 20))
+    
+    # Cancellation Policy
+    elements.append(Paragraph("CANCELLATION POLICY", styles['SectionHeader']))
+    elements.append(Paragraph("• <b>100% refund</b> - If cancellation is made 30 days or more before check-in", styles['BodyText']))
+    elements.append(Paragraph("• <b>50% refund</b> - If cancellation is made between 15 to 30 days before check-in", styles['BodyText']))
+    elements.append(Paragraph("• <b>No refund</b> - If cancellation is made within 15 days of check-in", styles['BodyText']))
+    elements.append(Spacer(1, 15))
+    
+    # House Rules
+    elements.append(Paragraph("HOUSE RULES", styles['SectionHeader']))
+    elements.append(Paragraph("• <b>No Drugs:</b> Strictly prohibited on the premises", styles['BodyText']))
+    elements.append(Paragraph("• <b>No Smoking Inside:</b> Smoking allowed only on balconies and outdoor areas. ₹10,000 cleaning fee per room if smoking inside.", styles['BodyText']))
+    elements.append(Paragraph("• <b>Guest Registration:</b> Provide accurate guest details. Strict 'no visitor' policy.", styles['BodyText']))
+    elements.append(Paragraph("• <b>Peaceful Community:</b> Loud music and parties not allowed beyond 10 PM.", styles['BodyText']))
+    elements.append(Paragraph(f"• <b>Extra Guests:</b> Base rate is for 6 pax. ₹2,000/person for additional guests.", styles['BodyText']))
+    elements.append(Paragraph("• <b>Check-in:</b> 2:00 PM | <b>Check-out:</b> 11:00 AM (Early/late subject to availability)", styles['BodyText']))
+    elements.append(Spacer(1, 15))
+    
+    # ID Requirements
+    elements.append(Paragraph("ID REQUIREMENTS", styles['SectionHeader']))
+    elements.append(Paragraph("As per government regulations, all guests must carry valid photo ID and address proof at check-in. <b>PAN cards are not accepted.</b> Without valid documents, check-in cannot proceed and booking will be considered 'no show' (no refund).", styles['BodyText']))
+    elements.append(Spacer(1, 15))
+    
+    # Villa Features
+    elements.append(Paragraph("VILLA FEATURES & INCLUSIONS", styles['SectionHeader']))
+    features = villa.get('amenities', [])
+    if features:
+        features_text = " • ".join(features[:12])
+        elements.append(Paragraph(f"• {features_text}", styles['BodyText']))
+    else:
+        elements.append(Paragraph("• Private Pool • Housekeeping • WiFi • Air Conditioning • Smart TV • Full Kitchen • Parking", styles['BodyText']))
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph("<b>Additional Services (on request):</b> Private Chef, Spa Session, BBQ Night, Decoration, Airport Transfers", styles['BodyText']))
+    elements.append(Spacer(1, 30))
+    
+    # Footer
+    elements.append(Paragraph("Warm Regards,", styles['BodyText']))
+    elements.append(Paragraph("<b>Team Travaholic</b>", styles['BoldText']))
+    elements.append(Spacer(1, 20))
+    elements.append(Paragraph("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", styles['Footer']))
+    elements.append(Paragraph("Travaholic Stays | +91 99588 71283 | www.travaholicstays.com | @travaholicstays", styles['Footer']))
+    
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+@api_router.post("/admin/manual-booking")
+async def create_manual_booking(booking_data: ManualBookingCreate, user: User = Depends(require_admin)):
+    """Create a manual booking (admin only)"""
+    villa = await db.villas.find_one({"villa_id": booking_data.villa_id}, {"_id": 0})
+    if not villa:
+        raise HTTPException(status_code=404, detail="Villa not found")
+    
+    # Check availability
+    blocked = await db.blocked_dates.find_one({
+        "villa_id": booking_data.villa_id,
+        "$or": [
+            {"start_date": {"$lte": booking_data.check_out}, "end_date": {"$gte": booking_data.check_in}}
+        ]
+    })
+    if blocked:
+        raise HTTPException(status_code=400, detail="Dates not available")
+    
+    # Calculate commission
+    commission_percent = villa.get("commission_percent", 30)
+    commission_amount = booking_data.total_booking_amount * (commission_percent / 100)
+    owner_payout = booking_data.total_booking_amount - commission_amount
+    
+    # Create booking ID
+    booking_id = f"booking_{uuid.uuid4().hex[:12]}"
+    
+    booking = {
+        "booking_id": booking_id,
+        "villa_id": booking_data.villa_id,
+        "villa_name": villa["name"],
+        "guest_name": booking_data.guest_name,
+        "guest_email": booking_data.guest_email,
+        "guest_phone": booking_data.guest_phone,
+        "check_in": booking_data.check_in,
+        "check_out": booking_data.check_out,
+        "num_guests": booking_data.num_guests,
+        "num_nights": booking_data.total_nights,
+        "tariff_per_night": booking_data.tariff_per_night,
+        "base_price": booking_data.tariff_per_night,
+        "base_amount": booking_data.tariff_per_night * booking_data.total_nights,
+        "extra_pax_charge": booking_data.extra_pax_charge,
+        "extra_pax_count": booking_data.extra_pax_count,
+        "addons_total": 0,
+        "subtotal": booking_data.total_booking_amount,
+        "security_deposit": booking_data.security_deposit,
+        "total_amount": booking_data.total_booking_amount,
+        "total_booking_amount": booking_data.total_booking_amount,
+        "advance_amount": booking_data.advance_amount,
+        "balance_amount": booking_data.balance_amount or (booking_data.total_booking_amount - booking_data.advance_amount),
+        "commission_percent": commission_percent,
+        "commission_amount": commission_amount,
+        "owner_payout": owner_payout,
+        "payment_status": booking_data.payment_status,
+        "advance_received": booking_data.advance_received,
+        "advance_received_date": booking_data.advance_received_date,
+        "full_payment_received": booking_data.full_payment_received,
+        "full_payment_received_date": booking_data.full_payment_received_date,
+        "booking_status": "pending",
+        "special_requests": booking_data.special_requests,
+        "notes": booking_data.notes,
+        "is_manual_booking": True,
+        "created_by": user.user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    
+    await db.bookings.insert_one(booking)
+    
+    # Block the dates
+    block = {
+        "block_id": f"block_{uuid.uuid4().hex[:12]}",
+        "villa_id": booking_data.villa_id,
+        "start_date": booking_data.check_in,
+        "end_date": booking_data.check_out,
+        "reason": "booking",
+        "booking_id": booking_id,
+        "created_by": user.user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.blocked_dates.insert_one(block)
+    
+    # Remove _id from response
+    booking.pop("_id", None)
+    return booking
+
+@api_router.post("/admin/bookings/{booking_id}/mark-payment")
+async def mark_payment_received(
+    booking_id: str,
+    payment_type: str = Query(..., description="advance or full"),
+    amount: float = Query(None),
+    send_confirmation: bool = Query(True),
+    user: User = Depends(require_admin)
+):
+    """Mark payment as received and optionally send confirmation"""
+    booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    villa = await db.villas.find_one({"villa_id": booking["villa_id"]}, {"_id": 0})
+    
+    update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    
+    if payment_type == "advance":
+        update_data["advance_received"] = True
+        update_data["advance_received_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        update_data["payment_status"] = "advance_received"
+        if amount:
+            update_data["advance_amount"] = amount
+            update_data["balance_amount"] = booking.get("total_booking_amount", booking.get("total_amount", 0)) - amount
+    elif payment_type == "full":
+        update_data["full_payment_received"] = True
+        update_data["full_payment_received_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        update_data["payment_status"] = "full_received"
+        update_data["booking_status"] = "confirmed"
+        update_data["balance_amount"] = 0
+    
+    await db.bookings.update_one({"booking_id": booking_id}, {"$set": update_data})
+    
+    # Send confirmation if requested
+    confirmation_sent = False
+    if send_confirmation and payment_type == "full":
+        # Get updated booking
+        updated_booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+        
+        # Try to send email confirmation
+        try:
+            resend_key = os.environ.get("RESEND_API_KEY")
+            if resend_key and not resend_key.startswith("re_"):
+                resend.api_key = resend_key
+                resend.Emails.send({
+                    "from": "Travaholic Stays <bookings@travaholicstays.com>",
+                    "to": [updated_booking["guest_email"]],
+                    "subject": f"Booking Confirmed - {villa['name']} | Travaholic Stays",
+                    "html": generate_confirmation_email_html(updated_booking, villa)
+                })
+                confirmation_sent = True
+        except Exception as e:
+            logging.error(f"Failed to send email: {e}")
+    
+    return {
+        "message": f"Payment marked as {payment_type}",
+        "confirmation_sent": confirmation_sent,
+        "booking_status": update_data.get("booking_status", booking.get("booking_status")),
+        "payment_status": update_data.get("payment_status")
+    }
+
+@api_router.get("/admin/bookings/{booking_id}/confirmation-pdf")
+async def get_booking_confirmation_pdf(booking_id: str, user: User = Depends(require_admin)):
+    """Generate and download booking confirmation PDF"""
+    booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    villa = await db.villas.find_one({"villa_id": booking["villa_id"]}, {"_id": 0})
+    if not villa:
+        raise HTTPException(status_code=404, detail="Villa not found")
+    
+    pdf_buffer = generate_booking_confirmation_pdf(booking, villa)
+    
+    return Response(
+        content=pdf_buffer.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=booking_confirmation_{booking_id}.pdf"
+        }
+    )
+
+def generate_confirmation_email_html(booking: dict, villa: dict) -> str:
+    """Generate HTML email for booking confirmation"""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Helvetica', Arial, sans-serif; color: #333; line-height: 1.6; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #2d6a6a 0%, #1a4a4a 100%); color: white; padding: 30px; text-align: center; }}
+            .header h1 {{ margin: 0; font-size: 24px; }}
+            .content {{ padding: 30px; background: #f9f9f9; }}
+            .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid #2d6a6a; }}
+            .section h2 {{ color: #2d6a6a; font-size: 16px; margin-top: 0; }}
+            .detail-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }}
+            .label {{ color: #666; }}
+            .value {{ font-weight: bold; color: #333; }}
+            .total {{ background: #2d6a6a; color: white; padding: 15px; text-align: right; font-size: 18px; }}
+            .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+            .cta {{ background: #2d6a6a; color: white; padding: 12px 24px; text-decoration: none; display: inline-block; margin: 10px 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>TRAVAHOLIC STAYS</h1>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">Booking Confirmed</p>
+            </div>
+            
+            <div class="content">
+                <p>Dear <strong>{booking['guest_name']}</strong>,</p>
+                <p>Greetings from Travaholic Stays! Your booking has been confirmed. We look forward to hosting you in Goa.</p>
+                
+                <div class="section">
+                    <h2>VILLA DETAILS</h2>
+                    <div class="detail-row">
+                        <span class="label">Villa</span>
+                        <span class="value">{villa['name']}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Location</span>
+                        <span class="value">{villa.get('location', '')}, {villa.get('region', 'Goa')}</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>BOOKING DETAILS</h2>
+                    <div class="detail-row">
+                        <span class="label">Check-in</span>
+                        <span class="value">{booking['check_in']} (2:00 PM)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Check-out</span>
+                        <span class="value">{booking['check_out']} (11:00 AM)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Guests</span>
+                        <span class="value">{booking['num_guests']} pax</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>PAYMENT SUMMARY</h2>
+                    <div class="detail-row">
+                        <span class="label">Total Amount</span>
+                        <span class="value">₹{booking.get('total_booking_amount', booking.get('total_amount', 0)):,.0f}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Security Deposit</span>
+                        <span class="value">₹{booking.get('security_deposit', 20000):,.0f} (Refundable)</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>IMPORTANT REMINDERS</h2>
+                    <ul style="padding-left: 20px; color: #666;">
+                        <li>Check-in: 2:00 PM | Check-out: 11:00 AM</li>
+                        <li>Please carry valid photo ID (PAN card not accepted)</li>
+                        <li>Security deposit to be paid at check-in</li>
+                        <li>No smoking inside the villa</li>
+                    </ul>
+                </div>
+                
+                <p style="text-align: center;">
+                    <a href="https://wa.me/919958871283" class="cta">Contact Us on WhatsApp</a>
+                </p>
+            </div>
+            
+            <div class="footer">
+                <p><strong>Travaholic Stays</strong></p>
+                <p>+91 99588 71283 | www.travaholicstays.com</p>
+                <p>@travaholicstays on Instagram</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+@api_router.get("/admin/bookings/{booking_id}/whatsapp-message")
+async def get_whatsapp_confirmation_message(booking_id: str, user: User = Depends(require_admin)):
+    """Get pre-formatted WhatsApp confirmation message"""
+    booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    
+    villa = await db.villas.find_one({"villa_id": booking["villa_id"]}, {"_id": 0})
+    
+    message = f"""🏡 *BOOKING CONFIRMED*
+_Travaholic Stays_
+
+Dear *{booking['guest_name']}*,
+
+Greetings! Your booking has been confirmed. ✅
+
+📍 *Villa:* {villa['name']}
+📍 *Location:* {villa.get('location', '')}, Goa
+
+📅 *Check-in:* {booking['check_in']} (2:00 PM)
+📅 *Check-out:* {booking['check_out']} (11:00 AM)
+👥 *Guests:* {booking['num_guests']} pax
+
+💰 *Total Amount:* ₹{booking.get('total_booking_amount', booking.get('total_amount', 0)):,.0f}
+🔒 *Security Deposit:* ₹{booking.get('security_deposit', 20000):,.0f} (Refundable)
+
+📋 *Important Reminders:*
+• Please carry valid photo ID (PAN not accepted)
+• Security deposit at check-in
+• No smoking inside the villa
+• Check-in: 2 PM | Check-out: 11 AM
+
+We look forward to hosting you! 🌴
+
+_Team Travaholic_
+📞 +91 99588 71283
+🌐 www.travaholicstays.com"""
+    
+    # Generate WhatsApp link
+    encoded_message = urllib.parse.quote(message)
+    whatsapp_link = f"https://wa.me/{booking['guest_phone'].replace('+', '').replace(' ', '')}?text={encoded_message}"
+    
+    return {
+        "message": message,
+        "whatsapp_link": whatsapp_link,
+        "guest_phone": booking['guest_phone']
+    }
+
 @api_router.get("/bookings")
 async def get_bookings(
     status: Optional[str] = None,
