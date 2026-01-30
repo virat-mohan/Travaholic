@@ -717,8 +717,14 @@ def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: 
         })
     
     subtotal = total_base + addons_total
+    
+    # Calculate GST (18%)
+    gst_percent = 18.0
+    gst_amount = round(subtotal * (gst_percent / 100), 2)
+    subtotal_with_gst = subtotal + gst_amount
+    
     security_deposit = villa.get("security_deposit", 0)
-    total_amount = subtotal + security_deposit
+    total_amount = subtotal_with_gst + security_deposit
     
     commission_percent = villa.get("commission_percent", 30.0)
     commission_amount = (subtotal * commission_percent) / 100
@@ -730,6 +736,9 @@ def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: 
         "addons": addon_details,
         "addons_total": addons_total,
         "subtotal": subtotal,
+        "gst_percent": gst_percent,
+        "gst_amount": gst_amount,
+        "subtotal_with_gst": subtotal_with_gst,
         "security_deposit": security_deposit,
         "total_amount": total_amount,
         "commission_percent": commission_percent,
