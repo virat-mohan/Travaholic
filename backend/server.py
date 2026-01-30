@@ -979,7 +979,7 @@ async def calculate_price(data: Dict[str, Any]):
         if addon:
             addons.append({**addon, "quantity": addon_req.get("quantity", 1)})
     
-    pricing = calculate_booking_price(villa, data["check_in"], data["check_out"], addons, overrides)
+    pricing = calculate_booking_price(villa, data["check_in"], data["check_out"], addons, overrides, event_pricing)
     return pricing
 
 @api_router.post("/bookings")
