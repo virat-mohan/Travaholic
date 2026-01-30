@@ -965,11 +965,11 @@ const AdminBookings = () => {
                     {booking.booking_status === 'pending' && !booking.full_payment_received && (
                       <>
                         {!booking.advance_received && (
-                          <Button size="sm" variant="outline" onClick={() => markPaymentReceived(booking.booking_id, 'advance')}>
+                          <Button size="sm" variant="outline" onClick={() => openPaymentModal(booking, 'advance')}>
                             Mark Advance
                           </Button>
                         )}
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => markPaymentReceived(booking.booking_id, 'full')}>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => openPaymentModal(booking, 'full')}>
                           <Check size={14} className="mr-1" /> Full Payment
                         </Button>
                       </>
