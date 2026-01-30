@@ -13,7 +13,7 @@ const Footer = () => {
           <div className="lg:col-span-1">
             <Link to="/" className="block">
               <img 
-                src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/chkp86q1_Travaholic_color_logo-removebg-preview.png" 
+                src="/Travaholic_color_logo-removebg-preview.png" 
                 alt="Travaholic Stays"
                 className="h-20 w-auto"
               />
@@ -24,7 +24,7 @@ const Footer = () => {
             </p>
             <div className="flex gap-4 mt-6">
               <a
-                href="https://www.instagram.com/travaholicstays/"
+                href="https://www.instagram.com/travaholicstays/?hl=en"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-2 border border-background/30 rounded-full hover:bg-background hover:text-foreground transition-colors"

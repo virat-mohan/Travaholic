@@ -53,7 +53,7 @@ const Navbar = () => {
             data-testid="logo-link"
           >
             <img 
-              src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/chkp86q1_Travaholic_color_logo-removebg-preview.png" 
+              src="/Travaholic_color_logo-removebg-preview.png" 
               alt="Travaholic Stays"
               className="h-16 md:h-20 w-auto"
             />
