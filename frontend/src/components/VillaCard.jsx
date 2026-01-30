@@ -2,6 +2,24 @@ import { Link } from "react-router-dom";
 import { MapPin, Users, Bed, Bath } from "lucide-react";
 import { motion } from "framer-motion";
 
+// Extract caption from image URL filename
+const getImageCaption = (url) => {
+  if (!url) return "";
+  try {
+    // Get filename from URL
+    const filename = url.split("/").pop().split("?")[0];
+    // Remove extension
+    const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+    // Replace dashes, underscores with spaces and capitalize
+    const caption = nameWithoutExt
+      .replace(/[-_]/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return caption;
+  } catch {
+    return "";
+  }
+};
+
 const VillaCard = ({ villa, index = 0 }) => {
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-IN", {
@@ -10,6 +28,9 @@ const VillaCard = ({ villa, index = 0 }) => {
       maximumFractionDigits: 0,
     }).format(price);
   };
+
+  const thumbnailUrl = villa.thumbnail || villa.images?.[0] || "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800";
+  const imageCaption = getImageCaption(thumbnailUrl);
 
   return (
     <motion.div
@@ -23,7 +44,7 @@ const VillaCard = ({ villa, index = 0 }) => {
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden">
           <img
-            src={villa.thumbnail || villa.images?.[0] || "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800"}
+            src={thumbnailUrl}
             alt={villa.name}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
@@ -31,6 +52,12 @@ const VillaCard = ({ villa, index = 0 }) => {
             <span className="absolute top-4 left-4 bg-accent text-accent-foreground px-3 py-1 text-xs uppercase tracking-wider">
               Private Pool
             </span>
+          )}
+          {/* Image Caption */}
+          {imageCaption && (
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+              <p className="text-white text-sm">{imageCaption}</p>
+            </div>
           )}
         </div>
 
@@ -89,3 +116,6 @@ const VillaCard = ({ villa, index = 0 }) => {
 };
 
 export default VillaCard;
+
+// Export helper for use in other components
+export { getImageCaption };
