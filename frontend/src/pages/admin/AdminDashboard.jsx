@@ -1625,6 +1625,462 @@ const AdminFinancials = () => {
   );
 };
 
+// Admin Private Offers
+const AdminPrivateOffers = () => {
+  const [offers, setOffers] = useState([]);
+  const [villas, setVillas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [formData, setFormData] = useState({
+    villa_id: "",
+    guest_name: "",
+    guest_email: "",
+    guest_phone: "",
+    check_in: "",
+    check_out: "",
+    num_guests: 2,
+    custom_per_night: 0,
+    discount_percent: 0,
+    security_deposit: null,
+    notes: "",
+    expiry_hours: 48
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [offersRes, villasRes] = await Promise.all([
+        axios.get(`${API}/admin/private-offers`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/villas`, { headers: getAuthHeaders() })
+      ]);
+      setOffers(offersRes.data.offers || []);
+      setVillas(villasRes.data.villas || []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateOffer = async () => {
+    if (!formData.villa_id || !formData.guest_name || !formData.check_in || !formData.check_out) {
+      toast.error("Please fill required fields");
+      return;
+    }
+    try {
+      const response = await axios.post(`${API}/admin/private-offers`, formData, { headers: getAuthHeaders() });
+      toast.success("Private offer created!");
+      setShowCreate(false);
+      fetchData();
+      // Show the payment link
+      if (response.data.payment_link) {
+        navigator.clipboard.writeText(response.data.payment_link);
+        toast.success("Payment link copied to clipboard!");
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to create offer");
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      pending: "bg-yellow-100 text-yellow-800",
+      accepted: "bg-green-100 text-green-800",
+      expired: "bg-gray-100 text-gray-800",
+      cancelled: "bg-red-100 text-red-800"
+    };
+    return styles[status] || "bg-gray-100 text-gray-800";
+  };
+
+  return (
+    <div data-testid="admin-private-offers">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="font-heading text-3xl">Private Offers</h1>
+          <p className="text-muted-foreground mt-1">Create negotiated pricing with time-limited payment links</p>
+        </div>
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus size={16} />
+              Create Offer
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create Private Offer</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">Villa *</label>
+                <Select value={formData.villa_id} onValueChange={(v) => setFormData({...formData, villa_id: v})}>
+                  <SelectTrigger><SelectValue placeholder="Select villa" /></SelectTrigger>
+                  <SelectContent>
+                    {villas.map(v => (
+                      <SelectItem key={v.villa_id} value={v.villa_id}>{v.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Guest Name *</label>
+                <Input value={formData.guest_name} onChange={(e) => setFormData({...formData, guest_name: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Guest Email *</label>
+                <Input type="email" value={formData.guest_email} onChange={(e) => setFormData({...formData, guest_email: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Guest Phone *</label>
+                <Input value={formData.guest_phone} onChange={(e) => setFormData({...formData, guest_phone: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Number of Guests</label>
+                <Input type="number" min="1" value={formData.num_guests} onChange={(e) => setFormData({...formData, num_guests: parseInt(e.target.value)})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Check-in *</label>
+                <Input type="date" value={formData.check_in} onChange={(e) => setFormData({...formData, check_in: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Check-out *</label>
+                <Input type="date" value={formData.check_out} onChange={(e) => setFormData({...formData, check_out: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Custom Per Night Rate (₹) *</label>
+                <Input type="number" min="0" value={formData.custom_per_night} onChange={(e) => setFormData({...formData, custom_per_night: parseFloat(e.target.value)})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Discount (%)</label>
+                <Input type="number" min="0" max="100" value={formData.discount_percent} onChange={(e) => setFormData({...formData, discount_percent: parseFloat(e.target.value)})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Security Deposit Override (₹)</label>
+                <Input type="number" min="0" placeholder="Leave empty for default" value={formData.security_deposit || ""} onChange={(e) => setFormData({...formData, security_deposit: e.target.value ? parseFloat(e.target.value) : null})} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Offer Expires In (hours)</label>
+                <Input type="number" min="1" value={formData.expiry_hours} onChange={(e) => setFormData({...formData, expiry_hours: parseInt(e.target.value)})} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">Notes</label>
+                <Textarea value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} placeholder="Internal notes about this offer..." />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+              <Button onClick={handleCreateOffer}>Create & Get Link</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-card border border-border p-6 animate-pulse">
+              <div className="h-4 bg-muted w-1/4 mb-4" />
+              <div className="h-6 bg-muted w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : offers.length === 0 ? (
+        <div className="text-center py-12 bg-card border border-border">
+          <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">No private offers yet</p>
+          <p className="text-sm text-muted-foreground mt-1">Create your first negotiated offer above</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {offers.map((offer) => (
+            <div key={offer.offer_id} className="bg-card border border-border p-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="font-medium">{offer.villa_name}</h3>
+                    <span className={`px-2 py-0.5 text-xs rounded ${getStatusBadge(offer.status)}`}>
+                      {offer.status}
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{offer.guest_name} • {offer.guest_email}</p>
+                  <p className="text-sm text-muted-foreground">{offer.check_in} → {offer.check_out} • {offer.num_nights} nights</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-heading text-2xl">{formatPrice(offer.total_amount)}</p>
+                  <p className="text-xs text-muted-foreground">Expires: {new Date(offer.expires_at).toLocaleString()}</p>
+                </div>
+              </div>
+              {offer.payment_link && offer.status === "pending" && (
+                <div className="mt-4 pt-4 border-t flex items-center gap-2">
+                  <Input value={offer.payment_link} readOnly className="text-sm" />
+                  <Button size="sm" variant="outline" onClick={() => {
+                    navigator.clipboard.writeText(offer.payment_link);
+                    toast.success("Copied!");
+                  }}>Copy</Button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Admin Payouts
+const AdminPayouts = () => {
+  const [payouts, setPayouts] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    fetchPayouts();
+  }, [filter]);
+
+  const fetchPayouts = async () => {
+    try {
+      const params = filter !== "all" ? `?status=${filter}` : "";
+      const response = await axios.get(`${API}/admin/payouts${params}`, { headers: getAuthHeaders() });
+      setPayouts(response.data.payouts || []);
+      setSummary(response.data.summary);
+    } catch (error) {
+      console.error("Error fetching payouts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGeneratePayouts = async () => {
+    try {
+      const response = await axios.post(`${API}/admin/payouts/generate`, {}, { headers: getAuthHeaders() });
+      toast.success(response.data.message);
+      fetchPayouts();
+    } catch (error) {
+      toast.error("Failed to generate payouts");
+    }
+  };
+
+  const handleMarkPaid = async (payoutId, paymentRef, paymentMode) => {
+    try {
+      await axios.put(`${API}/admin/payouts/${payoutId}`, {
+        status: "paid",
+        payment_reference: paymentRef,
+        payment_mode: paymentMode
+      }, { headers: getAuthHeaders() });
+      toast.success("Payout marked as paid");
+      fetchPayouts();
+    } catch (error) {
+      toast.error("Failed to update payout");
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/payouts/export`, { headers: getAuthHeaders() });
+      const blob = new Blob([response.data.csv_data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `payouts_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Export downloaded");
+    } catch (error) {
+      toast.error("Failed to export");
+    }
+  };
+
+  return (
+    <div data-testid="admin-payouts">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <h1 className="font-heading text-3xl">Owner Payouts</h1>
+          <p className="text-muted-foreground mt-1">Track and manage payouts to villa owners</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleGeneratePayouts} className="gap-2">
+            <RefreshCw size={16} />
+            Generate Payouts
+          </Button>
+          <Button variant="outline" onClick={handleExport} className="gap-2">
+            <Download size={16} />
+            Export CSV
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-card border border-border p-6">
+            <p className="text-sm text-muted-foreground mb-1">Pending Payouts</p>
+            <p className="font-heading text-3xl text-yellow-600">{formatPrice(summary.total_pending)}</p>
+          </div>
+          <div className="bg-card border border-border p-6">
+            <p className="text-sm text-muted-foreground mb-1">Paid Out</p>
+            <p className="font-heading text-3xl text-green-600">{formatPrice(summary.total_paid)}</p>
+          </div>
+          <div className="bg-card border border-border p-6">
+            <p className="text-sm text-muted-foreground mb-1">Total Records</p>
+            <p className="font-heading text-3xl">{summary.count}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Filter */}
+      <div className="flex gap-2 mb-6">
+        {["all", "pending", "paid"].map((f) => (
+          <Button
+            key={f}
+            variant={filter === f ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilter(f)}
+          >
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </Button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-card border border-border p-6 animate-pulse">
+              <div className="h-4 bg-muted w-1/4 mb-4" />
+              <div className="h-6 bg-muted w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : payouts.length === 0 ? (
+        <div className="text-center py-12 bg-card border border-border">
+          <DollarSign className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">No payouts found</p>
+          <p className="text-sm text-muted-foreground mt-1">Generate payouts from confirmed bookings above</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Owner</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Villa</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Booking</th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Gross</th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Commission</th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Net Payable</th>
+                <th className="text-center py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
+                <th className="text-right py-3 px-4 text-sm font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payouts.map((payout) => (
+                <tr key={payout.payout_id} className="border-b hover:bg-muted/50">
+                  <td className="py-3 px-4">
+                    <p className="font-medium text-sm">{payout.owner_name}</p>
+                    <p className="text-xs text-muted-foreground">{payout.owner_email}</p>
+                  </td>
+                  <td className="py-3 px-4 text-sm">{payout.villa_name}</td>
+                  <td className="py-3 px-4">
+                    <p className="text-sm">{payout.booking_check_in}</p>
+                    <p className="text-xs text-muted-foreground">→ {payout.booking_check_out}</p>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-right">{formatPrice(payout.gross_amount)}</td>
+                  <td className="py-3 px-4 text-sm text-right text-red-600">-{formatPrice(payout.commission_amount)}</td>
+                  <td className="py-3 px-4 text-sm text-right font-medium">{formatPrice(payout.net_payable)}</td>
+                  <td className="py-3 px-4 text-center">
+                    <span className={`px-2 py-1 text-xs rounded ${
+                      payout.status === "paid" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                    }`}>
+                      {payout.status}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    {payout.status === "pending" && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline">Mark Paid</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Mark Payout as Paid</DialogTitle>
+                          </DialogHeader>
+                          <MarkPaidForm payoutId={payout.payout_id} onSuccess={() => fetchPayouts()} />
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                    {payout.status === "paid" && payout.payment_reference && (
+                      <span className="text-xs text-muted-foreground">{payout.payment_reference}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Helper component for marking payouts as paid
+const MarkPaidForm = ({ payoutId, onSuccess }) => {
+  const [paymentRef, setPaymentRef] = useState("");
+  const [paymentMode, setPaymentMode] = useState("bank_transfer");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      await axios.put(`${API}/admin/payouts/${payoutId}`, {
+        status: "paid",
+        payment_reference: paymentRef,
+        payment_mode: paymentMode
+      }, { headers: getAuthHeaders() });
+      toast.success("Payout marked as paid");
+      onSuccess();
+    } catch (error) {
+      toast.error("Failed to update payout");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 py-4">
+      <div>
+        <label className="block text-sm font-medium mb-1">Payment Mode</label>
+        <Select value={paymentMode} onValueChange={setPaymentMode}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+            <SelectItem value="upi">UPI</SelectItem>
+            <SelectItem value="cash">Cash</SelectItem>
+            <SelectItem value="cheque">Cheque</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <label className="block text-sm font-medium mb-1">Payment Reference</label>
+        <Input
+          placeholder="Transaction ID / Reference"
+          value={paymentRef}
+          onChange={(e) => setPaymentRef(e.target.value)}
+        />
+      </div>
+      <DialogFooter>
+        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+        <Button onClick={handleSubmit} disabled={saving}>
+          {saving ? "Saving..." : "Confirm Payment"}
+        </Button>
+      </DialogFooter>
+    </div>
+  );
+};
+
 // Admin Listings (Homeowner Applications)
 const AdminListings = () => {
   const [listings, setListings] = useState([]);
