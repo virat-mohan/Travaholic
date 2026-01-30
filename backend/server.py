@@ -106,6 +106,14 @@ class Villa(BaseModel):
     meta_title: Optional[str] = None
     meta_description: Optional[str] = None
     is_active: bool = True
+    # New fields for enhanced pricing & visibility
+    is_off_market: bool = False  # Private/invite-only listing
+    weekend_multiplier: float = 1.2  # Weekend price multiplier
+    long_stay_discount_7: float = 0  # % discount for 7+ nights
+    long_stay_discount_14: float = 0  # % discount for 14+ nights
+    long_stay_discount_30: float = 0  # % discount for 30+ nights
+    cleaning_fee: float = 0  # One-time cleaning fee
+    instant_book: bool = True  # Allow instant booking vs request-only
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
