@@ -192,6 +192,129 @@ class PricingOverride(BaseModel):
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# ==================== NEW MODELS FOR PRIVATE OFFERS & PAYMENTS ====================
+
+class PrivateOffer(BaseModel):
+    """Time-limited private offer for negotiated bookings"""
+    model_config = ConfigDict(extra="ignore")
+    offer_id: str = Field(default_factory=lambda: f"offer_{uuid.uuid4().hex[:12]}")
+    villa_id: str
+    villa_name: str
+    # Guest details
+    guest_name: str
+    guest_email: str
+    guest_phone: str
+    # Booking details
+    check_in: str
+    check_out: str
+    num_guests: int
+    num_nights: int
+    # Custom pricing
+    base_amount: float  # Negotiated base price
+    addons_total: float = 0
+    discount_percent: float = 0
+    discount_amount: float = 0
+    subtotal: float
+    gst_amount: float
+    security_deposit: float
+    total_amount: float
+    # Commission & payout
+    commission_percent: float
+    commission_amount: float
+    owner_payout: float
+    # Offer validity
+    expires_at: datetime  # When this offer link expires
+    payment_link: Optional[str] = None
+    razorpay_order_id: Optional[str] = None
+    # Status
+    status: str = "pending"  # pending, accepted, expired, cancelled
+    notes: Optional[str] = None
+    created_by: str  # Admin user who created the offer
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PrivateOfferCreate(BaseModel):
+    villa_id: str
+    guest_name: str
+    guest_email: str
+    guest_phone: str
+    check_in: str
+    check_out: str
+    num_guests: int
+    # Negotiated pricing
+    custom_per_night: float  # Custom per-night rate
+    discount_percent: float = 0
+    security_deposit: Optional[float] = None  # Override villa default
+    addons: List[Dict[str, Any]] = []
+    notes: Optional[str] = None
+    expiry_hours: int = 48  # How long the offer is valid
+
+class EventPricing(BaseModel):
+    """Special event date pricing (NYE, Diwali, etc.)"""
+    model_config = ConfigDict(extra="ignore")
+    event_id: str = Field(default_factory=lambda: f"event_{uuid.uuid4().hex[:12]}")
+    name: str  # "New Year's Eve 2025", "Diwali 2025"
+    villa_id: Optional[str] = None  # None = applies to all villas
+    start_date: str
+    end_date: str
+    price_multiplier: float = 1.5  # Multiplier on base price
+    min_nights: int = 3  # Minimum nights during this event
+    is_active: bool = True
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SeasonalPricing(BaseModel):
+    """Seasonal pricing rules"""
+    model_config = ConfigDict(extra="ignore")
+    season_id: str = Field(default_factory=lambda: f"season_{uuid.uuid4().hex[:12]}")
+    name: str  # "Peak Season", "Off Season"
+    villa_id: Optional[str] = None  # None = applies to all villas
+    start_date: str  # MM-DD format for recurring
+    end_date: str  # MM-DD format for recurring
+    price_multiplier: float = 1.0
+    is_recurring: bool = True  # True = every year
+    is_active: bool = True
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class OwnerPayout(BaseModel):
+    """Track payouts to villa owners"""
+    model_config = ConfigDict(extra="ignore")
+    payout_id: str = Field(default_factory=lambda: f"payout_{uuid.uuid4().hex[:12]}")
+    owner_id: str
+    owner_name: str
+    owner_email: str
+    villa_id: str
+    villa_name: str
+    booking_id: str
+    booking_check_in: str
+    booking_check_out: str
+    # Financial details
+    gross_amount: float  # Total booking amount (excl security deposit)
+    commission_percent: float
+    commission_amount: float
+    net_payable: float  # What owner receives
+    # Payment status
+    status: str = "pending"  # pending, paid, on_hold
+    paid_date: Optional[str] = None
+    payment_reference: Optional[str] = None  # Bank transfer ref
+    payment_mode: Optional[str] = None  # bank_transfer, upi, cash
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PaymentSettings(BaseModel):
+    """Admin payment gateway settings"""
+    model_config = ConfigDict(extra="ignore")
+    setting_id: str = "payment_settings_main"
+    razorpay_key_id: Optional[str] = None
+    razorpay_key_secret: Optional[str] = None
+    razorpay_webhook_secret: Optional[str] = None
+    is_live_mode: bool = False  # False = test mode
+    partial_payment_enabled: bool = True
+    min_advance_percent: float = 30.0  # Minimum advance payment %
+    updated_by: Optional[str] = None
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class BookingAddOn(BaseModel):
     addon_id: str
     name: str
