@@ -583,12 +583,32 @@ const VillaDetailPage = () => {
                     <span>{formatPrice(villa.base_price)} x {pricing.num_nights} nights</span>
                     <span>{formatPrice(pricing.base_amount)}</span>
                   </div>
+                  {pricing.long_stay_discount_amount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Long Stay Discount ({pricing.long_stay_discount_percent}%)</span>
+                      <span>-{formatPrice(pricing.long_stay_discount_amount)}</span>
+                    </div>
+                  )}
+                  {pricing.cleaning_fee > 0 && (
+                    <div className="flex justify-between">
+                      <span>Cleaning Fee</span>
+                      <span>{formatPrice(pricing.cleaning_fee)}</span>
+                    </div>
+                  )}
                   {pricing.addons_total > 0 && (
                     <div className="flex justify-between">
                       <span>Add-ons</span>
                       <span>{formatPrice(pricing.addons_total)}</span>
                     </div>
                   )}
+                  <div className="flex justify-between pt-2 border-t border-border/50">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span>{formatPrice(pricing.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>GST (18%)</span>
+                    <span>{formatPrice(pricing.gst_amount)}</span>
+                  </div>
                   {pricing.security_deposit > 0 && (
                     <div className="flex justify-between text-muted-foreground">
                       <span>Security Deposit (refundable)</span>
