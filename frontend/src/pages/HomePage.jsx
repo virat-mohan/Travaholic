@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, MapPin, Star, Phone, Calendar, Users, ChevronDown } from "lucide-react";
+import { ArrowRight, MapPin, Star, Phone, Calendar, Users, ChevronDown, Waves, UtensilsCrossed, Mountain, Sparkles, Wine, Palmtree } from "lucide-react";
 import { Button } from "../components/ui/button";
 import VillaCard from "../components/VillaCard";
 import CallbackModal from "../components/CallbackModal";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { API } from "../App";
 
@@ -12,6 +12,49 @@ const HomePage = () => {
   const [villas, setVillas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [callbackOpen, setCallbackOpen] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Hero slideshow images - curated luxury collection
+  const heroSlides = [
+    {
+      image: "https://images.unsplash.com/photo-1758192838598-a1de4da5dcaf?w=1920&q=80",
+      title: "Infinity Pool Paradise",
+      subtitle: "Where sky meets water"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1759405198466-d7f97ef8b4a7?w=1920&q=80",
+      title: "Oceanfront Luxury",
+      subtitle: "Wake up to endless views"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1768307198062-67020de156a2?w=1920&q=80",
+      title: "Mountain Retreats",
+      subtitle: "Serenity at its peak"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1685271552630-9bc169185566?w=1920&q=80",
+      title: "Golden Sunsets",
+      subtitle: "Moments worth remembering"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1759281944533-a9eea164ffe3?w=1920&q=80",
+      title: "Cozy Escapes",
+      subtitle: "Your home away from home"
+    },
+    {
+      image: "https://images.pexels.com/photos/12715491/pexels-photo-12715491.jpeg?w=1920&q=80",
+      title: "Private Havens",
+      subtitle: "Exclusive experiences await"
+    }
+  ];
+
+  // Auto-advance slideshow
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [heroSlides.length]);
 
   useEffect(() => {
     fetchVillas();
@@ -29,73 +72,121 @@ const HomePage = () => {
   };
 
   const amenities = [
-    { icon: "🏊", name: "Private Pool" },
-    { icon: "🍳", name: "Breakfast" },
-    { icon: "📶", name: "WiFi" },
-    { icon: "🅿️", name: "Parking" },
-    { icon: "🏠", name: "Housekeeping" },
-    { icon: "👨‍🍳", name: "Chef Service" },
-    { icon: "🔥", name: "Bonfire" },
-    { icon: "📺", name: "Smart TV" },
+    { icon: Waves, name: "Private Pool" },
+    { icon: UtensilsCrossed, name: "Gourmet Kitchen" },
+    { icon: Sparkles, name: "Daily Housekeeping" },
+    { icon: Wine, name: "Premium Bar" },
+    { icon: Palmtree, name: "Tropical Gardens" },
+    { icon: Mountain, name: "Scenic Views" },
   ];
 
- 
+  // Experience categories for visual section
+  const experiences = [
+    {
+      image: "https://images.unsplash.com/photo-1643633052713-3978931c81a6?w=800&q=80",
+      title: "Sunset Cocktails",
+      desc: "Sip & unwind"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1759741558258-f24a3e847968?w=800&q=80",
+      title: "Fine Dining",
+      desc: "Culinary excellence"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1739314990513-49717c633401?w=800&q=80",
+      title: "Beach Escapes",
+      desc: "Paradise found"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1760067537116-de1f76fe8f95?w=800&q=80",
+      title: "Serene Mornings",
+      desc: "Wake up refreshed"
+    }
+  ];
 
   return (
     <div data-testid="home-page">
-      {/* Hero Section */}
+      {/* Hero Section with Slideshow */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div className="absolute inset-0">
-          <img
-            src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1920&q=80"
-            alt="Luxury Villa"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60" />
+        {/* Background Slideshow */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentSlide}
+            initial={{ opacity: 0, scale: 1.1 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+            className="absolute inset-0"
+          >
+            <motion.img
+              src={heroSlides[currentSlide].image}
+              alt={heroSlides[currentSlide].title}
+              className="w-full h-full object-cover"
+              initial={{ scale: 1 }}
+              animate={{ scale: 1.05 }}
+              transition={{ duration: 5, ease: "linear" }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/70" />
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Slide Indicators */}
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+          {heroSlides.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentSlide(index)}
+              className={`h-1 rounded-full transition-all duration-500 ${
+                index === currentSlide ? "w-8 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
         </div>
 
         {/* Content */}
         <div className="relative z-10 container-luxury text-center text-white">
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-sm uppercase tracking-[0.3em] mb-6 text-white/80"
+            transition={{ duration: 0.8 }}
+            className="mb-6"
           >
-            Ultra-Luxury Villa Rentals
-          </motion.p>
+            <span className="inline-block px-4 py-2 border border-white/30 rounded-full text-xs uppercase tracking-[0.3em] text-white/90 backdrop-blur-sm">
+              Ultra-Luxury Villa Rentals
+            </span>
+          </motion.div>
           
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
+            transition={{ duration: 0.8, delay: 0.1 }}
             className="font-heading text-5xl md:text-7xl lg:text-8xl tracking-tight mb-6 leading-[1.1]"
           >
             Escape to
             <br />
-            <span className="italic">Extraordinary</span>
+            <span className="italic font-light">Extraordinary</span>
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-10"
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-10 font-light"
           >
             Discover handpicked luxury villas in Goa & beyond. Where every stay
             becomes an unforgettable experience.
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
             <Link to="/villas">
               <Button
-                className="btn-luxury bg-white text-foreground hover:bg-white/90"
+                className="btn-luxury bg-white text-foreground hover:bg-white/90 px-8 py-6 text-base"
                 data-testid="explore-villas-btn"
               >
                 Explore Villas
@@ -103,7 +194,7 @@ const HomePage = () => {
             </Link>
             <Button
               variant="outline"
-              className="btn-luxury-outline border-white text-white hover:bg-white hover:text-foreground"
+              className="btn-luxury-outline border-white/60 text-white hover:bg-white hover:text-foreground backdrop-blur-sm px-8 py-6 text-base"
               onClick={() => setCallbackOpen(true)}
               data-testid="request-callback-btn"
             >
@@ -121,6 +212,45 @@ const HomePage = () => {
         >
           <ChevronDown size={32} />
         </motion.div>
+      </section>
+
+      {/* Luxury Experiences Strip */}
+      <section className="bg-foreground py-16 overflow-hidden">
+        <div className="container-luxury">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center mb-10"
+          >
+            <p className="text-xs uppercase tracking-[0.3em] text-white/60 mb-3">Curated For You</p>
+            <h2 className="font-heading text-3xl md:text-4xl text-white">The Travaholic Experience</h2>
+          </motion.div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {experiences.map((exp, index) => (
+              <motion.div
+                key={exp.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="group relative aspect-[3/4] overflow-hidden cursor-pointer"
+              >
+                <img
+                  src={exp.image}
+                  alt={exp.title}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-5">
+                  <p className="text-xs text-white/70 uppercase tracking-wider mb-1">{exp.desc}</p>
+                  <h3 className="font-heading text-lg md:text-xl text-white">{exp.title}</h3>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Featured Villas */}
