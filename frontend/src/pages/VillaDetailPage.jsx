@@ -240,40 +240,42 @@ const VillaDetailPage = () => {
       <section className="container-luxury">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Main Image */}
-          <div className="relative aspect-[4/3] overflow-hidden group">
-            <img
-              src={villa.images?.[selectedImageIndex] || villa.thumbnail}
-              alt={villa.name}
-              className="w-full h-full object-cover"
-            />
-            {/* Image Caption */}
+          <div>
+            <div className="relative aspect-[4/3] overflow-hidden group">
+              <img
+                src={villa.images?.[selectedImageIndex] || villa.thumbnail}
+                alt={villa.name}
+                className="w-full h-full object-cover"
+              />
+              {villa.images?.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setSelectedImageIndex((prev) => prev === 0 ? villa.images.length - 1 : prev - 1)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    data-testid="prev-image-btn"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button
+                    onClick={() => setSelectedImageIndex((prev) => prev === villa.images.length - 1 ? 0 : prev + 1)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    data-testid="next-image-btn"
+                  >
+                    <ChevronRight size={24} />
+                  </button>
+                </>
+              )}
+            </div>
+            {/* Image Caption Below */}
             {villa.images?.[selectedImageIndex] && (
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                <p className="text-white text-lg font-medium">
+              <div className="bg-muted/50 px-4 py-3 border-x border-b border-border">
+                <p className="text-foreground font-medium">
                   {getImageCaption(villa.images[selectedImageIndex])}
                 </p>
-                <p className="text-white/70 text-sm mt-1">
-                  {selectedImageIndex + 1} / {villa.images?.length || 1}
+                <p className="text-muted-foreground text-sm">
+                  Image {selectedImageIndex + 1} of {villa.images?.length || 1}
                 </p>
               </div>
-            )}
-            {villa.images?.length > 1 && (
-              <>
-                <button
-                  onClick={() => setSelectedImageIndex((prev) => prev === 0 ? villa.images.length - 1 : prev - 1)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  data-testid="prev-image-btn"
-                >
-                  <ChevronLeft size={24} />
-                </button>
-                <button
-                  onClick={() => setSelectedImageIndex((prev) => prev === villa.images.length - 1 ? 0 : prev + 1)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  data-testid="next-image-btn"
-                >
-                  <ChevronRight size={24} />
-                </button>
-              </>
             )}
           </div>
 
@@ -282,18 +284,18 @@ const VillaDetailPage = () => {
             {villa.images?.slice(0, 4).map((img, index) => (
               <div
                 key={index}
-                className={`relative aspect-[4/3] overflow-hidden cursor-pointer group/thumb ${
-                  index === selectedImageIndex ? "ring-2 ring-accent" : ""
-                }`}
+                className="cursor-pointer"
                 onClick={() => setSelectedImageIndex(index)}
               >
-                <img src={img} alt={`${villa.name} ${index + 1}`} className="w-full h-full object-cover" />
-                {/* Thumbnail Caption on Hover */}
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover/thumb:opacity-100 transition-opacity">
-                  <p className="text-white text-xs truncate">
-                    {getImageCaption(img)}
-                  </p>
+                <div className={`aspect-[4/3] overflow-hidden ${
+                  index === selectedImageIndex ? "ring-2 ring-accent" : ""
+                }`}>
+                  <img src={img} alt={`${villa.name} ${index + 1}`} className="w-full h-full object-cover" />
                 </div>
+                {/* Thumbnail Caption Below */}
+                <p className="text-sm text-muted-foreground mt-2 truncate">
+                  {getImageCaption(img)}
+                </p>
               </div>
             ))}
           </div>
