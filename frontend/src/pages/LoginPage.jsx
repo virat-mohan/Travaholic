@@ -30,6 +30,21 @@ const LoginPage = () => {
     }
   };
 
+  const handleMakeOwner = async () => {
+    try {
+      const token = localStorage.getItem("session_token");
+      const response = await axios.post(`${API}/make-owner`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success(response.data.message + " Redirecting...");
+      setTimeout(() => {
+        window.location.href = "/owner";
+      }, 1000);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to set owner role");
+    }
+  };
+
   // If already authenticated, show options
   if (isAuthenticated) {
     return (
