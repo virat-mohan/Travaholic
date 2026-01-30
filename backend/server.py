@@ -1201,7 +1201,9 @@ async def get_booking_confirmation_pdf(booking_id: str, user: User = Depends(req
     )
 
 def generate_confirmation_email_html(booking: dict, villa: dict) -> str:
-    """Generate HTML email for booking confirmation"""
+    """Generate HTML email for booking confirmation (after payment)"""
+    gst_amount = booking.get('gst_amount', 0)
+    subtotal = booking.get('subtotal', 0)
     return f"""
     <!DOCTYPE html>
     <html>
@@ -1248,6 +1250,177 @@ def generate_confirmation_email_html(booking: dict, villa: dict) -> str:
                 <div class="section">
                     <h2>BOOKING DETAILS</h2>
                     <div class="detail-row">
+                        <span class="label">Check-in</span>
+                        <span class="value">{booking['check_in']} (2:00 PM)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Check-out</span>
+                        <span class="value">{booking['check_out']} (11:00 AM)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Guests</span>
+                        <span class="value">{booking['num_guests']} pax</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>PAYMENT SUMMARY</h2>
+                    <div class="detail-row">
+                        <span class="label">Subtotal</span>
+                        <span class="value">₹{subtotal:,.0f}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">GST (18%)</span>
+                        <span class="value">₹{gst_amount:,.0f}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Total Amount</span>
+                        <span class="value">₹{booking.get('total_amount', 0):,.0f}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Security Deposit</span>
+                        <span class="value">₹{booking.get('security_deposit', 20000):,.0f} (Refundable)</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>IMPORTANT REMINDERS</h2>
+                    <ul style="padding-left: 20px; color: #666;">
+                        <li>Check-in: 2:00 PM | Check-out: 11:00 AM</li>
+                        <li>Please carry valid photo ID (PAN card not accepted)</li>
+                        <li>Security deposit to be paid at check-in</li>
+                        <li>No smoking inside the villa</li>
+                    </ul>
+                </div>
+                
+                <p style="text-align: center;">
+                    <a href="https://wa.me/919958871283" class="cta">Contact Us on WhatsApp</a>
+                </p>
+            </div>
+            
+            <div class="footer">
+                <p><strong>Travaholic Stays</strong></p>
+                <p>+91 99588 71283 | www.travaholicstays.com</p>
+                <p>@travaholicstays on Instagram</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+def generate_booking_received_email(booking: dict, villa: dict) -> str:
+    """Generate HTML email for booking received (before payment confirmation)"""
+    gst_amount = booking.get('gst_amount', 0)
+    subtotal = booking.get('subtotal', 0)
+    total = booking.get('total_amount', 0)
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Helvetica', Arial, sans-serif; color: #333; line-height: 1.6; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #2d6a6a 0%, #1a4a4a 100%); color: white; padding: 30px; text-align: center; }}
+            .header h1 {{ margin: 0; font-size: 24px; }}
+            .content {{ padding: 30px; background: #f9f9f9; }}
+            .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid #2d6a6a; }}
+            .section h2 {{ color: #2d6a6a; font-size: 16px; margin-top: 0; }}
+            .detail-row {{ padding: 8px 0; border-bottom: 1px solid #eee; }}
+            .label {{ color: #666; display: inline-block; width: 45%; }}
+            .value {{ font-weight: bold; color: #333; }}
+            .bank-details {{ background: #f0f7f7; padding: 15px; border: 1px solid #2d6a6a; margin: 20px 0; }}
+            .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+            .cta {{ background: #2d6a6a; color: white; padding: 12px 24px; text-decoration: none; display: inline-block; margin: 10px 0; }}
+            .highlight {{ background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>TRAVAHOLIC STAYS</h1>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">Booking Request Received</p>
+            </div>
+            
+            <div class="content">
+                <p>Dear <strong>{booking['guest_name']}</strong>,</p>
+                <p>Thank you for your booking request! We have received your inquiry and our team will confirm your booking once payment is received.</p>
+                
+                <div class="section">
+                    <h2>BOOKING SUMMARY</h2>
+                    <div class="detail-row">
+                        <span class="label">Villa:</span>
+                        <span class="value">{villa['name']}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Location:</span>
+                        <span class="value">{villa.get('location', '')}, {villa.get('region', 'Goa')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Check-in:</span>
+                        <span class="value">{booking['check_in']} (2:00 PM)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Check-out:</span>
+                        <span class="value">{booking['check_out']} (11:00 AM)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Guests:</span>
+                        <span class="value">{booking['num_guests']} pax</span>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>PAYMENT DETAILS</h2>
+                    <div class="detail-row">
+                        <span class="label">Subtotal:</span>
+                        <span class="value">₹{subtotal:,.0f}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">GST (18%):</span>
+                        <span class="value">₹{gst_amount:,.0f}</span>
+                    </div>
+                    <div class="detail-row" style="font-size: 18px; padding-top: 15px;">
+                        <span class="label"><strong>Total Amount:</strong></span>
+                        <span class="value" style="color: #2d6a6a;">₹{total:,.0f}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Security Deposit:</span>
+                        <span class="value">₹{booking.get('security_deposit', 20000):,.0f} (At check-in)</span>
+                    </div>
+                </div>
+                
+                <div class="bank-details">
+                    <h3 style="margin-top: 0; color: #2d6a6a;">Bank Details for Payment</h3>
+                    <p style="margin: 5px 0;"><strong>Bank:</strong> Standard Chartered Bank</p>
+                    <p style="margin: 5px 0;"><strong>Account Name:</strong> TRAVAHOLIC</p>
+                    <p style="margin: 5px 0;"><strong>Account No:</strong> 52105900326</p>
+                    <p style="margin: 5px 0;"><strong>IFSC:</strong> SCBL0036033</p>
+                    <p style="margin: 5px 0;"><strong>Branch:</strong> GK-1, Delhi</p>
+                </div>
+                
+                <div class="highlight">
+                    <strong>Next Steps:</strong>
+                    <ol style="margin: 10px 0 0 0; padding-left: 20px;">
+                        <li>Make payment via UPI or bank transfer</li>
+                        <li>Share payment screenshot on WhatsApp</li>
+                        <li>Receive confirmation within 2 hours</li>
+                    </ol>
+                </div>
+                
+                <p style="text-align: center;">
+                    <a href="https://wa.me/919958871283?text=Hi%20Travaholic%2C%20I%20have%20made%20payment%20for%20booking%20at%20{villa['name'].replace(' ', '%20')}" class="cta">Share Payment on WhatsApp</a>
+                </p>
+            </div>
+            
+            <div class="footer">
+                <p><strong>Travaholic Stays</strong></p>
+                <p>+91 99588 71283 | www.travaholicstays.com</p>
+                <p>@travaholicstays on Instagram</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
                         <span class="label">Check-in</span>
                         <span class="value">{booking['check_in']} (2:00 PM)</span>
                     </div>
