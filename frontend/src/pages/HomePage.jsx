@@ -505,7 +505,13 @@ const HomePage = () => {
       {/* Google Reviews Section */}
       <section className="section-spacing bg-background" data-testid="google-reviews-section">
         <div className="container-luxury">
-          <div className="text-center mb-16">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
             <p className="caption-text mb-4">Google Reviews</p>
             <h2 className="font-heading text-4xl md:text-5xl">
               What Our Guests Say
@@ -518,7 +524,7 @@ const HomePage = () => {
               </div>
               <span className="text-muted-foreground">5.0 on Google</span>
             </div>
-          </div>
+          </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
@@ -558,7 +564,7 @@ const HomePage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="bg-card p-8 border border-border"
+                className="bg-card p-8 border border-border hover:border-accent/30 transition-colors"
               >
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 bg-accent/20 rounded-full flex items-center justify-center">
@@ -580,7 +586,13 @@ const HomePage = () => {
               </motion.div>
             ))}
           </div>
-          <div className="text-center mt-10">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center mt-10"
+          >
             <a 
               href="https://www.google.com/search?q=travaholic+stays+reviews" 
               target="_blank" 
@@ -589,7 +601,7 @@ const HomePage = () => {
             >
               View All Reviews on Google
             </a>
-          </div>
+          </motion.div>
         </div>
       </section>
 
