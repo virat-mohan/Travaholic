@@ -780,9 +780,29 @@ const AdminBookings = () => {
     }
   };
 
-  const markPaymentReceived = async (bookingId, paymentType, amount = null) => {
+  const [paymentModalData, setPaymentModalData] = useState({
+    bookingId: null,
+    paymentType: 'advance',
+    amount: 0,
+    paymentMode: 'upi'
+  });
+
+  const openPaymentModal = (booking, paymentType) => {
+    setPaymentModalData({
+      bookingId: booking.booking_id,
+      paymentType: paymentType,
+      amount: paymentType === 'advance' 
+        ? (booking.advance_amount || Math.round((booking.total_booking_amount || booking.total_amount) * 0.5))
+        : (booking.balance_amount || booking.total_booking_amount || booking.total_amount),
+      paymentMode: 'upi'
+    });
+    setShowPaymentModal(true);
+  };
+
+  const markPaymentReceived = async () => {
     try {
-      let url = `${API}/admin/bookings/${bookingId}/mark-payment?payment_type=${paymentType}&send_confirmation=true`;
+      const { bookingId, paymentType, amount, paymentMode } = paymentModalData;
+      let url = `${API}/admin/bookings/${bookingId}/mark-payment?payment_type=${paymentType}&send_confirmation=${paymentType === 'full'}&payment_mode=${paymentMode}`;
       if (amount) url += `&amount=${amount}`;
       
       const response = await axios.post(url, {}, { headers: getAuthHeaders() });
