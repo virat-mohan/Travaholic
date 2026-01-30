@@ -46,7 +46,11 @@ const LoginPage = () => {
           className="w-full max-w-md"
         >
           <Link to="/" className="block mb-12">
-            <h1 className="font-heading text-3xl">Travaholic Stays</h1>
+            <img 
+              src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/wpycq8hc_1jpg-01.jpg" 
+              alt="Travaholic Stays"
+              className="h-12 w-auto"
+            />
           </Link>
 
           <h2 className="font-heading text-4xl mb-4">Welcome Back</h2>
