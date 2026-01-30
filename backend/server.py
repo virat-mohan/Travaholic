@@ -962,6 +962,16 @@ async def calculate_price(data: Dict[str, Any]):
     # Get pricing overrides
     overrides = await db.pricing_overrides.find({"villa_id": data["villa_id"]}, {"_id": 0}).to_list(1000)
     
+    # Get event pricing (both villa-specific and global)
+    event_pricing = await db.event_pricing.find({
+        "$or": [
+            {"villa_id": data["villa_id"]},
+            {"villa_id": None},
+            {"villa_id": {"$exists": False}}
+        ],
+        "is_active": True
+    }, {"_id": 0}).to_list(100)
+    
     # Get addon details
     addons = []
     for addon_req in data.get("addons", []):
