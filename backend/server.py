@@ -1694,6 +1694,52 @@ async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
 
+@api_router.get("/sitemap.xml", response_class=Response)
+async def generate_sitemap():
+    """Generate XML sitemap for SEO"""
+    base_url = "https://travaholicstays.com"
+    
+    # Get all active villas
+    villas = await db.villas.find({"is_active": True}, {"slug": 1, "updated_at": 1, "_id": 0}).to_list(1000)
+    
+    # Static pages
+    static_pages = [
+        {"loc": "/", "priority": "1.0", "changefreq": "daily"},
+        {"loc": "/villas", "priority": "0.9", "changefreq": "daily"},
+        {"loc": "/about", "priority": "0.7", "changefreq": "monthly"},
+        {"loc": "/contact", "priority": "0.7", "changefreq": "monthly"},
+        {"loc": "/experiences", "priority": "0.8", "changefreq": "weekly"},
+        {"loc": "/blog", "priority": "0.6", "changefreq": "weekly"},
+        {"loc": "/list-your-villa", "priority": "0.7", "changefreq": "monthly"},
+    ]
+    
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    
+    xml_content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_content += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    
+    # Add static pages
+    for page in static_pages:
+        xml_content += f'''  <url>
+    <loc>{base_url}{page["loc"]}</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>{page["changefreq"]}</changefreq>
+    <priority>{page["priority"]}</priority>
+  </url>\n'''
+    
+    # Add villa pages
+    for villa in villas:
+        xml_content += f'''  <url>
+    <loc>{base_url}/villas/{villa["slug"]}</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>\n'''
+    
+    xml_content += '</urlset>'
+    
+    return Response(content=xml_content, media_type="application/xml")
+
 # Include router and add middleware
 app.include_router(api_router)
 
