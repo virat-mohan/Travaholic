@@ -798,8 +798,8 @@ async def create_pricing_override(villa_id: str, data: Dict[str, Any], user: Use
 
 # ==================== BOOKING ROUTES ====================
 
-def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: List[Dict], overrides: List[Dict]) -> Dict:
-    """Calculate total booking price with dynamic pricing"""
+def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: List[Dict], overrides: List[Dict], event_pricing: List[Dict] = None) -> Dict:
+    """Calculate total booking price with dynamic pricing, events, and long-stay discounts"""
     from datetime import datetime
     
     start = datetime.strptime(check_in, "%Y-%m-%d")
@@ -808,6 +808,11 @@ def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: 
     
     base_price = villa.get("base_price", 0)
     weekend_price = villa.get("weekend_price") or base_price
+    weekend_multiplier = villa.get("weekend_multiplier", 1.2)
+    
+    # If no specific weekend price, calculate from multiplier
+    if not villa.get("weekend_price"):
+        weekend_price = base_price * weekend_multiplier
     
     # Create override lookup
     override_map = {}
@@ -819,18 +824,74 @@ def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: 
             override_map[current.strftime("%Y-%m-%d")] = override["price"]
             current += timedelta(days=1)
     
+    # Create event pricing lookup
+    event_map = {}
+    event_min_nights = num_nights  # Track minimum nights from events
+    if event_pricing:
+        for event in event_pricing:
+            if not event.get("is_active", True):
+                continue
+            # Check if event applies to this villa
+            if event.get("villa_id") and event["villa_id"] != villa.get("villa_id"):
+                continue
+            e_start = datetime.strptime(event["start_date"], "%Y-%m-%d")
+            e_end = datetime.strptime(event["end_date"], "%Y-%m-%d")
+            current = e_start
+            while current <= e_end:
+                event_map[current.strftime("%Y-%m-%d")] = event["price_multiplier"]
+                current += timedelta(days=1)
+            # Check if booking overlaps with event
+            if start <= e_end and end >= e_start:
+                event_min_nights = max(event_min_nights, event.get("min_nights", 1))
+    
     # Calculate per-night prices
     total_base = 0
+    price_breakdown = []
     current = start
     while current < end:
         date_str = current.strftime("%Y-%m-%d")
+        day_price = base_price
+        price_type = "weekday"
+        
+        # Check for manual override first (highest priority)
         if date_str in override_map:
-            total_base += override_map[date_str]
-        elif current.weekday() >= 5:  # Weekend
-            total_base += weekend_price
-        else:
-            total_base += base_price
+            day_price = override_map[date_str]
+            price_type = "override"
+        # Then check for event pricing
+        elif date_str in event_map:
+            multiplier = event_map[date_str]
+            if current.weekday() >= 5:
+                day_price = weekend_price * multiplier
+                price_type = "event_weekend"
+            else:
+                day_price = base_price * multiplier
+                price_type = "event"
+        # Weekend pricing
+        elif current.weekday() >= 5:
+            day_price = weekend_price
+            price_type = "weekend"
+        
+        total_base += day_price
+        price_breakdown.append({
+            "date": date_str,
+            "price": day_price,
+            "type": price_type
+        })
         current += timedelta(days=1)
+    
+    # Apply long-stay discounts
+    long_stay_discount_percent = 0
+    if num_nights >= 30:
+        long_stay_discount_percent = villa.get("long_stay_discount_30", 0)
+    elif num_nights >= 14:
+        long_stay_discount_percent = villa.get("long_stay_discount_14", 0)
+    elif num_nights >= 7:
+        long_stay_discount_percent = villa.get("long_stay_discount_7", 0)
+    
+    long_stay_discount_amount = 0
+    if long_stay_discount_percent > 0:
+        long_stay_discount_amount = (total_base * long_stay_discount_percent) / 100
+        total_base -= long_stay_discount_amount
     
     # Calculate addons
     addons_total = 0
@@ -854,7 +915,10 @@ def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: 
             "total": total
         })
     
-    subtotal = total_base + addons_total
+    # Add cleaning fee
+    cleaning_fee = villa.get("cleaning_fee", 0)
+    
+    subtotal = total_base + addons_total + cleaning_fee
     
     # Calculate GST (18%)
     gst_percent = 18.0
@@ -871,6 +935,9 @@ def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: 
     return {
         "num_nights": num_nights,
         "base_amount": total_base,
+        "long_stay_discount_percent": long_stay_discount_percent,
+        "long_stay_discount_amount": long_stay_discount_amount,
+        "cleaning_fee": cleaning_fee,
         "addons": addon_details,
         "addons_total": addons_total,
         "subtotal": subtotal,
@@ -881,7 +948,8 @@ def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: 
         "total_amount": total_amount,
         "commission_percent": commission_percent,
         "commission_amount": commission_amount,
-        "owner_payout": owner_payout
+        "owner_payout": owner_payout,
+        "price_breakdown": price_breakdown[:7] if len(price_breakdown) > 7 else price_breakdown  # First 7 days for display
     }
 
 @api_router.post("/bookings/calculate-price")
