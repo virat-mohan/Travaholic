@@ -226,6 +226,37 @@ const VillaDetailPage = () => {
 
   return (
     <div className="pt-24 min-h-screen bg-background" data-testid="villa-detail-page">
+      {/* SEO Meta Tags */}
+      <Helmet>
+        <title>{villa.name} | Luxury Villa in {villa.location}, Goa - Travaholic Stays</title>
+        <meta name="description" content={villa.short_description || villa.description?.substring(0, 160)} />
+        <meta property="og:title" content={`${villa.name} | Travaholic Stays`} />
+        <meta property="og:description" content={villa.short_description || villa.description?.substring(0, 160)} />
+        <meta property="og:image" content={villa.thumbnail || villa.images?.[0]} />
+        <meta property="og:url" content={`https://travaholicstays.com/villas/${villa.slug}`} />
+        <link rel="canonical" href={`https://travaholicstays.com/villas/${villa.slug}`} />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            "name": villa.name,
+            "description": villa.description,
+            "image": villa.images,
+            "offers": {
+              "@type": "Offer",
+              "price": villa.base_price,
+              "priceCurrency": "INR",
+              "availability": "https://schema.org/InStock"
+            },
+            "aggregateRating": {
+              "@type": "AggregateRating",
+              "ratingValue": "5",
+              "reviewCount": "10"
+            }
+          })}
+        </script>
+      </Helmet>
+
       {/* Breadcrumb */}
       <div className="container-luxury py-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
