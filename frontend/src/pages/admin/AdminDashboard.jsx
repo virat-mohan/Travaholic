@@ -45,9 +45,9 @@ const AdminDashboard = () => {
           <div className="p-6 border-b border-background/10">
             <Link to="/">
               <img 
-                src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/wpycq8hc_1jpg-01.jpg" 
+                src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/chkp86q1_Travaholic_color_logo-removebg-preview.png" 
                 alt="Travaholic Stays"
-                className="h-10 w-auto brightness-0 invert"
+                className="h-14 w-auto"
               />
             </Link>
             <p className="text-xs text-background/60 mt-2">Admin Portal</p>
