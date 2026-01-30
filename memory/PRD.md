@@ -13,147 +13,154 @@
 - Admin Panel for managing villas, pricing, bookings, leads, owners
 - Villa Owner Portal for calendar management and earnings view
 - Variable per-villa commission system (default 30%)
-- Lead capture forms
+- Lead capture forms with WhatsApp/Email notifications
 - SEO-friendly URLs, meta tags, schema markup, sitemap
+- 18% GST automatic calculation on all bookings
 
 ---
 
-## What's Been Implemented (Jan 30, 2026)
+## What's Been Implemented
 
-### Frontend Pages
-- [x] Homepage with hero, featured villas, destinations, Google Reviews, Concierge USP
+### Phase 1: Core Platform (Completed)
+- [x] Homepage with hero slideshow (6 luxury images with Ken Burns effect)
+- [x] "The Travaholic Experience" lifestyle gallery section
 - [x] Villas listing page with filters
-- [x] Villa detail page with gallery, calendar, booking form, long-stay discount banner, house rules
-- [x] About page
-- [x] Contact page with form
-- [x] Blog/Travel Guide page
-- [x] List Your Villa page (2-step form)
-- [x] Login page with Google OAuth + role selection (Admin/Owner)
-- [x] **Admin Dashboard** - Full functionality:
-  - Dashboard overview with stats
-  - Villas management (CRUD, status toggle)
-  - Bookings management (confirm/cancel/complete)
-  - Leads management (status updates)
-  - Owners list
-  - Financials summary with CSV export
-  - Homeowner listing applications
-  - Razorpay setup guide
-- [x] **Villa Owner Portal** - Full functionality:
-  - Dashboard with stats and upcoming bookings
-  - My Villas view with details
-  - Calendar with date range blocking/unblocking
-  - Earnings history with breakdown
+- [x] Villa detail page with gallery, calendar, booking form
+- [x] About, Contact, Blog, List Your Villa pages
+- [x] Google Auth integration for Admin/Owner roles
+- [x] Admin Dashboard with full CRUD operations
+- [x] Villa Owner Portal with calendar and earnings
 
-### Features Implemented (Session 2 - Jan 30, 2026)
-- [x] Transparent logo in Navbar and Footer
-- [x] Instagram link in Navbar and Footer
-- [x] Google Reviews section (6 real 5-star reviews) on Homepage
-- [x] Testimonials section removed
-- [x] Personal Concierge USP under About Us
-- [x] Long-stay discount banner on booking page (40% off 28+ days, 20% off 7+ nights)
-- [x] Chef service add-on with BHK-based pricing
-- [x] Services on request (Spa, BBQ, Decoration)
-- [x] House Rules & Policies section with:
-  - Cancellation policy (100%/50%/No refund tiers)
-  - No Drugs / No Smoking rules
-  - Security deposit requirement
-  - Check-in/Check-out times
-  - ID & Indemnity requirements
-- [x] Image captions below images (extracted from filename)
-- [x] Full Admin Panel functionality
-- [x] Full Villa Owner Portal functionality
-- [x] SEO improvements:
-  - Meta tags (title, description, Open Graph, Twitter)
-  - Organization schema markup
-  - LodgingBusiness schema markup
-  - Product schema on villa pages
-  - Auto-generated XML sitemap (`/api/sitemap.xml`)
-  - Canonical URLs
+### Phase 2: Advanced Features (Jan 30, 2026)
+- [x] **GST Calculation**: Automatic 18% GST on all bookings with breakdown display
+- [x] **Private Offers System**: Time-limited negotiated pricing with secure payment links
+- [x] **Dynamic Pricing Engine**:
+  - Weekend price multipliers
+  - Event/holiday pricing rules (NYE, Diwali, etc.)
+  - Long-stay discounts (7/14/30+ nights)
+  - Cleaning fee support
+- [x] **Razorpay Integration**: Full payment flow structure with webhook handling
+- [x] **Owner Payouts Management**: Generate, track, and mark payouts as paid
+- [x] **Razorpay Setup Guide**: Step-by-step instructions in admin panel
+- [x] **Event Pricing Admin**: Manage special pricing periods with quick presets
+- [x] **Private Offer Page**: Guest-facing payment acceptance page
 
-### Backend API
-- [x] Villas CRUD endpoints
-- [x] Bookings management
-- [x] Leads management
-- [x] User authentication (Google OAuth)
-- [x] Owner dashboard endpoint
-- [x] Financials endpoints
-- [x] Block/unblock dates
-- [x] Pricing calculation
-- [x] Sitemap generation
-- [x] Make admin/owner endpoints (for setup)
-
-### Database
-- 20 villas seeded with varying commission rates
-- La Morena and La Selva villas have detailed content
-- Collections: users, villas, bookings, leads, blocked_dates, addons, pricing_overrides
+### UI/UX Enhancements
+- [x] Hero slideshow with smooth transitions
+- [x] "Travaholic Experience" lifestyle gallery
+- [x] Lucide icons (replaced emoji icons)
+- [x] Google Reviews section with 6 real reviews
+- [x] Long-stay discount banners
+- [x] House Rules & Policies section
 
 ---
 
-## Pending / Future Tasks
+## Data Models
 
-### P1 - High Priority
-- [ ] **Razorpay Integration** - Wire up payment flow (requires user API keys for live mode)
-- [ ] **Resend Email Integration** - Booking confirmations, owner notifications (requires API key)
+### Villa (Enhanced)
+```
+- is_off_market: Boolean (private/invite-only)
+- weekend_multiplier: Float (default 1.2)
+- long_stay_discount_7/14/30: Float (percentage)
+- cleaning_fee: Float
+- instant_book: Boolean
+- commission_percent: Float (default 30%)
+```
 
-### P2 - Medium Priority  
-- [ ] Add unique content/images for remaining 18 villas
-- [ ] Blog content management
-- [ ] Experiences page content
+### PrivateOffer
+```
+- offer_id, villa_id, guest_name/email/phone
+- check_in, check_out, num_guests, num_nights
+- base_amount, discount_percent/amount, subtotal
+- gst_amount, security_deposit, total_amount
+- commission_percent/amount, owner_payout
+- expires_at, payment_link, status
+```
 
-### P3 - Backlog
-- [ ] Multi-image upload in admin
-- [ ] Booking modification by guests
-- [ ] Review/rating system
-- [ ] Promo codes and discounts
-- [ ] Analytics dashboard
-- [ ] Mobile app (React Native)
+### EventPricing
+```
+- event_id, name, villa_id (optional)
+- start_date, end_date
+- price_multiplier, min_nights
+- is_active
+```
+
+### OwnerPayout
+```
+- payout_id, owner_id/name/email
+- villa_id/name, booking_id
+- gross_amount, commission_percent/amount
+- net_payable, status, paid_date
+- payment_reference, payment_mode
+```
 
 ---
 
-## Key Technical Details
+## Key API Endpoints
+
+### Private Offers
+- `POST /api/admin/private-offers` - Create negotiated offer
+- `GET /api/admin/private-offers` - List all offers
+- `GET /api/offer/{offer_id}` - Public offer details
+- `POST /api/offer/{offer_id}/accept` - Accept and create booking
+
+### Razorpay
+- `POST /api/payments/create-order` - Create payment order
+- `POST /api/payments/verify` - Verify payment signature
+- `POST /api/webhooks/razorpay` - Handle payment webhooks
+- `GET/POST /api/admin/payment-settings` - Manage gateway settings
+
+### Payouts
+- `GET /api/admin/payouts` - List all payouts
+- `POST /api/admin/payouts/generate` - Generate from bookings
+- `PUT /api/admin/payouts/{payout_id}` - Update status
+- `GET /api/admin/payouts/export` - Export CSV
+
+### Event Pricing
+- `GET /api/admin/event-pricing` - List pricing rules
+- `POST /api/admin/event-pricing` - Create rule
+- `DELETE /api/admin/event-pricing/{event_id}` - Delete rule
+
+---
+
+## Pending / Upcoming Tasks
+
+### P0 - Critical
+- [ ] **Razorpay Keys**: Waiting for user to provide API keys
+- [ ] **Resend Email Integration**: Automated booking confirmations
+
+### P1 - Important
+- [ ] **WhatsApp Automation**: Discuss paid service (Twilio) vs manual links
+- [ ] **SEO Schema Markup**: LodgingBusiness + Product schema
+
+### P2 - Enhancement
+- [ ] Concierge marketplace & add-ons catalog
+- [ ] Lead hub with Gmail/Instagram integration
+- [ ] Editorial destination content pages
+- [ ] VIP/NDA verification flows
+- [ ] Full analytics dashboard
+
+### Backlog
+- [ ] Add content for remaining 18+ villas
+- [ ] Refactor AdminDashboard.jsx (split components)
+- [ ] Refactor server.py (modularize routes)
+- [ ] Staff scheduling system
+
+---
+
+## Technical Notes
 
 ### Environment Variables
-- Frontend: `REACT_APP_BACKEND_URL`
-- Backend: `MONGO_URL`, `DB_NAME`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RESEND_API_KEY`
+- `MONGO_URL` - MongoDB connection string
+- `DB_NAME` - Database name
+- `RAZORPAY_KEY_ID` - Razorpay API Key (optional, can be set in admin)
+- `RAZORPAY_KEY_SECRET` - Razorpay Secret
+- `RAZORPAY_WEBHOOK_SECRET` - Webhook verification
 
-### API Endpoints
-- `GET /api/villas` - List all villas
-- `GET /api/villas/slug/{slug}` - Get villa by slug
-- `POST /api/bookings` - Create booking
-- `POST /api/leads/callback` - Submit callback request
-- `GET /api/owner/dashboard` - Owner dashboard data
-- `GET /api/sitemap.xml` - XML sitemap
-- `POST /api/make-admin` - Set user as admin
-- `POST /api/make-owner` - Set user as owner (demo)
+### Dependencies Added
+- Backend: `razorpay==2.0.0`
+- Frontend: `react-helmet-async`
 
-### Authentication
-- Emergent-managed Google OAuth
-- Roles: admin, owner, guest
-- Protected routes for admin/owner dashboards
-
----
-
-## How to Test
-
-### Admin Panel
-1. Go to `/login`
-2. Sign in with Google
-3. Click "Become Admin (First-time Setup)"
-4. Access admin at `/admin`
-
-### Owner Portal
-1. Go to `/login`
-2. Sign in with Google
-3. Click "Become Villa Owner (Demo)"
-4. Access portal at `/owner`
-
----
-
-## Project Health
-- ✅ Frontend: Fully functional
-- ✅ Backend: Fully functional
-- ✅ Admin Panel: Complete
-- ✅ Owner Portal: Complete
-- ⚠️ Razorpay: Placeholder (needs live keys)
-- ⚠️ Resend: Placeholder (needs API key)
-- ⚠️ 18 villas: Placeholder content
+### Credentials
+- Login via Google Auth
+- "Become Admin/Owner" buttons on first login for setup
