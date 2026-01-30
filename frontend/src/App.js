@@ -222,6 +222,16 @@ function AppRouter() {
       />
       <Route path="/login" element={<LoginPage />} />
 
+      {/* Private Offer Payment Page */}
+      <Route
+        path="/offer/:offerId"
+        element={
+          <PublicLayout>
+            <PrivateOfferPage />
+          </PublicLayout>
+        }
+      />
+
       {/* Admin Routes */}
       <Route
         path="/admin/*"
