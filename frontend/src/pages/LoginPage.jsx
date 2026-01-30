@@ -1,10 +1,13 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import { useAuth } from "../App";
+import { useAuth, API } from "../App";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
+import axios from "axios";
 
 const LoginPage = () => {
   const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
 
   // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
   const handleLogin = () => {
@@ -12,15 +15,58 @@ const LoginPage = () => {
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
   };
 
-  // If already authenticated, show redirect message
+  const handleMakeAdmin = async () => {
+    try {
+      const token = localStorage.getItem("session_token");
+      await axios.post(`${API}/make-admin`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("You are now an admin! Redirecting...");
+      setTimeout(() => {
+        window.location.href = "/admin";
+      }, 1000);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to set admin role");
+    }
+  };
+
+  // If already authenticated, show options
   if (isAuthenticated) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="mb-4">Already logged in as {user?.name}</p>
-          <Link to="/dashboard">
-            <Button>Go to Dashboard</Button>
-          </Link>
+      <div className="min-h-screen bg-background flex items-center justify-center p-8">
+        <div className="text-center max-w-md">
+          <img 
+            src="/Travaholic_color_logo-removebg-preview.png" 
+            alt="Travaholic Stays"
+            className="h-16 w-auto mx-auto mb-8"
+          />
+          <h2 className="font-heading text-2xl mb-2">Welcome, {user?.name}!</h2>
+          <p className="text-muted-foreground mb-6">Your role: <span className="font-medium">{user?.role || 'guest'}</span></p>
+          
+          <div className="space-y-3">
+            {user?.role === 'admin' ? (
+              <Link to="/admin" className="block">
+                <Button className="w-full btn-luxury">Go to Admin Dashboard</Button>
+              </Link>
+            ) : user?.role === 'owner' ? (
+              <Link to="/owner" className="block">
+                <Button className="w-full btn-luxury">Go to Owner Portal</Button>
+              </Link>
+            ) : (
+              <>
+                <Button onClick={handleMakeAdmin} className="w-full btn-luxury">
+                  Become Admin (First-time Setup)
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Click above to set yourself as admin for the first time
+                </p>
+              </>
+            )}
+            
+            <Link to="/" className="block">
+              <Button variant="outline" className="w-full">Back to Home</Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -47,7 +93,7 @@ const LoginPage = () => {
         >
           <Link to="/" className="block mb-12">
             <img 
-              src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/chkp86q1_Travaholic_color_logo-removebg-preview.png" 
+              src="/Travaholic_color_logo-removebg-preview.png" 
               alt="Travaholic Stays"
               className="h-16 w-auto"
             />
