@@ -733,16 +733,31 @@ const VillaForm = ({ villa, onSuccess }) => {
   );
 };
 
-// Admin Bookings with status management
+// Admin Bookings with status management and manual booking
 const AdminBookings = () => {
   const [bookings, setBookings] = useState([]);
+  const [villas, setVillas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [showManualBooking, setShowManualBooking] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
   useEffect(() => {
     fetchBookings();
+    fetchVillas();
   }, []);
+
+  const fetchVillas = async () => {
+    try {
+      const response = await axios.get(`${API}/villas`);
+      setVillas(response.data.villas || []);
+    } catch (error) {
+      console.error("Error fetching villas:", error);
+    }
+  };
 
   const fetchBookings = async () => {
     try {
