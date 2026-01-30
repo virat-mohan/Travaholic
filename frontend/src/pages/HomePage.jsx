@@ -306,12 +306,17 @@ const HomePage = () => {
       <section className="section-spacing bg-muted/30">
         <div className="container-luxury">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+            >
               <p className="caption-text mb-4">About Us</p>
               <h2 className="font-heading text-4xl md:text-5xl mb-6">
                 Crafting Unforgettable
                 <br />
-                <span className="italic">Experiences</span>
+                <span className="italic font-light">Experiences</span>
               </h2>
               <p className="text-muted-foreground text-lg leading-relaxed mb-6">
                 At Travaholic Stays, we believe that where you stay defines your
@@ -346,14 +351,20 @@ const HomePage = () => {
                   <ArrowRight size={16} className="ml-2" />
                 </Button>
               </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
+            </motion.div>
+            <motion.div 
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              viewport={{ once: true }}
+              className="grid grid-cols-2 gap-4"
+            >
               <div className="space-y-4">
-                <div className="aspect-[3/4] overflow-hidden">
+                <div className="aspect-[3/4] overflow-hidden group">
                   <img
-                    src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800"
-                    alt="Villa Interior"
-                    className="w-full h-full object-cover"
+                    src="https://images.unsplash.com/photo-1759281944533-a9eea164ffe3?w=800&q=80"
+                    alt="Luxury Mountain Retreat"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                 </div>
                 <div className="bg-accent text-accent-foreground p-6">
@@ -370,15 +381,15 @@ const HomePage = () => {
                     Happy Guests
                   </p>
                 </div>
-                <div className="aspect-[3/4] overflow-hidden">
+                <div className="aspect-[3/4] overflow-hidden group">
                   <img
-                    src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800"
-                    alt="Villa Pool"
-                    className="w-full h-full object-cover"
+                    src="https://images.unsplash.com/photo-1758192838598-a1de4da5dcaf?w=800&q=80"
+                    alt="Infinity Pool Paradise"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
