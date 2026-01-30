@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, createContext, useContext } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Link } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import axios from "axios";
 
 // Pages
