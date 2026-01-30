@@ -11,8 +11,12 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link to="/" className="font-heading text-3xl tracking-tight">
-              Travaholic Stays
+            <Link to="/" className="block">
+              <img 
+                src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/wpycq8hc_1jpg-01.jpg" 
+                alt="Travaholic Stays"
+                className="h-14 w-auto brightness-0 invert"
+              />
             </Link>
             <p className="mt-6 text-background/70 leading-relaxed">
               Ultra-luxury villa rentals in Goa & beyond. Experience the finest
