@@ -557,59 +557,90 @@ const VillaDetailPage = () => {
               </div>
 
               {/* Add-ons Selection */}
-              {addons.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="font-medium mb-4">Enhance Your Stay (Optional)</h4>
-                  <div className="space-y-3">
-                    {addons.map((addon) => {
-                      const isSelected = selectedAddons.find((a) => a.addon_id === addon.addon_id);
-                      return (
-                        <div
-                          key={addon.addon_id}
-                          className={`p-4 border ${isSelected ? "border-accent bg-accent/5" : "border-border"} cursor-pointer`}
-                          onClick={() => handleAddonToggle(addon)}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                              <Checkbox checked={!!isSelected} />
-                              <div>
-                                <p className="font-medium">{addon.name}</p>
-                                <p className="text-sm text-muted-foreground">{addon.description}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-medium">{formatPrice(addon.price)}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {addon.is_per_day ? "/day" : ""}
-                              </p>
-                            </div>
+              <div className="mb-6">
+                <h4 className="font-medium mb-4">Enhance Your Stay</h4>
+                
+                {/* Chef Service - Variable pricing based on villa bedrooms */}
+                <div className="space-y-3 mb-4">
+                  <div
+                    className={`p-4 border ${selectedAddons.find(a => a.addon_id === 'chef-service') ? "border-accent bg-accent/5" : "border-border"} cursor-pointer`}
+                    onClick={() => {
+                      const chefAddon = {
+                        addon_id: 'chef-service',
+                        name: 'Chef Cooked Meal',
+                        description: `Enjoy a freshly prepared meal by our professional chef (${villa.bedrooms} BHK rate)`,
+                        price: villa.bedrooms === 2 ? 1770 : villa.bedrooms === 3 ? 2360 : villa.bedrooms >= 4 ? 3540 : 2360,
+                        is_per_day: false
+                      };
+                      handleAddonToggle(chefAddon);
+                    }}
+                    data-testid="chef-service-addon"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <Checkbox checked={!!selectedAddons.find(a => a.addon_id === 'chef-service')} />
+                        <div>
+                          <p className="font-medium">Chef Cooked Meal</p>
+                          <p className="text-sm text-muted-foreground">Enjoy a freshly prepared meal by our professional chef</p>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            <span className="block">2 BHK: ₹1,500 + GST (₹1,770)</span>
+                            <span className="block">3 BHK: ₹2,000 + GST (₹2,360)</span>
+                            <span className="block">4 BHK: ₹3,000 + GST (₹3,540)</span>
                           </div>
-                          {isSelected && (
-                            <div className="flex items-center justify-end gap-4 mt-3 pt-3 border-t border-border">
-                              <span className="text-sm">Quantity:</span>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleAddonQuantity(addon.addon_id, -1); }}
-                                  className="p-1 border border-border rounded"
-                                >
-                                  <Minus size={14} />
-                                </button>
-                                <span className="w-8 text-center">{isSelected.quantity || 1}</span>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleAddonQuantity(addon.addon_id, 1); }}
-                                  className="p-1 border border-border rounded"
-                                >
-                                  <Plus size={14} />
-                                </button>
-                              </div>
-                            </div>
-                          )}
                         </div>
-                      );
-                    })}
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium">
+                          ₹{villa.bedrooms === 2 ? '1,770' : villa.bedrooms === 3 ? '2,360' : villa.bedrooms >= 4 ? '3,540' : '2,360'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">/meal</p>
+                      </div>
+                    </div>
+                    {selectedAddons.find(a => a.addon_id === 'chef-service') && (
+                      <div className="flex items-center justify-end gap-4 mt-3 pt-3 border-t border-border">
+                        <span className="text-sm">No. of meals:</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleAddonQuantity('chef-service', -1); }}
+                            className="p-1 border border-border rounded"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="w-8 text-center">{selectedAddons.find(a => a.addon_id === 'chef-service')?.quantity || 1}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleAddonQuantity('chef-service', 1); }}
+                            className="p-1 border border-border rounded"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
+
+                {/* Available on Request Section */}
+                <div className="mt-6 p-4 bg-muted/50 border border-border">
+                  <p className="font-medium mb-2">Available on Request</p>
+                  <p className="text-sm text-muted-foreground">
+                    The following services can be arranged upon request. Please contact us for pricing and availability:
+                  </p>
+                  <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-accent rounded-full"></span>
+                      Spa Session
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-accent rounded-full"></span>
+                      BBQ Night
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 bg-accent rounded-full"></span>
+                      Decoration Package
+                    </li>
+                  </ul>
+                </div>
+              </div>
 
               {/* Guest Details Form */}
               <div className="space-y-4 mb-6">
