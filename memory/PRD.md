@@ -32,9 +32,9 @@ Build a fully functional, SEO-optimised, ultra-luxury villa booking platform for
 ## What's Been Implemented (Jan 30, 2026)
 
 ### Frontend Pages
-- [x] Homepage with hero, featured villas, destinations, testimonials
+- [x] Homepage with hero, featured villas, destinations, testimonials, Google Reviews
 - [x] Villas listing page with filters
-- [x] Villa detail page with gallery, calendar, booking form
+- [x] Villa detail page with gallery, calendar, booking form, long-stay discount banner
 - [x] About page
 - [x] Contact page with form
 - [x] Blog/Travel Guide page
@@ -42,6 +42,18 @@ Build a fully functional, SEO-optimised, ultra-luxury villa booking platform for
 - [x] Login page with Google OAuth
 - [x] Admin Dashboard (overview, villas, bookings, leads, owners, financials, listings, Razorpay setup)
 - [x] Owner Portal (dashboard, villas, calendar, earnings)
+
+### Latest Updates (Jan 30, 2026 - Session 2)
+- [x] **Transparent Logo** - Updated Navbar and Footer with new transparent logo
+- [x] **Instagram Link** - Added Instagram icon in Navbar and Footer linking to @travaholicstays
+- [x] **Google Reviews Section** - Added 6 real 5-star reviews from Google on Homepage
+- [x] **Long-Stay Discount Banner** - Added promotional banner on booking card (40% off for 28+ days, 20% off for 7+ nights)
+- [x] **Chef Service Add-on** - Variable pricing based on villa BHK:
+  - 2 BHK: ₹1,500 + GST (₹1,770)
+  - 3 BHK: ₹2,000 + GST (₹2,360)  
+  - 4 BHK: ₹3,000 + GST (₹3,540)
+- [x] **Services on Request** - Spa Session, BBQ Night, Decoration Package listed as "Available on Request"
+- [x] **Removed Old Add-ons** - Removed spa, bbq, decoration, daily breakfast from selectable add-ons
 
 ### Backend APIs
 - [x] Villa CRUD (/api/villas)
