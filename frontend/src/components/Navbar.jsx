@@ -49,10 +49,14 @@ const Navbar = () => {
           {/* Logo */}
           <Link
             to="/"
-            className={`font-heading text-2xl md:text-3xl tracking-tight ${textColor}`}
+            className="flex items-center"
             data-testid="logo-link"
           >
-            Travaholic Stays
+            <img 
+              src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/wpycq8hc_1jpg-01.jpg" 
+              alt="Travaholic Stays"
+              className="h-12 md:h-14 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}
