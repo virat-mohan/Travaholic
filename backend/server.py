@@ -1092,6 +1092,7 @@ async def mark_payment_received(
     payment_type: str = Query(..., description="advance or full"),
     amount: float = Query(None),
     send_confirmation: bool = Query(True),
+    payment_mode: str = Query("upi", description="upi, online, card, cash, cheque"),
     user: User = Depends(require_admin)
 ):
     """Mark payment as received and optionally send confirmation"""
@@ -1106,6 +1107,7 @@ async def mark_payment_received(
     if payment_type == "advance":
         update_data["advance_received"] = True
         update_data["advance_received_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        update_data["advance_payment_mode"] = payment_mode
         update_data["payment_status"] = "advance_received"
         if amount:
             update_data["advance_amount"] = amount
@@ -1113,6 +1115,7 @@ async def mark_payment_received(
     elif payment_type == "full":
         update_data["full_payment_received"] = True
         update_data["full_payment_received_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        update_data["full_payment_mode"] = payment_mode
         update_data["payment_status"] = "full_received"
         update_data["booking_status"] = "confirmed"
         update_data["balance_amount"] = 0
