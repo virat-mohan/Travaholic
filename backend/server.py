@@ -144,6 +144,13 @@ class VillaCreate(BaseModel):
     cancellation_policy: str = "Standard"
     meta_title: Optional[str] = None
     meta_description: Optional[str] = None
+    is_off_market: bool = False
+    weekend_multiplier: float = 1.2
+    long_stay_discount_7: float = 0
+    long_stay_discount_14: float = 0
+    long_stay_discount_30: float = 0
+    cleaning_fee: float = 0
+    instant_book: bool = True
 
 class AddOn(BaseModel):
     model_config = ConfigDict(extra="ignore")
