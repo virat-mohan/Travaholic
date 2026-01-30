@@ -2513,6 +2513,604 @@ async def make_current_user_owner(user: User = Depends(require_auth)):
         "villas_assigned": len(villas_to_assign)
     }
 
+# ==================== PRIVATE OFFERS (NEGOTIATED PRICING) ====================
+
+@api_router.post("/admin/private-offers")
+async def create_private_offer(offer_data: PrivateOfferCreate, user: User = Depends(require_admin)):
+    """Create a private offer with custom negotiated pricing"""
+    villa = await db.villas.find_one({"villa_id": offer_data.villa_id}, {"_id": 0})
+    if not villa:
+        raise HTTPException(status_code=404, detail="Villa not found")
+    
+    # Calculate dates
+    check_in = datetime.strptime(offer_data.check_in, "%Y-%m-%d")
+    check_out = datetime.strptime(offer_data.check_out, "%Y-%m-%d")
+    num_nights = (check_out - check_in).days
+    
+    if num_nights < 1:
+        raise HTTPException(status_code=400, detail="Invalid date range")
+    
+    # Calculate pricing with custom rate
+    base_amount = offer_data.custom_per_night * num_nights
+    
+    # Process add-ons
+    addons_total = 0
+    for addon in offer_data.addons:
+        addon_total = addon.get("price", 0) * addon.get("quantity", 1)
+        if addon.get("is_per_day"):
+            addon_total *= num_nights
+        addons_total += addon_total
+    
+    subtotal = base_amount + addons_total
+    
+    # Apply discount
+    discount_amount = 0
+    if offer_data.discount_percent > 0:
+        discount_amount = (subtotal * offer_data.discount_percent) / 100
+        subtotal -= discount_amount
+    
+    # GST calculation
+    gst_percent = 18.0
+    gst_amount = round(subtotal * (gst_percent / 100), 2)
+    
+    security_deposit = offer_data.security_deposit if offer_data.security_deposit is not None else villa.get("security_deposit", 0)
+    total_amount = subtotal + gst_amount + security_deposit
+    
+    # Commission calculations
+    commission_percent = villa.get("commission_percent", 30.0)
+    commission_amount = (subtotal * commission_percent) / 100
+    owner_payout = subtotal - commission_amount
+    
+    # Set expiry
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=offer_data.expiry_hours)
+    
+    # Create offer
+    offer = PrivateOffer(
+        villa_id=offer_data.villa_id,
+        villa_name=villa["name"],
+        guest_name=offer_data.guest_name,
+        guest_email=offer_data.guest_email,
+        guest_phone=offer_data.guest_phone,
+        check_in=offer_data.check_in,
+        check_out=offer_data.check_out,
+        num_guests=offer_data.num_guests,
+        num_nights=num_nights,
+        base_amount=base_amount,
+        addons_total=addons_total,
+        discount_percent=offer_data.discount_percent,
+        discount_amount=discount_amount,
+        subtotal=subtotal,
+        gst_amount=gst_amount,
+        security_deposit=security_deposit,
+        total_amount=total_amount,
+        commission_percent=commission_percent,
+        commission_amount=commission_amount,
+        owner_payout=owner_payout,
+        expires_at=expires_at,
+        notes=offer_data.notes,
+        created_by=user.user_id
+    )
+    
+    doc = offer.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    doc["expires_at"] = doc["expires_at"].isoformat()
+    await db.private_offers.insert_one(doc)
+    
+    # Generate payment link (placeholder - will use Razorpay when configured)
+    base_url = os.environ.get("FRONTEND_URL", "https://travaholicstays.com")
+    payment_link = f"{base_url}/offer/{offer.offer_id}"
+    
+    await db.private_offers.update_one(
+        {"offer_id": offer.offer_id},
+        {"$set": {"payment_link": payment_link}}
+    )
+    
+    return {
+        "offer_id": offer.offer_id,
+        "payment_link": payment_link,
+        "expires_at": expires_at.isoformat(),
+        "total_amount": total_amount,
+        "message": "Private offer created successfully"
+    }
+
+@api_router.get("/admin/private-offers")
+async def list_private_offers(user: User = Depends(require_admin)):
+    """List all private offers"""
+    offers = await db.private_offers.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"offers": offers}
+
+@api_router.get("/offer/{offer_id}")
+async def get_private_offer(offer_id: str):
+    """Get private offer details (public endpoint for payment page)"""
+    offer = await db.private_offers.find_one({"offer_id": offer_id}, {"_id": 0})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    
+    # Check if expired
+    expires_at = datetime.fromisoformat(offer["expires_at"].replace("Z", "+00:00"))
+    if expires_at < datetime.now(timezone.utc):
+        return {"offer": offer, "is_expired": True, "message": "This offer has expired"}
+    
+    if offer["status"] != "pending":
+        return {"offer": offer, "is_expired": False, "message": f"This offer is {offer['status']}"}
+    
+    # Get villa details
+    villa = await db.villas.find_one({"villa_id": offer["villa_id"]}, {"_id": 0, "name": 1, "images": 1, "location": 1})
+    
+    return {"offer": offer, "villa": villa, "is_expired": False}
+
+@api_router.post("/offer/{offer_id}/accept")
+async def accept_private_offer(offer_id: str, payment_data: Dict[str, Any]):
+    """Accept a private offer and create booking"""
+    offer = await db.private_offers.find_one({"offer_id": offer_id}, {"_id": 0})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    
+    # Check expiry
+    expires_at = datetime.fromisoformat(offer["expires_at"].replace("Z", "+00:00"))
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="This offer has expired")
+    
+    if offer["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"This offer is already {offer['status']}")
+    
+    # Create booking from offer
+    booking_id = f"booking_{uuid.uuid4().hex[:12]}"
+    booking = {
+        "booking_id": booking_id,
+        "villa_id": offer["villa_id"],
+        "villa_name": offer["villa_name"],
+        "guest_name": offer["guest_name"],
+        "guest_email": offer["guest_email"],
+        "guest_phone": offer["guest_phone"],
+        "check_in": offer["check_in"],
+        "check_out": offer["check_out"],
+        "num_guests": offer["num_guests"],
+        "num_nights": offer["num_nights"],
+        "base_amount": offer["base_amount"],
+        "addons_total": offer["addons_total"],
+        "subtotal": offer["subtotal"],
+        "gst_amount": offer["gst_amount"],
+        "security_deposit": offer["security_deposit"],
+        "total_amount": offer["total_amount"],
+        "commission_percent": offer["commission_percent"],
+        "commission_amount": offer["commission_amount"],
+        "owner_payout": offer["owner_payout"],
+        "is_negotiated": True,
+        "private_offer_id": offer_id,
+        "payment_status": "pending",
+        "booking_status": "confirmed",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.bookings.insert_one(booking)
+    
+    # Block dates
+    block = {
+        "block_id": f"block_{uuid.uuid4().hex[:12]}",
+        "villa_id": offer["villa_id"],
+        "start_date": offer["check_in"],
+        "end_date": offer["check_out"],
+        "reason": "booking",
+        "booking_id": booking_id,
+        "created_by": "private_offer",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.blocked_dates.insert_one(block)
+    
+    # Update offer status
+    await db.private_offers.update_one(
+        {"offer_id": offer_id},
+        {"$set": {"status": "accepted"}}
+    )
+    
+    return {"booking_id": booking_id, "message": "Booking confirmed successfully"}
+
+# ==================== RAZORPAY PAYMENT INTEGRATION ====================
+
+@api_router.post("/payments/create-order")
+async def create_razorpay_order(data: Dict[str, Any]):
+    """Create a Razorpay order for payment"""
+    # Get payment settings
+    settings = await db.payment_settings.find_one({"setting_id": "payment_settings_main"}, {"_id": 0})
+    
+    if not settings or not settings.get("razorpay_key_id"):
+        # Use environment variables as fallback
+        key_id = os.environ.get("RAZORPAY_KEY_ID")
+        key_secret = os.environ.get("RAZORPAY_KEY_SECRET")
+    else:
+        key_id = settings.get("razorpay_key_id")
+        key_secret = settings.get("razorpay_key_secret")
+    
+    if not key_id or not key_secret:
+        raise HTTPException(status_code=400, detail="Payment gateway not configured. Please contact support.")
+    
+    try:
+        rp_client = razorpay.Client(auth=(key_id, key_secret))
+        
+        amount_paise = int(data["amount"] * 100)  # Convert to paise
+        
+        order_data = {
+            "amount": amount_paise,
+            "currency": "INR",
+            "receipt": data.get("booking_id") or f"rcpt_{uuid.uuid4().hex[:10]}",
+            "notes": {
+                "booking_id": data.get("booking_id", ""),
+                "offer_id": data.get("offer_id", ""),
+                "guest_email": data.get("guest_email", ""),
+                "payment_type": data.get("payment_type", "full")  # full, advance, balance
+            }
+        }
+        
+        order = rp_client.order.create(data=order_data)
+        
+        return {
+            "order_id": order["id"],
+            "amount": data["amount"],
+            "currency": "INR",
+            "key_id": key_id,  # Safe to expose - needed for frontend
+            "notes": order_data["notes"]
+        }
+    except Exception as e:
+        logger.error(f"Razorpay order creation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Payment order creation failed: {str(e)}")
+
+@api_router.post("/payments/verify")
+async def verify_razorpay_payment(data: Dict[str, Any]):
+    """Verify Razorpay payment signature"""
+    settings = await db.payment_settings.find_one({"setting_id": "payment_settings_main"}, {"_id": 0})
+    
+    key_secret = settings.get("razorpay_key_secret") if settings else os.environ.get("RAZORPAY_KEY_SECRET")
+    
+    if not key_secret:
+        raise HTTPException(status_code=400, detail="Payment verification not configured")
+    
+    # Verify signature
+    try:
+        message = data["razorpay_order_id"] + "|" + data["razorpay_payment_id"]
+        generated_signature = hmac.new(
+            key_secret.encode(),
+            message.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if generated_signature != data["razorpay_signature"]:
+            raise HTTPException(status_code=400, detail="Invalid payment signature")
+        
+        # Update booking payment status
+        booking_id = data.get("booking_id")
+        offer_id = data.get("offer_id")
+        payment_type = data.get("payment_type", "full")
+        
+        if booking_id:
+            update_data = {
+                "razorpay_order_id": data["razorpay_order_id"],
+                "razorpay_payment_id": data["razorpay_payment_id"],
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            if payment_type == "full":
+                update_data["payment_status"] = "paid"
+            elif payment_type == "advance":
+                update_data["payment_status"] = "partial"
+                update_data["advance_received"] = True
+                update_data["advance_received_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            
+            await db.bookings.update_one(
+                {"booking_id": booking_id},
+                {"$set": update_data}
+            )
+        
+        return {"success": True, "message": "Payment verified successfully"}
+    except Exception as e:
+        logger.error(f"Payment verification failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Payment verification failed: {str(e)}")
+
+@api_router.post("/webhooks/razorpay")
+async def razorpay_webhook(request: Request):
+    """Handle Razorpay webhooks"""
+    body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature", "")
+    
+    settings = await db.payment_settings.find_one({"setting_id": "payment_settings_main"}, {"_id": 0})
+    webhook_secret = settings.get("razorpay_webhook_secret") if settings else os.environ.get("RAZORPAY_WEBHOOK_SECRET")
+    
+    if webhook_secret:
+        # Verify webhook signature
+        expected_signature = hmac.new(
+            webhook_secret.encode(),
+            body,
+            hashlib.sha256
+        ).hexdigest()
+        
+        if expected_signature != signature:
+            logger.warning("Invalid Razorpay webhook signature")
+            raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    try:
+        import json
+        payload = json.loads(body)
+        event = payload.get("event")
+        
+        if event == "payment.captured":
+            payment = payload.get("payload", {}).get("payment", {}).get("entity", {})
+            order_id = payment.get("order_id")
+            payment_id = payment.get("id")
+            notes = payment.get("notes", {})
+            
+            booking_id = notes.get("booking_id")
+            if booking_id:
+                await db.bookings.update_one(
+                    {"booking_id": booking_id},
+                    {"$set": {
+                        "payment_status": "paid",
+                        "razorpay_order_id": order_id,
+                        "razorpay_payment_id": payment_id,
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                logger.info(f"Payment captured for booking {booking_id}")
+        
+        elif event == "payment.failed":
+            payment = payload.get("payload", {}).get("payment", {}).get("entity", {})
+            notes = payment.get("notes", {})
+            booking_id = notes.get("booking_id")
+            if booking_id:
+                await db.bookings.update_one(
+                    {"booking_id": booking_id},
+                    {"$set": {
+                        "payment_status": "failed",
+                        "updated_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                logger.warning(f"Payment failed for booking {booking_id}")
+        
+        elif event == "refund.processed":
+            refund = payload.get("payload", {}).get("refund", {}).get("entity", {})
+            payment_id = refund.get("payment_id")
+            # Find booking by payment_id and update
+            await db.bookings.update_one(
+                {"razorpay_payment_id": payment_id},
+                {"$set": {
+                    "payment_status": "refunded",
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            logger.info(f"Refund processed for payment {payment_id}")
+        
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"Webhook processing error: {e}")
+        return {"status": "error", "message": str(e)}
+
+# ==================== PAYMENT SETTINGS (ADMIN) ====================
+
+@api_router.get("/admin/payment-settings")
+async def get_payment_settings(user: User = Depends(require_admin)):
+    """Get payment gateway settings"""
+    settings = await db.payment_settings.find_one({"setting_id": "payment_settings_main"}, {"_id": 0})
+    
+    if not settings:
+        # Return defaults with env vars (masked)
+        return {
+            "razorpay_key_id": os.environ.get("RAZORPAY_KEY_ID", "")[:10] + "..." if os.environ.get("RAZORPAY_KEY_ID") else "",
+            "razorpay_key_secret_set": bool(os.environ.get("RAZORPAY_KEY_SECRET")),
+            "razorpay_webhook_secret_set": bool(os.environ.get("RAZORPAY_WEBHOOK_SECRET")),
+            "is_live_mode": False,
+            "partial_payment_enabled": True,
+            "min_advance_percent": 30.0,
+            "source": "environment"
+        }
+    
+    # Mask secrets
+    return {
+        "razorpay_key_id": settings.get("razorpay_key_id", "")[:10] + "..." if settings.get("razorpay_key_id") else "",
+        "razorpay_key_secret_set": bool(settings.get("razorpay_key_secret")),
+        "razorpay_webhook_secret_set": bool(settings.get("razorpay_webhook_secret")),
+        "is_live_mode": settings.get("is_live_mode", False),
+        "partial_payment_enabled": settings.get("partial_payment_enabled", True),
+        "min_advance_percent": settings.get("min_advance_percent", 30.0),
+        "source": "database"
+    }
+
+@api_router.post("/admin/payment-settings")
+async def update_payment_settings(data: Dict[str, Any], user: User = Depends(require_admin)):
+    """Update payment gateway settings"""
+    update_data = {
+        "setting_id": "payment_settings_main",
+        "updated_by": user.user_id,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if "razorpay_key_id" in data:
+        update_data["razorpay_key_id"] = data["razorpay_key_id"]
+    if "razorpay_key_secret" in data:
+        update_data["razorpay_key_secret"] = data["razorpay_key_secret"]
+    if "razorpay_webhook_secret" in data:
+        update_data["razorpay_webhook_secret"] = data["razorpay_webhook_secret"]
+    if "is_live_mode" in data:
+        update_data["is_live_mode"] = data["is_live_mode"]
+    if "partial_payment_enabled" in data:
+        update_data["partial_payment_enabled"] = data["partial_payment_enabled"]
+    if "min_advance_percent" in data:
+        update_data["min_advance_percent"] = data["min_advance_percent"]
+    
+    await db.payment_settings.update_one(
+        {"setting_id": "payment_settings_main"},
+        {"$set": update_data},
+        upsert=True
+    )
+    
+    return {"message": "Payment settings updated successfully"}
+
+# ==================== OWNER PAYOUTS ====================
+
+@api_router.get("/admin/payouts")
+async def list_payouts(
+    status: Optional[str] = None,
+    owner_id: Optional[str] = None,
+    user: User = Depends(require_admin)
+):
+    """List all owner payouts"""
+    query = {}
+    if status:
+        query["status"] = status
+    if owner_id:
+        query["owner_id"] = owner_id
+    
+    payouts = await db.payouts.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    
+    # Calculate totals
+    total_pending = sum(p["net_payable"] for p in payouts if p["status"] == "pending")
+    total_paid = sum(p["net_payable"] for p in payouts if p["status"] == "paid")
+    
+    return {
+        "payouts": payouts,
+        "summary": {
+            "total_pending": total_pending,
+            "total_paid": total_paid,
+            "count": len(payouts)
+        }
+    }
+
+@api_router.post("/admin/payouts/generate")
+async def generate_payouts_from_bookings(user: User = Depends(require_admin)):
+    """Generate payout records from completed bookings"""
+    # Find confirmed bookings without payout records
+    bookings = await db.bookings.find({
+        "booking_status": {"$in": ["confirmed", "completed"]},
+        "payment_status": "paid"
+    }, {"_id": 0}).to_list(1000)
+    
+    generated = 0
+    for booking in bookings:
+        # Check if payout already exists
+        existing = await db.payouts.find_one({"booking_id": booking["booking_id"]})
+        if existing:
+            continue
+        
+        # Get villa and owner info
+        villa = await db.villas.find_one({"villa_id": booking["villa_id"]}, {"_id": 0})
+        if not villa or not villa.get("owner_id"):
+            continue
+        
+        owner = await db.users.find_one({"user_id": villa["owner_id"]}, {"_id": 0})
+        if not owner:
+            continue
+        
+        payout = {
+            "payout_id": f"payout_{uuid.uuid4().hex[:12]}",
+            "owner_id": villa["owner_id"],
+            "owner_name": owner.get("name", "Unknown"),
+            "owner_email": owner.get("email", ""),
+            "villa_id": booking["villa_id"],
+            "villa_name": booking["villa_name"],
+            "booking_id": booking["booking_id"],
+            "booking_check_in": booking["check_in"],
+            "booking_check_out": booking["check_out"],
+            "gross_amount": booking.get("subtotal", booking.get("base_amount", 0)),
+            "commission_percent": booking.get("commission_percent", 30.0),
+            "commission_amount": booking.get("commission_amount", 0),
+            "net_payable": booking.get("owner_payout", 0),
+            "status": "pending",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.payouts.insert_one(payout)
+        generated += 1
+    
+    return {"message": f"Generated {generated} payout records"}
+
+@api_router.put("/admin/payouts/{payout_id}")
+async def update_payout(payout_id: str, data: Dict[str, Any], user: User = Depends(require_admin)):
+    """Mark payout as paid or update status"""
+    update_data = {
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if "status" in data:
+        update_data["status"] = data["status"]
+        if data["status"] == "paid":
+            update_data["paid_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if "payment_reference" in data:
+        update_data["payment_reference"] = data["payment_reference"]
+    if "payment_mode" in data:
+        update_data["payment_mode"] = data["payment_mode"]
+    if "notes" in data:
+        update_data["notes"] = data["notes"]
+    
+    result = await db.payouts.update_one({"payout_id": payout_id}, {"$set": update_data})
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Payout not found")
+    
+    return {"message": "Payout updated successfully"}
+
+@api_router.get("/admin/payouts/export")
+async def export_payouts(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    owner_id: Optional[str] = None,
+    user: User = Depends(require_admin)
+):
+    """Export payouts as CSV data"""
+    query = {}
+    if owner_id:
+        query["owner_id"] = owner_id
+    if start_date and end_date:
+        query["booking_check_in"] = {"$gte": start_date, "$lte": end_date}
+    
+    payouts = await db.payouts.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    
+    # Generate CSV content
+    csv_lines = ["Payout ID,Owner,Villa,Booking ID,Check-in,Check-out,Gross Amount,Commission %,Commission,Net Payable,Status,Paid Date,Reference"]
+    for p in payouts:
+        csv_lines.append(
+            f"{p['payout_id']},{p['owner_name']},{p['villa_name']},{p['booking_id']},"
+            f"{p['booking_check_in']},{p['booking_check_out']},{p['gross_amount']},"
+            f"{p['commission_percent']},{p['commission_amount']},{p['net_payable']},"
+            f"{p['status']},{p.get('paid_date', '')},{p.get('payment_reference', '')}"
+        )
+    
+    return {"csv_data": "\n".join(csv_lines), "count": len(payouts)}
+
+# ==================== EVENT & SEASONAL PRICING ====================
+
+@api_router.get("/admin/event-pricing")
+async def list_event_pricing(user: User = Depends(require_admin)):
+    """List all event pricing rules"""
+    events = await db.event_pricing.find({}, {"_id": 0}).sort("start_date", 1).to_list(1000)
+    return {"events": events}
+
+@api_router.post("/admin/event-pricing")
+async def create_event_pricing(data: Dict[str, Any], user: User = Depends(require_admin)):
+    """Create event pricing rule"""
+    event = {
+        "event_id": f"event_{uuid.uuid4().hex[:12]}",
+        "name": data["name"],
+        "villa_id": data.get("villa_id"),  # None = all villas
+        "start_date": data["start_date"],
+        "end_date": data["end_date"],
+        "price_multiplier": data.get("price_multiplier", 1.5),
+        "min_nights": data.get("min_nights", 3),
+        "is_active": True,
+        "created_by": user.user_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.event_pricing.insert_one(event)
+    return {"event_id": event["event_id"], "message": "Event pricing created"}
+
+@api_router.delete("/admin/event-pricing/{event_id}")
+async def delete_event_pricing(event_id: str, user: User = Depends(require_admin)):
+    """Delete event pricing rule"""
+    result = await db.event_pricing.delete_one({"event_id": event_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return {"message": "Event pricing deleted"}
+
 # ==================== HEALTH CHECK ====================
 
 @api_router.get("/health")
