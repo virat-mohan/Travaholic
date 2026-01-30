@@ -372,7 +372,11 @@ const VillaDetailPage = () => {
                 <ul className="space-y-4 text-muted-foreground">
                   <li className="flex items-start gap-3">
                     <span className="text-accent mt-1">•</span>
-                    <span><strong>No Drugs & Smoking Policy:</strong> Drugs are strictly prohibited on the premises. Smoking is allowed only on balconies and outdoor areas. A cleaning fee of ₹10,000 per room will be charged if smoking is found inside the property to cover costs of deodorising drapes and upholstery.</span>
+                    <span><strong>No Drugs:</strong> Drugs are strictly prohibited on the premises.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent mt-1">•</span>
+                    <span><strong>No Smoking:</strong> Smoking is allowed only on balconies and outdoor areas. A cleaning fee of ₹10,000 per room will be charged if smoking is found inside the property to cover costs of deodorising drapes and upholstery.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-accent mt-1">•</span>
@@ -384,13 +388,17 @@ const VillaDetailPage = () => {
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-accent mt-1">•</span>
-                    <span><strong>Occupancy & Charges:</strong> Base rates are for up to 6 guests. An additional charge of ₹2,000 per person applies for extra guests. Maximum occupancy is 8 guests.</span>
+                    <span><strong>Occupancy & Charges:</strong> Base rates are for up to 6 guests. An additional charge of ₹2,000 per person applies for extra guests.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent mt-1">•</span>
+                    <span><strong>Security Deposit:</strong> A security deposit will be required at the time of check-in.</span>
                   </li>
                 </ul>
               </div>
 
               {/* Check-in/Check-out */}
-              <div className="bg-muted/50 p-6 border border-border">
+              <div className="bg-muted/50 p-6 border border-border mb-6">
                 <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
                   <span className="w-1.5 h-1.5 bg-accent rounded-full"></span>
                   Check-in & Check-out
@@ -407,6 +415,17 @@ const VillaDetailPage = () => {
                 </div>
                 <p className="text-sm text-muted-foreground mt-4">
                   Early check-in and late check-out are subject to availability. Please contact us in advance to request.
+                </p>
+              </div>
+
+              {/* ID & Documentation */}
+              <div className="bg-amber-50 border border-amber-200 p-6">
+                <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                  Indemnity Forms & ID Requirements
+                </h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  As per government regulations, it is mandatory for all guests to carry a valid photo identity card and address proof at the time of check-in. <strong className="text-foreground">PAN cards are not accepted.</strong> We would not be able to proceed with the check-in without these documents and would consider the booking as "no show" (no refund possible).
                 </p>
               </div>
             </div>
