@@ -39,26 +39,7 @@ const HomePage = () => {
     { icon: "📺", name: "Smart TV" },
   ];
 
-  const testimonials = [
-    {
-      name: "Garima",
-      role: "Business Owner",
-      text: "This has been the best vacation of our lives! The villa exceeded our expectations in every way. We are so grateful for the opportunity to experience such a luxurious and memorable stay.",
-      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200",
-    },
-    {
-      name: "Harpreet",
-      role: "Financial Advisor",
-      text: "Waking up to the breathtaking views and melodious birdsong was pure bliss. The entire experience was pure paradise. Thank you for making our stay so special.",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200",
-    },
-    {
-      name: "Jyotika",
-      role: "Fashion Designer",
-      text: "The villa itself was absolutely stunning! It exceeded our expectations in every way. It was clean, spacious, and had all the amenities we needed for a comfortable and relaxing stay.",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200",
-    },
-  ];
+ 
 
   return (
     <div data-testid="home-page">
