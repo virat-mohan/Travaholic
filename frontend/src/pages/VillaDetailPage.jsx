@@ -818,6 +818,36 @@ const VillaDetailPage = () => {
                 </div>
               )}
 
+              {/* Bank Details for Payment */}
+              <div className="bg-muted/50 p-4 mb-6 border border-border">
+                <h4 className="font-medium mb-3 text-sm">Bank Details for Payment</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Bank</span>
+                    <span className="font-medium">Standard Chartered Bank</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Account Name</span>
+                    <span className="font-medium">TRAVAHOLIC</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Account No.</span>
+                    <span className="font-medium font-mono">52105900326</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">IFSC Code</span>
+                    <span className="font-medium font-mono">SCBL0036033</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Branch</span>
+                    <span className="font-medium">GK-1, Delhi</span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Please share payment confirmation on WhatsApp after transfer.
+                </p>
+              </div>
+
               <Button
                 className="w-full btn-luxury"
                 onClick={handleBooking}
