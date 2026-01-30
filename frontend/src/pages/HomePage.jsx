@@ -346,13 +346,104 @@ const HomePage = () => {
         </div>
       </section>
 
+      {/* Google Reviews Section */}
+      <section className="section-spacing bg-background" data-testid="google-reviews-section">
+        <div className="container-luxury">
+          <div className="text-center mb-16">
+            <p className="caption-text mb-4">Google Reviews</p>
+            <h2 className="font-heading text-4xl md:text-5xl">
+              What Our Guests Say
+            </h2>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <div className="flex gap-1 text-accent">
+                {[...Array(5)].map((_, i) => (
+                  <Star key={i} size={20} fill="currentColor" />
+                ))}
+              </div>
+              <span className="text-muted-foreground">5.0 on Google</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Abhishek Kumar",
+                text: "Visited La Morena villa with friends, it was beautiful and memorable. The rooms were well-maintained, clean, and the villa was spacious enough for us. Loved the pool and the view from the villa. The property manager was helpful and everything was smooth. Highly recommend this place. Thank you Travaholic Stays for making the stay memorable.",
+                timeAgo: "2 months ago",
+              },
+              {
+                name: "Arun Saini",
+                text: "Our stay at La Morena was unforgettable! The villa is stunning, with a beautiful pool and lush gardens. Everything was clean and well-maintained. The team was incredibly friendly and helpful, making our vacation seamless. Highly recommend Travaholic Stays for a memorable getaway!",
+                timeAgo: "3 months ago",
+              },
+              {
+                name: "Ravi Sharma",
+                text: "Travaholic Stays exceeded all expectations during our family trip to Goa! The villa we stayed in was pristine, spacious, and beautifully designed. The team was incredibly responsive and ensured every detail was taken care of. From the private pool to the stunning views, every moment felt like luxury. Highly recommend them for anyone looking for a hassle-free and unforgettable vacation experience!",
+                timeAgo: "4 months ago",
+              },
+              {
+                name: "Rajiv",
+                text: "We stayed at La Morena and had a great experience. The villa is beautiful, clean, and well-equipped. The staff was helpful and ensured everything went smoothly. Would definitely recommend Travaholic Stays for a relaxing vacation!",
+                timeAgo: "2 months ago",
+              },
+              {
+                name: "Praveen Jain",
+                text: "We recently stayed at La Morena Villa in North Goa, booked via Travaholic Stays, and it was an incredible experience! The villa was stunning, with a spacious layout, well-maintained pool, and a serene ambiance. The team was responsive and helpful throughout the booking process. A perfect getaway spot – highly recommended!",
+                timeAgo: "3 months ago",
+              },
+              {
+                name: "Shalabh Srivastava",
+                text: "Had a fantastic stay with Travaholic Stays - one of the most memorable vacations ever! The villa was immaculate, spacious, and designed beautifully. Great attention to detail, and the team made everything seamless. Looking forward to booking again!",
+                timeAgo: "5 months ago",
+              },
+            ].map((review, index) => (
+              <motion.div
+                key={review.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="bg-card p-8 border border-border"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-accent/20 rounded-full flex items-center justify-center">
+                    <span className="text-accent font-medium">{review.name.charAt(0)}</span>
+                  </div>
+                  <div>
+                    <p className="font-medium">{review.name}</p>
+                    <p className="text-xs text-muted-foreground">{review.timeAgo}</p>
+                  </div>
+                </div>
+                <div className="flex gap-1 text-accent mb-4">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} size={14} fill="currentColor" />
+                  ))}
+                </div>
+                <p className="text-muted-foreground leading-relaxed text-sm line-clamp-5">
+                  "{review.text}"
+                </p>
+              </motion.div>
+            ))}
+          </div>
+          <div className="text-center mt-10">
+            <a 
+              href="https://www.google.com/search?q=travaholic+stays+reviews" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-accent hover:underline text-sm uppercase tracking-wider"
+            >
+              View All Reviews on Google
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Testimonials */}
-      <section className="section-spacing bg-background">
+      <section className="section-spacing bg-muted/30">
         <div className="container-luxury">
           <div className="text-center mb-16">
             <p className="caption-text mb-4">Testimonials</p>
             <h2 className="font-heading text-4xl md:text-5xl">
-              What Our Guests Say
+              Guest Stories
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
