@@ -3,25 +3,101 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#000000" />
-        <meta name="description" content="A product of emergent.sh" />
+        <meta name="theme-color" content="#1A1A1A" />
+        
+        <!-- SEO Meta Tags -->
+        <title>Travaholic Stays | Luxury Villa Rentals in Goa, India</title>
+        <meta name="description" content="Experience ultra-luxury villa stays in North Goa, India. Travaholic Stays offers handpicked premium villas with private pools, personal concierge, and unforgettable experiences. Book your dream getaway today." />
+        <meta name="keywords" content="luxury villas Goa, villa rentals North Goa, private pool villas India, premium vacation rentals, Anjuna villas, Vagator villas, Assagao villas, Travaholic Stays" />
+        <meta name="author" content="Travaholic Stays" />
+        <meta name="robots" content="index, follow" />
+        
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://travaholicstays.com/" />
+        <meta property="og:title" content="Travaholic Stays | Luxury Villa Rentals in Goa" />
+        <meta property="og:description" content="Experience ultra-luxury villa stays in North Goa. Handpicked premium villas with private pools, personal concierge, and unforgettable experiences." />
+        <meta property="og:image" content="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200" />
+        <meta property="og:site_name" content="Travaholic Stays" />
+        
+        <!-- Twitter -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://travaholicstays.com/" />
+        <meta name="twitter:title" content="Travaholic Stays | Luxury Villa Rentals in Goa" />
+        <meta name="twitter:description" content="Experience ultra-luxury villa stays in North Goa. Handpicked premium villas with private pools, personal concierge, and unforgettable experiences." />
+        <meta name="twitter:image" content="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200" />
+        
+        <!-- Canonical URL -->
+        <link rel="canonical" href="https://travaholicstays.com/" />
+        
+        <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
-        <!--
-        manifest.json provides metadata used when your web app is installed on a
-        user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-        -->
-        <!--
-        Notice the use of %PUBLIC_URL% in the tags above.
-        It will be replaced with the URL of the `public` folder during the build.
-        Only files inside the `public` folder can be referenced from the HTML.
+        <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&family=Inter:wght@600&display=swap" rel="stylesheet" />
+        
+        <!-- Organization Schema -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": "Travaholic Stays",
+            "url": "https://travaholicstays.com",
+            "logo": "https://travaholicstays.com/Travaholic_color_logo-removebg-preview.png",
+            "description": "Luxury villa rental and management company in North Goa, India",
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Anjuna",
+                "addressRegion": "Goa",
+                "addressCountry": "IN"
+            },
+            "contactPoint": {
+                "@type": "ContactPoint",
+                "telephone": "+91-9958871283",
+                "contactType": "customer service",
+                "availableLanguage": ["English", "Hindi"]
+            },
+            "sameAs": [
+                "https://www.instagram.com/travaholicstays/"
+            ]
+        }
+        </script>
+        
+        <!-- Local Business Schema -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "LodgingBusiness",
+            "name": "Travaholic Stays",
+            "image": "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200",
+            "priceRange": "₹₹₹₹",
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "North Goa",
+                "addressRegion": "Goa",
+                "addressCountry": "IN"
+            },
+            "geo": {
+                "@type": "GeoCoordinates",
+                "latitude": "15.5937",
+                "longitude": "73.7403"
+            },
+            "telephone": "+91-9958871283",
+            "url": "https://travaholicstays.com",
+            "aggregateRating": {
+                "@type": "AggregateRating",
+                "ratingValue": "5",
+                "reviewCount": "50"
+            },
+            "amenityFeature": [
+                {"@type": "LocationFeatureSpecification", "name": "Private Pool"},
+                {"@type": "LocationFeatureSpecification", "name": "WiFi"},
+                {"@type": "LocationFeatureSpecification", "name": "Air Conditioning"},
+                {"@type": "LocationFeatureSpecification", "name": "Concierge Service"},
+                {"@type": "LocationFeatureSpecification", "name": "Housekeeping"}
+            ]
+        }
+        </script>
 
-        Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-        work correctly both with client-side routing and a non-root public URL.
-        Learn how to configure a non-root public URL by running `npm run build`.
-        -->
-        <title>Emergent | Fullstack App</title>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
         <!--
         These two scripts have been added for the Visual Edits, please do not edit or remove them
