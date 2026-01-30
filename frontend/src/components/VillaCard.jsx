@@ -53,16 +53,17 @@ const VillaCard = ({ villa, index = 0 }) => {
               Private Pool
             </span>
           )}
-          {/* Image Caption */}
-          {imageCaption && (
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-              <p className="text-white text-sm">{imageCaption}</p>
-            </div>
-          )}
         </div>
+        
+        {/* Image Caption Below */}
+        {imageCaption && (
+          <div className="px-6 py-2 bg-muted/30 border-x border-border">
+            <p className="text-sm text-muted-foreground truncate">{imageCaption}</p>
+          </div>
+        )}
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 pt-4">
           <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
             <MapPin size={14} />
             <span>{villa.location}, {villa.region}</span>
