@@ -226,6 +226,34 @@ class BookingCreate(BaseModel):
     addons: List[Dict[str, Any]] = []
     special_requests: Optional[str] = None
 
+class ManualBookingCreate(BaseModel):
+    """Model for admin-created manual bookings"""
+    villa_id: str
+    guest_name: str
+    guest_email: EmailStr
+    guest_phone: str
+    check_in: str
+    check_out: str
+    num_guests: int
+    # Custom pricing (admin can override)
+    tariff_per_night: float
+    total_nights: int
+    total_booking_amount: float
+    security_deposit: float = 20000
+    advance_amount: float = 0
+    balance_amount: float = 0
+    # Payment tracking
+    payment_status: str = "pending"  # pending, advance_received, full_received
+    advance_received: bool = False
+    advance_received_date: Optional[str] = None
+    full_payment_received: bool = False
+    full_payment_received_date: Optional[str] = None
+    # Additional info
+    special_requests: Optional[str] = None
+    extra_pax_charge: float = 0
+    extra_pax_count: int = 0
+    notes: Optional[str] = None
+
 class Lead(BaseModel):
     model_config = ConfigDict(extra="ignore")
     lead_id: str = Field(default_factory=lambda: f"lead_{uuid.uuid4().hex[:12]}")
