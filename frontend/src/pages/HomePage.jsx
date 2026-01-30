@@ -655,12 +655,17 @@ const HomePage = () => {
       <section className="section-spacing bg-muted/30">
         <div className="container-luxury">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+            >
               <p className="caption-text mb-4">For Property Owners</p>
               <h2 className="font-heading text-4xl md:text-5xl mb-6">
                 List Your Villa
                 <br />
-                <span className="italic">With Us</span>
+                <span className="italic font-light">With Us</span>
               </h2>
               <p className="text-muted-foreground text-lg leading-relaxed mb-8">
                 Join our exclusive collection of luxury properties. We handle
@@ -681,19 +686,25 @@ const HomePage = () => {
                 ))}
               </ul>
               <Link to="/list-your-villa">
-                <Button className="btn-luxury" data-testid="list-villa-cta">
+                <Button className="btn-luxury px-8 py-6" data-testid="list-villa-cta">
                   Get Started
                   <ArrowRight size={16} className="ml-2" />
                 </Button>
               </Link>
-            </div>
-            <div className="aspect-[4/3] overflow-hidden">
+            </motion.div>
+            <motion.div 
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              viewport={{ once: true }}
+              className="aspect-[4/3] overflow-hidden group"
+            >
               <img
-                src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800"
-                alt="List your villa"
-                className="w-full h-full object-cover"
+                src="https://images.unsplash.com/photo-1759405198466-d7f97ef8b4a7?w=800&q=80"
+                alt="List your luxury villa"
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
