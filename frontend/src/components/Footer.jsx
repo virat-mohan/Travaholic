@@ -15,7 +15,7 @@ const Footer = () => {
               <img 
                 src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/wpycq8hc_1jpg-01.jpg" 
                 alt="Travaholic Stays"
-                className="h-14 w-auto brightness-0 invert"
+                className="h-14 w-auto"
               />
             </Link>
             <p className="mt-6 text-background/70 leading-relaxed">
