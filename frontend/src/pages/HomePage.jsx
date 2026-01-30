@@ -433,30 +433,36 @@ const HomePage = () => {
       {/* Destinations */}
       <section className="section-spacing bg-foreground text-background">
         <div className="container-luxury">
-          <div className="text-center mb-16">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
             <p className="caption-text mb-4 text-background/60">Destinations</p>
             <h2 className="font-heading text-4xl md:text-5xl">
               Where Dreams Meet Reality
             </h2>
-          </div>
+          </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
               {
                 name: "Goa",
                 subtitle: "Sun, Sand & Serenity",
-                image: "https://images.unsplash.com/photo-1580662768963-f5a4ef9ffede?w=800",
+                image: "https://images.unsplash.com/photo-1722595197981-6717b8b4af2d?w=800&q=80",
                 locations: ["Anjuna", "Vagator", "Morjim"],
               },
               {
                 name: "Mussoorie",
                 subtitle: "Queen of Hills",
-                image: "https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=800",
+                image: "https://images.unsplash.com/photo-1762862170883-4cfc75c7672a?w=800&q=80",
                 locations: ["Landour", "Mall Road", "Cloud End"],
               },
               {
                 name: "Himachal",
                 subtitle: "Mountain Paradise",
-                image: "https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?w=800",
+                image: "https://images.unsplash.com/photo-1684248529600-4f0400e1eb22?w=800&q=80",
                 locations: ["Mashobra", "Naldhera", "Shimla"],
               },
             ].map((dest, index) => (
