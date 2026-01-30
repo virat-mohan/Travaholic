@@ -274,14 +274,16 @@ const DashboardRedirect = () => {
 
 function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <div className="App min-h-screen bg-background">
-          <AppRouter />
-          <Toaster position="top-right" richColors />
-        </div>
-      </AuthProvider>
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <div className="App min-h-screen bg-background">
+            <AppRouter />
+            <Toaster position="top-right" richColors />
+          </div>
+        </AuthProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   );
 }
 
