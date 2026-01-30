@@ -811,6 +811,7 @@ async def create_booking(booking_data: BookingCreate):
     doc = booking.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     doc["updated_at"] = doc["updated_at"].isoformat()
+    doc["is_online_booking"] = True
     await db.bookings.insert_one(doc)
     
     # Block the dates
@@ -825,6 +826,25 @@ async def create_booking(booking_data: BookingCreate):
     block_doc = block.model_dump()
     block_doc["created_at"] = block_doc["created_at"].isoformat()
     await db.blocked_dates.insert_one(block_doc)
+    
+    # Send email confirmation for online bookings
+    try:
+        resend_key = os.environ.get("RESEND_API_KEY")
+        if resend_key and not resend_key.startswith("re_placeholder"):
+            resend.api_key = resend_key
+            resend.Emails.send({
+                "from": "Travaholic Stays <bookings@travaholicstays.com>",
+                "to": [booking_data.guest_email],
+                "subject": f"Booking Received - {villa['name']} | Travaholic Stays",
+                "html": generate_booking_received_email(doc, villa)
+            })
+            logging.info(f"Email sent to {booking_data.guest_email}")
+    except Exception as e:
+        logging.error(f"Failed to send email: {e}")
+    
+    # Generate WhatsApp link for the booking
+    booking_dict = doc.copy()
+    booking_dict.pop("_id", None)
     
     return booking
 
