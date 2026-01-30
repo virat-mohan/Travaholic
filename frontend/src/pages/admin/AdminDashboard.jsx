@@ -2180,6 +2180,267 @@ const AdminListings = () => {
   );
 };
 
+// Admin Event Pricing
+const AdminEventPricing = () => {
+  const [events, setEvents] = useState([]);
+  const [villas, setVillas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    villa_id: "",
+    start_date: "",
+    end_date: "",
+    price_multiplier: 1.5,
+    min_nights: 3
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [eventsRes, villasRes] = await Promise.all([
+        axios.get(`${API}/admin/event-pricing`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/villas`, { headers: getAuthHeaders() })
+      ]);
+      setEvents(eventsRes.data.events || []);
+      setVillas(villasRes.data.villas || []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!formData.name || !formData.start_date || !formData.end_date) {
+      toast.error("Please fill required fields");
+      return;
+    }
+    try {
+      await axios.post(`${API}/admin/event-pricing`, {
+        ...formData,
+        villa_id: formData.villa_id || null
+      }, { headers: getAuthHeaders() });
+      toast.success("Event pricing created");
+      setShowCreate(false);
+      setFormData({
+        name: "",
+        villa_id: "",
+        start_date: "",
+        end_date: "",
+        price_multiplier: 1.5,
+        min_nights: 3
+      });
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to create event pricing");
+    }
+  };
+
+  const handleDelete = async (eventId) => {
+    if (!confirm("Delete this event pricing rule?")) return;
+    try {
+      await axios.delete(`${API}/admin/event-pricing/${eventId}`, { headers: getAuthHeaders() });
+      toast.success("Event pricing deleted");
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to delete");
+    }
+  };
+
+  return (
+    <div data-testid="admin-event-pricing">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="font-heading text-3xl">Event Pricing</h1>
+          <p className="text-muted-foreground mt-1">Set special pricing for holidays and peak seasons</p>
+        </div>
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus size={16} />
+              Add Event
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create Event Pricing</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Event Name *</label>
+                <Input
+                  placeholder="e.g., New Year's Eve 2025"
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Apply to Villa (leave empty for all)</label>
+                <Select value={formData.villa_id} onValueChange={(v) => setFormData({...formData, villa_id: v})}>
+                  <SelectTrigger><SelectValue placeholder="All villas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Villas</SelectItem>
+                    {villas.map(v => (
+                      <SelectItem key={v.villa_id} value={v.villa_id}>{v.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Start Date *</label>
+                  <Input
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData({...formData, start_date: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">End Date *</label>
+                  <Input
+                    type="date"
+                    value={formData.end_date}
+                    onChange={(e) => setFormData({...formData, end_date: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Price Multiplier</label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    value={formData.price_multiplier}
+                    onChange={(e) => setFormData({...formData, price_multiplier: parseFloat(e.target.value)})}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">1.5 = 50% increase</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Min Nights</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={formData.min_nights}
+                    onChange={(e) => setFormData({...formData, min_nights: parseInt(e.target.value)})}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+              <Button onClick={handleCreate}>Create</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Info Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="bg-card border border-border p-4">
+          <p className="text-sm text-muted-foreground mb-1">Active Events</p>
+          <p className="font-heading text-2xl">{events.filter(e => e.is_active).length}</p>
+        </div>
+        <div className="bg-card border border-border p-4">
+          <p className="text-sm text-muted-foreground mb-1">Global Events</p>
+          <p className="font-heading text-2xl">{events.filter(e => !e.villa_id).length}</p>
+        </div>
+        <div className="bg-card border border-border p-4">
+          <p className="text-sm text-muted-foreground mb-1">Villa-Specific</p>
+          <p className="font-heading text-2xl">{events.filter(e => e.villa_id).length}</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-card border border-border p-6 animate-pulse">
+              <div className="h-4 bg-muted w-1/4 mb-4" />
+              <div className="h-6 bg-muted w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : events.length === 0 ? (
+        <div className="text-center py-12 bg-card border border-border">
+          <Calendar className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">No event pricing rules</p>
+          <p className="text-sm text-muted-foreground mt-1">Add pricing for holidays and peak seasons</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {events.map((event) => (
+            <div key={event.event_id} className="bg-card border border-border p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-medium">{event.name}</h3>
+                  <span className={`px-2 py-0.5 text-xs rounded ${
+                    event.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                  }`}>
+                    {event.is_active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {event.start_date} → {event.end_date}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Applies to: {event.villa_id ? villas.find(v => v.villa_id === event.villa_id)?.name || "Specific villa" : "All villas"}
+                </p>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <p className="text-2xl font-heading text-accent">{event.price_multiplier}x</p>
+                  <p className="text-xs text-muted-foreground">Price</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-heading">{event.min_nights}</p>
+                  <p className="text-xs text-muted-foreground">Min nights</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleDelete(event.event_id)}>
+                  <Trash2 size={14} />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Quick Add Common Events */}
+      <div className="mt-8 bg-muted/50 border border-border p-6">
+        <h3 className="font-medium mb-4">Quick Add Common Events</h3>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { name: "New Year's Eve 2025", start: "2025-12-28", end: "2026-01-02", multiplier: 2.0, nights: 4 },
+            { name: "Christmas 2025", start: "2025-12-22", end: "2025-12-27", multiplier: 1.8, nights: 3 },
+            { name: "Diwali 2025", start: "2025-10-18", end: "2025-10-25", multiplier: 1.6, nights: 2 },
+            { name: "Holi 2025", start: "2025-03-12", end: "2025-03-16", multiplier: 1.4, nights: 2 },
+            { name: "Sunburn Festival", start: "2025-12-28", end: "2025-12-31", multiplier: 1.8, nights: 3 },
+          ].map((preset) => (
+            <Button
+              key={preset.name}
+              variant="outline"
+              size="sm"
+              onClick={() => setFormData({
+                name: preset.name,
+                villa_id: "",
+                start_date: preset.start,
+                end_date: preset.end,
+                price_multiplier: preset.multiplier,
+                min_nights: preset.nights
+              }) || setShowCreate(true)}
+            >
+              + {preset.name}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Razorpay Setup Guide
 const RazorpaySetup = () => {
   const [settings, setSettings] = useState(null);
