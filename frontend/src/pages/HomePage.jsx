@@ -606,33 +606,48 @@ const HomePage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="section-spacing bg-accent">
-        <div className="container-luxury text-center">
-          <h2 className="font-heading text-4xl md:text-5xl text-accent-foreground mb-6">
-            Ready for Your Escape?
-          </h2>
-          <p className="text-accent-foreground/80 text-lg max-w-2xl mx-auto mb-10">
-            Let us help you find the perfect villa for your next getaway.
-            Request a callback and our team will assist you with everything.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/villas">
+      <section className="relative section-spacing overflow-hidden">
+        <div className="absolute inset-0">
+          <img 
+            src="https://images.unsplash.com/photo-1687394431847-b973e817ffd4?w=1920&q=80" 
+            alt="Luxury vacation" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-accent/90" />
+        </div>
+        <div className="relative container-luxury text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="font-heading text-4xl md:text-5xl text-accent-foreground mb-6">
+              Ready for Your Escape?
+            </h2>
+            <p className="text-accent-foreground/80 text-lg max-w-2xl mx-auto mb-10">
+              Let us help you find the perfect villa for your next getaway.
+              Request a callback and our team will assist you with everything.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/villas">
+                <Button
+                  className="btn-luxury bg-foreground text-background hover:bg-foreground/90 px-8 py-6"
+                  data-testid="browse-villas-cta"
+                >
+                  Browse Villas
+                </Button>
+              </Link>
               <Button
-                className="btn-luxury bg-foreground text-background hover:bg-foreground/90"
-                data-testid="browse-villas-cta"
+                className="btn-luxury-outline border-foreground text-foreground hover:bg-foreground hover:text-accent px-8 py-6"
+                onClick={() => setCallbackOpen(true)}
+                data-testid="callback-cta-btn"
               >
-                Browse Villas
+                <Phone size={16} className="mr-2" />
+                Request Callback
               </Button>
-            </Link>
-            <Button
-              className="btn-luxury-outline border-foreground text-foreground hover:bg-foreground hover:text-accent"
-              onClick={() => setCallbackOpen(true)}
-              data-testid="callback-cta-btn"
-            >
-              <Phone size={16} className="mr-2" />
-              Request Callback
-            </Button>
-          </div>
+            </div>
+          </motion.div>
         </div>
       </section>
 
