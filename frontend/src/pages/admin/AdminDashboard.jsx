@@ -1722,78 +1722,266 @@ const AdminListings = () => {
 
 // Razorpay Setup Guide
 const RazorpaySetup = () => {
-  const [guide, setGuide] = useState(null);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    razorpay_key_id: "",
+    razorpay_key_secret: "",
+    razorpay_webhook_secret: "",
+    is_live_mode: false,
+    partial_payment_enabled: true,
+    min_advance_percent: 30
+  });
 
   useEffect(() => {
-    fetchGuide();
+    fetchSettings();
   }, []);
 
-  const fetchGuide = async () => {
+  const fetchSettings = async () => {
     try {
-      const response = await axios.get(`${API}/admin/razorpay-setup`, { headers: getAuthHeaders() });
-      setGuide(response.data);
+      const response = await axios.get(`${API}/admin/payment-settings`, { headers: getAuthHeaders() });
+      setSettings(response.data);
     } catch (error) {
-      console.error("Error fetching guide:", error);
+      console.error("Error fetching settings:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSaveSettings = async () => {
+    setSaving(true);
+    try {
+      await axios.post(`${API}/admin/payment-settings`, formData, { headers: getAuthHeaders() });
+      toast.success("Payment settings saved successfully");
+      fetchSettings();
+    } catch (error) {
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const setupSteps = [
+    {
+      step: 1,
+      title: "Create Razorpay Account",
+      description: "Visit https://dashboard.razorpay.com/signup and create a business account. Complete KYC verification to access all features.",
+      link: "https://dashboard.razorpay.com/signup"
+    },
+    {
+      step: 2,
+      title: "Generate API Keys",
+      description: "Go to Settings → API Keys → Generate Key to create your Key ID and Key Secret. Store the Key Secret safely - it won't be shown again!",
+      link: "https://dashboard.razorpay.com/app/website-app-settings/api-keys"
+    },
+    {
+      step: 3,
+      title: "Configure Keys Below",
+      description: "Enter your Key ID and Key Secret in the form below. Start with TEST mode keys for development."
+    },
+    {
+      step: 4,
+      title: "Setup Webhook",
+      description: `Configure webhook in Razorpay Dashboard → Settings → Webhooks:\n\nWebhook URL: ${window.location.origin}/api/webhooks/razorpay\n\nEvents to enable:\n• payment.authorized\n• payment.captured\n• payment.failed\n• refund.processed`,
+      link: "https://dashboard.razorpay.com/app/webhooks"
+    },
+    {
+      step: 5,
+      title: "Test the Integration",
+      description: "Create a test booking and complete payment using test card: 4111 1111 1111 1111, any future expiry, any CVV."
+    },
+    {
+      step: 6,
+      title: "Go Live",
+      description: "Once testing is complete, generate LIVE API keys and update them here. Toggle 'Live Mode' to start accepting real payments."
+    }
+  ];
+
   return (
-    <div>
-      <h1 className="font-heading text-3xl mb-8">Razorpay Setup Guide</h1>
+    <div data-testid="razorpay-setup">
+      <h1 className="font-heading text-3xl mb-2">Razorpay Setup</h1>
+      <p className="text-muted-foreground mb-8">Configure payment gateway for booking payments</p>
 
       {loading ? (
         <div className="animate-pulse space-y-4">
-          {[...Array(6)].map((_, i) => (
+          {[...Array(4)].map((_, i) => (
             <div key={i} className="h-24 bg-muted" />
           ))}
         </div>
-      ) : guide ? (
-        <div className="space-y-6">
-          {/* Status */}
-          <div className="bg-card border border-border p-6">
-            <h2 className="font-heading text-xl mb-4">Current Status</h2>
-            <div className="flex items-center gap-4">
-              <span className={`px-3 py-1 text-sm rounded ${
-                guide.current_status.configured ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-              }`}>
-                {guide.current_status.configured ? "Configured" : "Not Configured"}
-              </span>
-              {guide.current_status.configured && (
-                <span className="text-sm text-muted-foreground">Mode: {guide.current_status.mode}</span>
-              )}
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Current Status & Settings Form */}
+          <div className="space-y-6">
+            {/* Status Card */}
+            <div className="bg-card border border-border p-6">
+              <h2 className="font-heading text-xl mb-4 flex items-center gap-2">
+                Current Status
+                {settings?.razorpay_key_id ? (
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-yellow-600" />
+                )}
+              </h2>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">API Keys</span>
+                  <span className={`px-2 py-1 text-xs rounded ${
+                    settings?.razorpay_key_id ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                  }`}>
+                    {settings?.razorpay_key_id ? "Configured" : "Not Set"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Webhook Secret</span>
+                  <span className={`px-2 py-1 text-xs rounded ${
+                    settings?.razorpay_webhook_secret_set ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                  }`}>
+                    {settings?.razorpay_webhook_secret_set ? "Configured" : "Not Set"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Mode</span>
+                  <span className={`px-2 py-1 text-xs rounded ${
+                    settings?.is_live_mode ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"
+                  }`}>
+                    {settings?.is_live_mode ? "LIVE" : "TEST"}
+                  </span>
+                </div>
+                {settings?.razorpay_key_id && (
+                  <div className="pt-2 border-t">
+                    <span className="text-xs text-muted-foreground">Key ID: {settings.razorpay_key_id}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Settings Form */}
+            <div className="bg-card border border-border p-6">
+              <h2 className="font-heading text-xl mb-4">API Configuration</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Razorpay Key ID</label>
+                  <Input
+                    placeholder="rzp_test_..."
+                    value={formData.razorpay_key_id}
+                    onChange={(e) => setFormData({...formData, razorpay_key_id: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Razorpay Key Secret</label>
+                  <Input
+                    type="password"
+                    placeholder="Enter Key Secret"
+                    value={formData.razorpay_key_secret}
+                    onChange={(e) => setFormData({...formData, razorpay_key_secret: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Webhook Secret (optional)</label>
+                  <Input
+                    type="password"
+                    placeholder="Enter Webhook Secret"
+                    value={formData.razorpay_webhook_secret}
+                    onChange={(e) => setFormData({...formData, razorpay_webhook_secret: e.target.value})}
+                  />
+                </div>
+                <div className="flex items-center gap-4 pt-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_live_mode}
+                      onChange={(e) => setFormData({...formData, is_live_mode: e.target.checked})}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Live Mode</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.partial_payment_enabled}
+                      onChange={(e) => setFormData({...formData, partial_payment_enabled: e.target.checked})}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Allow Partial Payments</span>
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Minimum Advance (%)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.min_advance_percent}
+                    onChange={(e) => setFormData({...formData, min_advance_percent: parseFloat(e.target.value)})}
+                  />
+                </div>
+                <Button onClick={handleSaveSettings} disabled={saving} className="w-full">
+                  {saving ? "Saving..." : "Save Settings"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Test Credentials */}
+            <div className="bg-card border border-border p-6">
+              <h2 className="font-heading text-xl mb-4">Test Credentials</h2>
+              <div className="space-y-3 text-sm">
+                <div>
+                  <span className="text-muted-foreground block mb-1">Success Card:</span>
+                  <code className="bg-muted px-3 py-2 block rounded">4111 1111 1111 1111</code>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-1">Failure Card:</span>
+                  <code className="bg-muted px-3 py-2 block rounded">4000 0000 0000 0002</code>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block mb-1">Test UPI:</span>
+                  <code className="bg-muted px-3 py-2 block rounded">success@razorpay</code>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Use any future expiry date and any 3-digit CVV</p>
+              </div>
             </div>
           </div>
 
-          {/* Steps */}
-          {guide.steps?.map((step) => (
-            <div key={step.step} className="bg-card border border-border p-6">
-              <div className="flex items-start gap-4">
-                <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-sm flex-shrink-0">
-                  {step.step}
-                </div>
-                <div>
-                  <h3 className="font-medium mb-2">{step.title}</h3>
-                  <p className="text-muted-foreground whitespace-pre-line">{step.description}</p>
+          {/* Setup Steps */}
+          <div className="space-y-4">
+            <h2 className="font-heading text-xl">Setup Guide</h2>
+            {setupSteps.map((step) => (
+              <div key={step.step} className="bg-card border border-border p-5 hover:border-accent/50 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="w-8 h-8 bg-accent text-accent-foreground rounded-full flex items-center justify-center text-sm font-medium flex-shrink-0">
+                    {step.step}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium mb-2">{step.title}</h3>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">{step.description}</p>
+                    {step.link && (
+                      <a
+                        href={step.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent text-sm mt-2 inline-block hover:underline"
+                      >
+                        Open Razorpay Dashboard →
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {/* Test Cards */}
-          <div className="bg-card border border-border p-6">
-            <h2 className="font-heading text-xl mb-4">Test Credentials</h2>
-            <div className="space-y-2 text-sm">
-              <p><span className="text-muted-foreground">Success Card:</span> <code className="bg-muted px-2 py-1">{guide.test_cards?.success}</code></p>
-              <p><span className="text-muted-foreground">Failure Card:</span> <code className="bg-muted px-2 py-1">{guide.test_cards?.failure}</code></p>
-              <p><span className="text-muted-foreground">Test UPI:</span> <code className="bg-muted px-2 py-1">{guide.test_cards?.upi}</code></p>
+            {/* Troubleshooting */}
+            <div className="bg-yellow-50 border border-yellow-200 p-5 mt-6">
+              <h3 className="font-medium mb-2 text-yellow-800">Troubleshooting</h3>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Payment failed? Check if keys match the mode (test/live)</li>
+                <li>• Webhook not working? Verify the URL is publicly accessible</li>
+                <li>• Refunds not reflecting? Ensure refund.processed event is enabled</li>
+                <li>• For disputes, contact Razorpay support directly</li>
+              </ul>
             </div>
           </div>
         </div>
-      ) : (
-        <p className="text-muted-foreground">Failed to load setup guide</p>
       )}
     </div>
   );
