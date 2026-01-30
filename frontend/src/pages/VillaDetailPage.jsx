@@ -337,10 +337,78 @@ const VillaDetailPage = () => {
               </div>
             </div>
 
-            {/* Cancellation Policy */}
-            <div className="py-8 border-t border-border">
-              <h2 className="font-heading text-2xl mb-4">Cancellation Policy</h2>
-              <p className="text-muted-foreground">{villa.cancellation_policy}</p>
+            {/* House Rules & Policies */}
+            <div className="py-8 border-t border-border" data-testid="house-rules-section">
+              <h2 className="font-heading text-2xl mb-6">House Rules & Policies</h2>
+              
+              {/* Cancellation Policy */}
+              <div className="mb-8">
+                <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-accent rounded-full"></span>
+                  Cancellation Policy
+                </h3>
+                <ul className="space-y-3 text-muted-foreground">
+                  <li className="flex items-start gap-3">
+                    <span className="text-green-600 font-medium min-w-[100px]">100% refund</span>
+                    <span>if cancellation is made 30 days or more before check-in date</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-amber-600 font-medium min-w-[100px]">50% refund</span>
+                    <span>if cancellation is made between 15 to 30 days before check-in date</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-red-600 font-medium min-w-[100px]">No refund</span>
+                    <span>if cancellation is made within 15 days of check-in date</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* House Rules */}
+              <div className="mb-8">
+                <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-accent rounded-full"></span>
+                  House Rules
+                </h3>
+                <ul className="space-y-4 text-muted-foreground">
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent mt-1">•</span>
+                    <span><strong>No Drugs & Smoking Policy:</strong> Drugs are strictly prohibited on the premises. Smoking is allowed only on balconies and outdoor areas. A cleaning fee of ₹10,000 per room will be charged if smoking is found inside the property to cover costs of deodorising drapes and upholstery.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent mt-1">•</span>
+                    <span><strong>Guest Registration:</strong> Please provide accurate details about all guests staying at the time of booking and in the check-in form (number of people, composition of the group). We maintain a strict "no visitor" policy and cannot provide access to guests who are not part of the reservation.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent mt-1">•</span>
+                    <span><strong>Peaceful Community:</strong> Our properties are part of peaceful residential communities. Loud music and parties are not permitted in outdoor areas.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-accent mt-1">•</span>
+                    <span><strong>Occupancy & Charges:</strong> Base rates are for up to 6 guests. An additional charge of ₹2,000 per person applies for extra guests. Maximum occupancy is 8 guests.</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Check-in/Check-out */}
+              <div className="bg-muted/50 p-6 border border-border">
+                <h3 className="font-medium text-lg mb-4 flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 bg-accent rounded-full"></span>
+                  Check-in & Check-out
+                </h3>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Check-in Time</p>
+                    <p className="font-heading text-xl">2:00 PM</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Check-out Time</p>
+                    <p className="font-heading text-xl">11:00 AM</p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground mt-4">
+                  Early check-in and late check-out are subject to availability. Please contact us in advance to request.
+                </p>
+              </div>
             </div>
           </div>
 
