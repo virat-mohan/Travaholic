@@ -189,6 +189,20 @@ const HomePage = () => {
                 portfolio is handpicked for its unique character, impeccable
                 service, and attention to detail.
               </p>
+              
+              {/* Concierge USP */}
+              <div className="bg-accent/10 border-l-4 border-accent p-6 mb-8">
+                <h3 className="font-heading text-xl mb-3">Your Personal Concierge</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  Experience the art of effortless travel with your dedicated concierge. 
+                  From curated dining reservations at Goa's finest restaurants to bespoke 
+                  experiences, adventure activities, and hidden local gems — we craft every 
+                  moment of your journey. Each group is welcomed into a private WhatsApp 
+                  circle with their personal concierge, ensuring seamless support and 
+                  thoughtful recommendations throughout your stay.
+                </p>
+              </div>
+
               <Link to="/about">
                 <Button className="btn-luxury-outline" data-testid="learn-more-btn">
                   Learn More
