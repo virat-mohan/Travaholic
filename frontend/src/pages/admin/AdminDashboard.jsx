@@ -934,26 +934,78 @@ const AdminBookings = () => {
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <p className="font-heading text-xl">{formatPrice(booking.total_amount)}</p>
-                  <div className="flex gap-2">
-                    {booking.booking_status === 'pending' && (
+                  <p className="font-heading text-xl">{formatPrice(booking.total_booking_amount || booking.total_amount)}</p>
+                  <span className={`px-2 py-1 text-xs rounded ${paymentStatusColors[booking.payment_status] || 'bg-gray-100 text-gray-800'}`}>
+                    {booking.payment_status === 'advance_received' ? 'Advance Received' : 
+                     booking.payment_status === 'full_received' ? 'Paid in Full' : 
+                     booking.payment_status || 'Pending Payment'}
+                  </span>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {/* Payment Actions */}
+                    {booking.booking_status === 'pending' && !booking.full_payment_received && (
                       <>
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => updateBookingStatus(booking.booking_id, 'confirmed')}>
-                          <Check size={14} className="mr-1" /> Confirm
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => updateBookingStatus(booking.booking_id, 'cancelled')}>
-                          <X size={14} className="mr-1" /> Cancel
+                        {!booking.advance_received && (
+                          <Button size="sm" variant="outline" onClick={() => markPaymentReceived(booking.booking_id, 'advance')}>
+                            Mark Advance
+                          </Button>
+                        )}
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => markPaymentReceived(booking.booking_id, 'full')}>
+                          <Check size={14} className="mr-1" /> Full Payment
                         </Button>
                       </>
                     )}
                     {booking.booking_status === 'confirmed' && (
                       <Button size="sm" variant="outline" onClick={() => updateBookingStatus(booking.booking_id, 'completed')}>
-                        <CheckCircle size={14} className="mr-1" /> Mark Complete
+                        <CheckCircle size={14} className="mr-1" /> Complete
+                      </Button>
+                    )}
+                    {booking.booking_status === 'pending' && (
+                      <Button size="sm" variant="destructive" onClick={() => updateBookingStatus(booking.booking_id, 'cancelled')}>
+                        <X size={14} className="mr-1" /> Cancel
                       </Button>
                     )}
                   </div>
+                  {/* Confirmation Actions */}
+                  {booking.booking_status === 'confirmed' && (
+                    <div className="flex gap-2 mt-2 pt-2 border-t border-border">
+                      <Button size="sm" variant="ghost" onClick={() => downloadConfirmationPDF(booking.booking_id)} title="Download PDF">
+                        <Download size={14} />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => getWhatsAppLink(booking.booking_id)} title="Send WhatsApp">
+                        <MessageSquare size={14} className="text-green-600" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
+              {/* Extra details for manual bookings */}
+              {booking.is_manual_booking && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Manual Booking Details:</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Tariff/Night:</span>
+                      <p className="font-medium">{formatPrice(booking.tariff_per_night)}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Security Deposit:</span>
+                      <p className="font-medium">{formatPrice(booking.security_deposit)}</p>
+                    </div>
+                    {booking.advance_amount > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Advance Paid:</span>
+                        <p className="font-medium text-green-600">{formatPrice(booking.advance_amount)}</p>
+                      </div>
+                    )}
+                    {booking.balance_amount > 0 && (
+                      <div>
+                        <span className="text-muted-foreground">Balance Due:</span>
+                        <p className="font-medium text-orange-600">{formatPrice(booking.balance_amount)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -963,6 +1015,259 @@ const AdminBookings = () => {
         </div>
       )}
     </div>
+  );
+};
+
+// Manual Booking Form Component
+const ManualBookingForm = ({ villas, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    villa_id: "",
+    guest_name: "",
+    guest_email: "",
+    guest_phone: "",
+    check_in: "",
+    check_out: "",
+    num_guests: 6,
+    tariff_per_night: 0,
+    total_nights: 1,
+    total_booking_amount: 0,
+    security_deposit: 20000,
+    advance_amount: 0,
+    balance_amount: 0,
+    extra_pax_charge: 0,
+    extra_pax_count: 0,
+    special_requests: "",
+    notes: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const selectedVilla = villas.find(v => v.villa_id === formData.villa_id);
+
+  // Auto-calculate totals
+  useEffect(() => {
+    if (formData.check_in && formData.check_out) {
+      const start = new Date(formData.check_in);
+      const end = new Date(formData.check_out);
+      const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      if (nights > 0) {
+        const baseAmount = formData.tariff_per_night * nights;
+        const total = baseAmount + formData.extra_pax_charge;
+        setFormData(prev => ({
+          ...prev,
+          total_nights: nights,
+          total_booking_amount: total,
+          balance_amount: total - prev.advance_amount
+        }));
+      }
+    }
+  }, [formData.check_in, formData.check_out, formData.tariff_per_night, formData.extra_pax_charge, formData.advance_amount]);
+
+  // Set default tariff when villa is selected
+  useEffect(() => {
+    if (selectedVilla) {
+      setFormData(prev => ({
+        ...prev,
+        tariff_per_night: selectedVilla.base_price,
+        security_deposit: selectedVilla.security_deposit || 20000
+      }));
+    }
+  }, [selectedVilla]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    
+    try {
+      await axios.post(`${API}/admin/manual-booking`, formData, { headers: getAuthHeaders() });
+      toast.success("Booking created successfully");
+      onSuccess();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to create booking");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Villa Selection */}
+      <div>
+        <label className="text-sm font-medium">Select Villa *</label>
+        <Select value={formData.villa_id} onValueChange={(v) => setFormData({ ...formData, villa_id: v })}>
+          <SelectTrigger><SelectValue placeholder="Choose a villa" /></SelectTrigger>
+          <SelectContent>
+            {villas.map((villa) => (
+              <SelectItem key={villa.villa_id} value={villa.villa_id}>
+                {villa.name} - {villa.location}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Guest Details */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="text-sm font-medium">Guest Name *</label>
+          <Input 
+            value={formData.guest_name} 
+            onChange={(e) => setFormData({ ...formData, guest_name: e.target.value })}
+            required 
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Guest Phone *</label>
+          <Input 
+            value={formData.guest_phone} 
+            onChange={(e) => setFormData({ ...formData, guest_phone: e.target.value })}
+            placeholder="+91..."
+            required 
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Guest Email *</label>
+        <Input 
+          type="email"
+          value={formData.guest_email} 
+          onChange={(e) => setFormData({ ...formData, guest_email: e.target.value })}
+          required 
+        />
+      </div>
+
+      {/* Dates */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="text-sm font-medium">Check-in Date *</label>
+          <Input 
+            type="date"
+            value={formData.check_in} 
+            onChange={(e) => setFormData({ ...formData, check_in: e.target.value })}
+            required 
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Check-out Date *</label>
+          <Input 
+            type="date"
+            value={formData.check_out} 
+            onChange={(e) => setFormData({ ...formData, check_out: e.target.value })}
+            required 
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Number of Guests</label>
+          <Input 
+            type="number"
+            value={formData.num_guests} 
+            onChange={(e) => setFormData({ ...formData, num_guests: parseInt(e.target.value) })}
+            min={1}
+          />
+        </div>
+      </div>
+
+      {/* Pricing */}
+      <div className="bg-muted/50 p-4 rounded space-y-4">
+        <h4 className="font-medium">Pricing Details</h4>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-medium">Tariff per Night (₹)</label>
+            <Input 
+              type="number"
+              value={formData.tariff_per_night} 
+              onChange={(e) => setFormData({ ...formData, tariff_per_night: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Total Nights</label>
+            <Input 
+              type="number"
+              value={formData.total_nights} 
+              readOnly
+              className="bg-muted"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Extra Pax Charge (₹)</label>
+            <Input 
+              type="number"
+              value={formData.extra_pax_charge} 
+              onChange={(e) => setFormData({ ...formData, extra_pax_charge: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div>
+            <label className="text-sm font-medium">Total Booking Amount (₹)</label>
+            <Input 
+              type="number"
+              value={formData.total_booking_amount} 
+              onChange={(e) => setFormData({ ...formData, total_booking_amount: parseFloat(e.target.value) || 0 })}
+              className="font-bold"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Security Deposit (₹)</label>
+            <Input 
+              type="number"
+              value={formData.security_deposit} 
+              onChange={(e) => setFormData({ ...formData, security_deposit: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Tracking */}
+      <div className="bg-accent/10 p-4 rounded space-y-4">
+        <h4 className="font-medium">Payment Tracking</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium">Advance Amount (₹)</label>
+            <Input 
+              type="number"
+              value={formData.advance_amount} 
+              onChange={(e) => {
+                const advance = parseFloat(e.target.value) || 0;
+                setFormData({ 
+                  ...formData, 
+                  advance_amount: advance,
+                  balance_amount: formData.total_booking_amount - advance
+                });
+              }}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Balance Amount (₹)</label>
+            <Input 
+              type="number"
+              value={formData.balance_amount} 
+              readOnly
+              className="bg-muted"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label className="text-sm font-medium">Special Requests / Notes</label>
+        <Textarea 
+          value={formData.special_requests} 
+          onChange={(e) => setFormData({ ...formData, special_requests: e.target.value })}
+          rows={3}
+        />
+      </div>
+
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button type="button" variant="outline">Cancel</Button>
+        </DialogClose>
+        <Button type="submit" className="btn-luxury" disabled={submitting || !formData.villa_id}>
+          {submitting ? "Creating..." : "Create Booking"}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 };
 
