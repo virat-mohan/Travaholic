@@ -30,11 +30,12 @@ const AdminDashboard = () => {
     { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
     { icon: Home, label: "Villas", path: "/admin/villas" },
     { icon: Calendar, label: "Bookings", path: "/admin/bookings" },
+    { icon: FileText, label: "Private Offers", path: "/admin/offers" },
     { icon: MessageSquare, label: "Leads", path: "/admin/leads" },
     { icon: Users, label: "Owners", path: "/admin/owners" },
-    { icon: DollarSign, label: "Financials", path: "/admin/financials" },
+    { icon: DollarSign, label: "Payouts", path: "/admin/payouts" },
     { icon: Building, label: "Listings", path: "/admin/listings" },
-    { icon: FileText, label: "Razorpay Setup", path: "/admin/razorpay" },
+    { icon: Settings, label: "Razorpay Setup", path: "/admin/razorpay" },
   ];
 
   const handleLogout = () => {
