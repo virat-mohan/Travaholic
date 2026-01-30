@@ -139,9 +139,10 @@ const AdminDashboard = () => {
             <Route index element={<AdminOverview />} />
             <Route path="villas" element={<AdminVillas />} />
             <Route path="bookings" element={<AdminBookings />} />
+            <Route path="offers" element={<AdminPrivateOffers />} />
             <Route path="leads" element={<AdminLeads />} />
             <Route path="owners" element={<AdminOwners />} />
-            <Route path="financials" element={<AdminFinancials />} />
+            <Route path="payouts" element={<AdminPayouts />} />
             <Route path="listings" element={<AdminListings />} />
             <Route path="razorpay" element={<RazorpaySetup />} />
           </Routes>
