@@ -699,16 +699,16 @@ const VillaDetailPage = () => {
               <div className="mb-6">
                 <h4 className="font-medium mb-4">Enhance Your Stay</h4>
                 
-                {/* Chef Service - Variable pricing based on villa bedrooms */}
+                {/* Private Chef Service */}
                 <div className="space-y-3 mb-4">
                   <div
                     className={`p-4 border ${selectedAddons.find(a => a.addon_id === 'chef-service') ? "border-accent bg-accent/5" : "border-border"} cursor-pointer`}
                     onClick={() => {
                       const chefAddon = {
                         addon_id: 'chef-service',
-                        name: 'Chef Cooked Meal',
-                        description: `Enjoy a freshly prepared meal by our professional chef (${villa.bedrooms} BHK rate)`,
-                        price: villa.bedrooms === 2 ? 1770 : villa.bedrooms === 3 ? 2360 : villa.bedrooms >= 4 ? 3540 : 2360,
+                        name: 'Private Chef Services',
+                        description: 'Enjoy a freshly prepared meal by our professional private chef',
+                        price: 2500,
                         is_per_day: false
                       };
                       handleAddonToggle(chefAddon);
@@ -719,20 +719,12 @@ const VillaDetailPage = () => {
                       <div className="flex items-start gap-3">
                         <Checkbox checked={!!selectedAddons.find(a => a.addon_id === 'chef-service')} />
                         <div>
-                          <p className="font-medium">Chef Cooked Meal</p>
-                          <p className="text-sm text-muted-foreground">Enjoy a freshly prepared meal by our professional chef</p>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            <span className="block">2 BHK: ₹1,500 + GST (₹1,770)</span>
-                            <span className="block">3 BHK: ₹2,000 + GST (₹2,360)</span>
-                            <span className="block">4 BHK: ₹3,000 + GST (₹3,540)</span>
-                          </div>
+                          <p className="font-medium">Private Chef Services</p>
+                          <p className="text-sm text-muted-foreground">Enjoy a freshly prepared gourmet meal by our professional private chef in the comfort of your villa</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="font-medium">
-                          ₹{villa.bedrooms === 2 ? '1,770' : villa.bedrooms === 3 ? '2,360' : villa.bedrooms >= 4 ? '3,540' : '2,360'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">/meal</p>
+                        <p className="text-sm text-muted-foreground">Price on request</p>
                       </div>
                     </div>
                     {selectedAddons.find(a => a.addon_id === 'chef-service') && (
