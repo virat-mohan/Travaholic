@@ -246,6 +246,17 @@ const VillaDetailPage = () => {
               alt={villa.name}
               className="w-full h-full object-cover"
             />
+            {/* Image Caption */}
+            {villa.images?.[selectedImageIndex] && (
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                <p className="text-white text-lg font-medium">
+                  {getImageCaption(villa.images[selectedImageIndex])}
+                </p>
+                <p className="text-white/70 text-sm mt-1">
+                  {selectedImageIndex + 1} / {villa.images?.length || 1}
+                </p>
+              </div>
+            )}
             {villa.images?.length > 1 && (
               <>
                 <button
@@ -271,12 +282,18 @@ const VillaDetailPage = () => {
             {villa.images?.slice(0, 4).map((img, index) => (
               <div
                 key={index}
-                className={`aspect-[4/3] overflow-hidden cursor-pointer ${
+                className={`relative aspect-[4/3] overflow-hidden cursor-pointer group/thumb ${
                   index === selectedImageIndex ? "ring-2 ring-accent" : ""
                 }`}
                 onClick={() => setSelectedImageIndex(index)}
               >
                 <img src={img} alt={`${villa.name} ${index + 1}`} className="w-full h-full object-cover" />
+                {/* Thumbnail Caption on Hover */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover/thumb:opacity-100 transition-opacity">
+                  <p className="text-white text-xs truncate">
+                    {getImageCaption(img)}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
