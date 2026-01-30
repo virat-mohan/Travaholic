@@ -1421,55 +1421,6 @@ def generate_booking_received_email(booking: dict, villa: dict) -> str:
     </body>
     </html>
     """
-                        <span class="label">Check-in</span>
-                        <span class="value">{booking['check_in']} (2:00 PM)</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="label">Check-out</span>
-                        <span class="value">{booking['check_out']} (11:00 AM)</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="label">Guests</span>
-                        <span class="value">{booking['num_guests']} pax</span>
-                    </div>
-                </div>
-                
-                <div class="section">
-                    <h2>PAYMENT SUMMARY</h2>
-                    <div class="detail-row">
-                        <span class="label">Total Amount</span>
-                        <span class="value">₹{booking.get('total_booking_amount', booking.get('total_amount', 0)):,.0f}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="label">Security Deposit</span>
-                        <span class="value">₹{booking.get('security_deposit', 20000):,.0f} (Refundable)</span>
-                    </div>
-                </div>
-                
-                <div class="section">
-                    <h2>IMPORTANT REMINDERS</h2>
-                    <ul style="padding-left: 20px; color: #666;">
-                        <li>Check-in: 2:00 PM | Check-out: 11:00 AM</li>
-                        <li>Please carry valid photo ID (PAN card not accepted)</li>
-                        <li>Security deposit to be paid at check-in</li>
-                        <li>No smoking inside the villa</li>
-                    </ul>
-                </div>
-                
-                <p style="text-align: center;">
-                    <a href="https://wa.me/919958871283" class="cta">Contact Us on WhatsApp</a>
-                </p>
-            </div>
-            
-            <div class="footer">
-                <p><strong>Travaholic Stays</strong></p>
-                <p>+91 99588 71283 | www.travaholicstays.com</p>
-                <p>@travaholicstays on Instagram</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
 
 @api_router.get("/admin/bookings/{booking_id}/whatsapp-message")
 async def get_whatsapp_confirmation_message(booking_id: str, user: User = Depends(require_admin)):
