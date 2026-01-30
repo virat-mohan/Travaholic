@@ -347,6 +347,14 @@ const VillaDetailPage = () => {
           {/* Right - Booking Card */}
           <div className="lg:col-span-5">
             <div className="sticky top-28 bg-card border border-border p-8">
+              {/* Long-Stay Discount Banner */}
+              <div className="bg-accent/10 border border-accent/30 p-4 mb-6 text-sm" data-testid="long-stay-discount-banner">
+                <p className="font-medium text-accent mb-2">Planning a longer stay?</p>
+                <p className="text-muted-foreground leading-relaxed">
+                  Enjoy up to <span className="font-semibold text-foreground">40% off</span> for stays of 28 days and more, and up to <span className="font-semibold text-foreground">20% off</span> for 7 nights or longer. Select your dates to view tailored options and unlock exclusive long-stay savings.
+                </p>
+              </div>
+
               <div className="flex items-baseline justify-between mb-6">
                 <div>
                   <span className="text-xs text-muted-foreground uppercase tracking-wider">From</span>
