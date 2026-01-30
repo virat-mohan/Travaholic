@@ -1403,20 +1403,22 @@ async def get_owner_dashboard(user: User = Depends(require_owner_or_admin)):
         "villa_id": {"$in": villa_ids}
     }, {"_id": 0}).to_list(1000)
     
-    # Get earnings summary
-    paid_bookings = await db.bookings.find({
+    # Get all bookings for this owner's villas
+    all_bookings = await db.bookings.find({
         "villa_id": {"$in": villa_ids},
-        "payment_status": "paid"
+        "booking_status": {"$in": ["confirmed", "completed"]}
     }, {"_id": 0}).to_list(10000)
     
-    total_earnings = sum(b.get("owner_payout", 0) for b in paid_bookings)
+    total_revenue = sum(b.get("subtotal", 0) for b in all_bookings)
+    total_earnings = sum(b.get("owner_payout", 0) for b in all_bookings)
     
     return {
         "villas": villas,
         "upcoming_bookings": upcoming_bookings,
         "blocked_dates": blocked_dates,
+        "total_revenue": total_revenue,
         "total_earnings": total_earnings,
-        "total_bookings": len(paid_bookings)
+        "total_bookings": len(all_bookings)
     }
 
 # ==================== LOCATIONS & AMENITIES ====================
