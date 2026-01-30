@@ -72,8 +72,11 @@ const LoginPage = () => {
                 <Button onClick={handleMakeAdmin} className="w-full btn-luxury">
                   Become Admin (First-time Setup)
                 </Button>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Click above to set yourself as admin for the first time
+                <Button onClick={handleMakeOwner} variant="outline" className="w-full">
+                  Become Villa Owner (Demo)
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Select a role to access your dashboard
                 </p>
               </>
             )}
