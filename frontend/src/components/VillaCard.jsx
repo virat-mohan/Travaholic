@@ -8,12 +8,15 @@ const getImageCaption = (url) => {
   try {
     // Get filename from URL
     const filename = url.split("/").pop().split("?")[0];
+    // URL decode the filename
+    const decodedFilename = decodeURIComponent(filename);
     // Remove extension
-    const nameWithoutExt = filename.replace(/\.[^/.]+$/, "");
+    const nameWithoutExt = decodedFilename.replace(/\.[^/.]+$/, "");
     // Replace dashes, underscores with spaces and capitalize
     const caption = nameWithoutExt
       .replace(/[-_]/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim();
     return caption;
   } catch {
     return "";
