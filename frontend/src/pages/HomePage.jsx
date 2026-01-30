@@ -397,13 +397,20 @@ const HomePage = () => {
       {/* Amenities Section */}
       <section className="section-spacing bg-background">
         <div className="container-luxury">
-          <div className="text-center mb-16">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
             <p className="caption-text mb-4">What We Offer</p>
             <h2 className="font-heading text-4xl md:text-5xl">
               Premium Amenities
             </h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+            <p className="text-muted-foreground mt-3 max-w-lg mx-auto">Every detail crafted for your comfort</p>
+          </motion.div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 md:gap-8">
             {amenities.map((amenity, index) => (
               <motion.div
                 key={amenity.name}
@@ -411,9 +418,9 @@ const HomePage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 viewport={{ once: true }}
-                className="text-center p-6 border border-border hover:border-accent transition-colors group"
+                className="text-center p-6 border border-border hover:border-accent hover:bg-accent/5 transition-all duration-300 group"
               >
-                <span className="text-4xl block mb-4">{amenity.icon}</span>
+                <amenity.icon className="w-8 h-8 mx-auto mb-4 text-muted-foreground group-hover:text-accent transition-colors" strokeWidth={1.5} />
                 <p className="text-sm uppercase tracking-wider group-hover:text-accent transition-colors">
                   {amenity.name}
                 </p>
