@@ -780,6 +780,53 @@ const AdminBookings = () => {
     }
   };
 
+  const markPaymentReceived = async (bookingId, paymentType, amount = null) => {
+    try {
+      let url = `${API}/admin/bookings/${bookingId}/mark-payment?payment_type=${paymentType}&send_confirmation=true`;
+      if (amount) url += `&amount=${amount}`;
+      
+      const response = await axios.post(url, {}, { headers: getAuthHeaders() });
+      toast.success(response.data.message);
+      if (response.data.confirmation_sent) {
+        toast.success("Confirmation email sent!");
+      }
+      fetchBookings();
+      setShowPaymentModal(false);
+    } catch (error) {
+      toast.error("Failed to mark payment");
+    }
+  };
+
+  const downloadConfirmationPDF = async (bookingId) => {
+    try {
+      const response = await axios.get(`${API}/admin/bookings/${bookingId}/confirmation-pdf`, {
+        headers: getAuthHeaders(),
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `booking_confirmation_${bookingId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("PDF downloaded");
+    } catch (error) {
+      toast.error("Failed to download PDF");
+    }
+  };
+
+  const getWhatsAppLink = async (bookingId) => {
+    try {
+      const response = await axios.get(`${API}/admin/bookings/${bookingId}/whatsapp-message`, {
+        headers: getAuthHeaders()
+      });
+      window.open(response.data.whatsapp_link, '_blank');
+    } catch (error) {
+      toast.error("Failed to generate WhatsApp link");
+    }
+  };
+
   const filteredBookings = bookings.filter(b => {
     const matchesStatus = statusFilter === "all" || b.booking_status === statusFilter;
     const matchesSearch = b.guest_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -793,6 +840,13 @@ const AdminBookings = () => {
     confirmed: "bg-green-100 text-green-800",
     cancelled: "bg-red-100 text-red-800",
     completed: "bg-blue-100 text-blue-800",
+  };
+
+  const paymentStatusColors = {
+    pending: "bg-gray-100 text-gray-800",
+    advance_received: "bg-orange-100 text-orange-800",
+    full_received: "bg-green-100 text-green-800",
+    paid: "bg-green-100 text-green-800",
   };
 
   return (
@@ -821,6 +875,23 @@ const AdminBookings = () => {
               <SelectItem value="completed">Completed</SelectItem>
             </SelectContent>
           </Select>
+          <Dialog open={showManualBooking} onOpenChange={setShowManualBooking}>
+            <DialogTrigger asChild>
+              <Button className="btn-luxury" data-testid="manual-booking-btn">
+                <Plus size={16} className="mr-2" />
+                Manual Booking
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Create Manual Booking</DialogTitle>
+              </DialogHeader>
+              <ManualBookingForm 
+                villas={villas} 
+                onSuccess={() => { setShowManualBooking(false); fetchBookings(); }} 
+              />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
