@@ -43,10 +43,14 @@ const AdminDashboard = () => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-background/10">
-            <Link to="/" className="font-heading text-xl">
-              Travaholic Stays
+            <Link to="/">
+              <img 
+                src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/wpycq8hc_1jpg-01.jpg" 
+                alt="Travaholic Stays"
+                className="h-10 w-auto brightness-0 invert"
+              />
             </Link>
-            <p className="text-xs text-background/60 mt-1">Admin Portal</p>
+            <p className="text-xs text-background/60 mt-2">Admin Portal</p>
           </div>
 
           {/* Navigation */}
