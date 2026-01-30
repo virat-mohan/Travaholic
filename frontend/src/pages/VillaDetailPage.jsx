@@ -828,10 +828,26 @@ const VillaDetailPage = () => {
                 />
               </div>
 
-              {/* Updated Total */}
+              {/* Updated Total with GST Breakdown */}
               {pricing && (
                 <div className="bg-accent/10 p-4 mb-6">
-                  <div className="flex justify-between items-center">
+                  <div className="space-y-2 text-sm mb-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span>{formatPrice(pricing.subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">GST (18%)</span>
+                      <span>{formatPrice(pricing.gst_amount)}</span>
+                    </div>
+                    {pricing.security_deposit > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Security Deposit</span>
+                        <span>{formatPrice(pricing.security_deposit)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-between items-center pt-2 border-t border-accent/30">
                     <span className="font-medium">Total Amount</span>
                     <span className="font-heading text-2xl">{formatPrice(pricing.total_amount)}</span>
                   </div>
