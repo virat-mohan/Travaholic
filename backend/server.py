@@ -1635,6 +1635,28 @@ async def seed_sample_data():
     
     return {"message": "Sample data seeded successfully", "villas": len(sample_villas), "addons": len(sample_addons)}
 
+# ==================== MAKE ADMIN (TEMPORARY - FOR SETUP) ====================
+
+@api_router.post("/make-admin")
+async def make_current_user_admin(user: User = Depends(require_auth)):
+    """Make the current logged-in user an admin (for initial setup)"""
+    # Check if any admin exists
+    existing_admin = await db.users.find_one({"role": "admin"})
+    
+    if existing_admin and existing_admin.get("user_id") != user.user_id:
+        # If admin exists and it's not the current user, only allow if no bookings yet (fresh setup)
+        booking_count = await db.bookings.count_documents({})
+        if booking_count > 0:
+            raise HTTPException(status_code=403, detail="Admin already exists. Contact existing admin for access.")
+    
+    # Update user role to admin
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"role": "admin"}}
+    )
+    
+    return {"message": f"User {user.email} is now an admin", "role": "admin"}
+
 # ==================== HEALTH CHECK ====================
 
 @api_router.get("/health")
