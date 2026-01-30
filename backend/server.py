@@ -1659,6 +1659,34 @@ async def make_current_user_admin(user: User = Depends(require_auth)):
     
     return {"message": f"User {user.email} is now an admin", "role": "admin"}
 
+@api_router.post("/make-owner")
+async def make_current_user_owner(user: User = Depends(require_auth)):
+    """Make the current logged-in user an owner (for testing)"""
+    # Update user role to owner
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"role": "owner"}}
+    )
+    
+    # Assign some villas to this owner for demo purposes
+    # Get first 2 villas that don't have an owner
+    villas_to_assign = await db.villas.find(
+        {"$or": [{"owner_id": {"$exists": False}}, {"owner_id": None}]},
+        {"villa_id": 1, "_id": 0}
+    ).limit(2).to_list(2)
+    
+    for villa in villas_to_assign:
+        await db.villas.update_one(
+            {"villa_id": villa["villa_id"]},
+            {"$set": {"owner_id": user.user_id}}
+        )
+    
+    return {
+        "message": f"User {user.email} is now an owner with {len(villas_to_assign)} villas assigned",
+        "role": "owner",
+        "villas_assigned": len(villas_to_assign)
+    }
+
 # ==================== HEALTH CHECK ====================
 
 @api_router.get("/health")
