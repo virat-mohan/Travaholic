@@ -256,12 +256,19 @@ const HomePage = () => {
       {/* Featured Villas */}
       <section className="section-spacing bg-background" data-testid="featured-villas-section">
         <div className="container-luxury">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-12 gap-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="flex flex-col md:flex-row md:items-end md:justify-between mb-12 gap-6"
+          >
             <div>
               <p className="caption-text mb-4">Our Collection</p>
               <h2 className="font-heading text-4xl md:text-5xl">
                 Featured Villas
               </h2>
+              <p className="text-muted-foreground mt-3 max-w-lg">Handpicked properties that define luxury living</p>
             </div>
             <Link
               to="/villas"
@@ -273,7 +280,7 @@ const HomePage = () => {
                 className="group-hover:translate-x-1 transition-transform"
               />
             </Link>
-          </div>
+          </motion.div>
 
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
