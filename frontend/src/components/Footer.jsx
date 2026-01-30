@@ -13,9 +13,9 @@ const Footer = () => {
           <div className="lg:col-span-1">
             <Link to="/" className="block">
               <img 
-                src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/wpycq8hc_1jpg-01.jpg" 
+                src="https://customer-assets.emergentagent.com/job_villas-dashboard/artifacts/chkp86q1_Travaholic_color_logo-removebg-preview.png" 
                 alt="Travaholic Stays"
-                className="h-14 w-auto"
+                className="h-20 w-auto"
               />
             </Link>
             <p className="mt-6 text-background/70 leading-relaxed">
