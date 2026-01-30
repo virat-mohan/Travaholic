@@ -11,6 +11,7 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
 import CallbackModal from "../components/CallbackModal";
+import { getImageCaption } from "../components/VillaCard";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { format, addDays, differenceInDays, isAfter, isBefore, parseISO } from "date-fns";
