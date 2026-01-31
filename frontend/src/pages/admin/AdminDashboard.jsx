@@ -2182,6 +2182,532 @@ const AdminListings = () => {
   );
 };
 
+// Admin Blog Management
+const AdminBlog = () => {
+  const [posts, setPosts] = useState([]);
+  const [villas, setVillas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingPost, setEditingPost] = useState(null);
+  const [filter, setFilter] = useState("all");
+  const [formData, setFormData] = useState({
+    title: "",
+    slug: "",
+    excerpt: "",
+    content: "",
+    featured_image: "",
+    category: "Travel Guide",
+    tags: "",
+    meta_title: "",
+    meta_description: "",
+    meta_keywords: "",
+    author: "Team Travaholic",
+    published_date: new Date().toISOString().split('T')[0],
+    read_time: "5 min read",
+    status: "draft",
+    is_featured: false,
+    related_villa_ids: []
+  });
+
+  const categories = ["Travel Guide", "Destinations", "Travel Tips", "Villa Guide", "Food & Dining", "Local Experiences"];
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [postsRes, villasRes] = await Promise.all([
+        axios.get(`${API}/admin/blog/posts`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/villas`, { headers: getAuthHeaders() })
+      ]);
+      setPosts(postsRes.data.posts || []);
+      setVillas(villasRes.data.villas || []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateSlug = (title) => {
+    return title.toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim();
+  };
+
+  const handleTitleChange = (title) => {
+    setFormData({
+      ...formData,
+      title,
+      slug: generateSlug(title)
+    });
+  };
+
+  const handleCreate = async () => {
+    if (!formData.title || !formData.slug || !formData.content) {
+      toast.error("Please fill required fields (title, slug, content)");
+      return;
+    }
+    try {
+      const payload = {
+        ...formData,
+        tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+        meta_keywords: formData.meta_keywords.split(',').map(t => t.trim()).filter(t => t)
+      };
+      await axios.post(`${API}/admin/blog/posts`, payload, { headers: getAuthHeaders() });
+      toast.success("Blog post created!");
+      setShowCreate(false);
+      resetForm();
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to create post");
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!editingPost) return;
+    try {
+      const payload = {
+        ...formData,
+        tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+        meta_keywords: formData.meta_keywords.split(',').map(t => t.trim()).filter(t => t)
+      };
+      await axios.put(`${API}/admin/blog/posts/${editingPost.post_id}`, payload, { headers: getAuthHeaders() });
+      toast.success("Blog post updated!");
+      setEditingPost(null);
+      resetForm();
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update post");
+    }
+  };
+
+  const handleDelete = async (postId) => {
+    if (!confirm("Delete this blog post?")) return;
+    try {
+      await axios.delete(`${API}/admin/blog/posts/${postId}`, { headers: getAuthHeaders() });
+      toast.success("Post deleted");
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to delete post");
+    }
+  };
+
+  const handlePublish = async (postId) => {
+    try {
+      await axios.post(`${API}/admin/blog/posts/${postId}/publish`, {}, { headers: getAuthHeaders() });
+      toast.success("Post published!");
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to publish post");
+    }
+  };
+
+  const handleUnpublish = async (postId) => {
+    try {
+      await axios.post(`${API}/admin/blog/posts/${postId}/unpublish`, {}, { headers: getAuthHeaders() });
+      toast.success("Post unpublished");
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to unpublish post");
+    }
+  };
+
+  const startEdit = (post) => {
+    setFormData({
+      title: post.title,
+      slug: post.slug,
+      excerpt: post.excerpt,
+      content: post.content,
+      featured_image: post.featured_image,
+      category: post.category,
+      tags: post.tags?.join(', ') || '',
+      meta_title: post.meta_title || '',
+      meta_description: post.meta_description || '',
+      meta_keywords: post.meta_keywords?.join(', ') || '',
+      author: post.author,
+      published_date: post.published_date,
+      read_time: post.read_time,
+      status: post.status,
+      is_featured: post.is_featured,
+      related_villa_ids: post.related_villa_ids || []
+    });
+    setEditingPost(post);
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      slug: "",
+      excerpt: "",
+      content: "",
+      featured_image: "",
+      category: "Travel Guide",
+      tags: "",
+      meta_title: "",
+      meta_description: "",
+      meta_keywords: "",
+      author: "Team Travaholic",
+      published_date: new Date().toISOString().split('T')[0],
+      read_time: "5 min read",
+      status: "draft",
+      is_featured: false,
+      related_villa_ids: []
+    });
+  };
+
+  const filteredPosts = posts.filter(p => {
+    if (filter === "all") return true;
+    return p.status === filter;
+  });
+
+  const BlogForm = ({ isEdit = false }) => (
+    <div className="space-y-4 py-4 max-h-[70vh] overflow-y-auto">
+      {/* Basic Info */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <label className="block text-sm font-medium mb-1">Title *</label>
+          <Input
+            value={formData.title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            placeholder="e.g., Best Beaches in North Goa"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">URL Slug *</label>
+          <Input
+            value={formData.slug}
+            onChange={(e) => setFormData({...formData, slug: e.target.value})}
+            placeholder="best-beaches-north-goa"
+          />
+          <p className="text-xs text-muted-foreground mt-1">/blog/{formData.slug || 'your-slug'}</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Category</label>
+          <Select value={formData.category} onValueChange={(v) => setFormData({...formData, category: v})}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {categories.map(c => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Excerpt (Short description) *</label>
+        <Textarea
+          value={formData.excerpt}
+          onChange={(e) => setFormData({...formData, excerpt: e.target.value})}
+          placeholder="Brief summary for blog cards and SEO..."
+          rows={2}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Content (supports **bold** and bullet points) *</label>
+        <Textarea
+          value={formData.content}
+          onChange={(e) => setFormData({...formData, content: e.target.value})}
+          placeholder="Write your full blog post content here..."
+          rows={10}
+          className="font-mono text-sm"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Featured Image URL</label>
+        <Input
+          value={formData.featured_image}
+          onChange={(e) => setFormData({...formData, featured_image: e.target.value})}
+          placeholder="https://images.unsplash.com/..."
+        />
+        {formData.featured_image && (
+          <img src={formData.featured_image} alt="Preview" className="mt-2 h-32 object-cover rounded" />
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Tags (comma separated)</label>
+          <Input
+            value={formData.tags}
+            onChange={(e) => setFormData({...formData, tags: e.target.value})}
+            placeholder="goa, beaches, travel"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Read Time</label>
+          <Input
+            value={formData.read_time}
+            onChange={(e) => setFormData({...formData, read_time: e.target.value})}
+            placeholder="5 min read"
+          />
+        </div>
+      </div>
+
+      {/* SEO Section */}
+      <div className="border-t pt-4 mt-4">
+        <h3 className="font-medium mb-3 flex items-center gap-2">
+          <Tag size={16} />
+          SEO Settings
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Meta Title</label>
+            <Input
+              value={formData.meta_title}
+              onChange={(e) => setFormData({...formData, meta_title: e.target.value})}
+              placeholder={formData.title || "Defaults to post title"}
+            />
+            <p className="text-xs text-muted-foreground mt-1">{(formData.meta_title || formData.title || '').length}/60 characters</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Meta Description</label>
+            <Textarea
+              value={formData.meta_description}
+              onChange={(e) => setFormData({...formData, meta_description: e.target.value})}
+              placeholder={formData.excerpt || "Defaults to excerpt"}
+              rows={2}
+            />
+            <p className="text-xs text-muted-foreground mt-1">{(formData.meta_description || formData.excerpt || '').length}/160 characters</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Meta Keywords (comma separated)</label>
+            <Input
+              value={formData.meta_keywords}
+              onChange={(e) => setFormData({...formData, meta_keywords: e.target.value})}
+              placeholder="luxury villa goa, north goa beaches, vacation rentals"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Related Villas */}
+      <div className="border-t pt-4 mt-4">
+        <h3 className="font-medium mb-3">Link to Villas (for internal linking)</h3>
+        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+          {villas.map(v => (
+            <label key={v.villa_id} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={formData.related_villa_ids.includes(v.villa_id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setFormData({...formData, related_villa_ids: [...formData.related_villa_ids, v.villa_id]});
+                  } else {
+                    setFormData({...formData, related_villa_ids: formData.related_villa_ids.filter(id => id !== v.villa_id)});
+                  }
+                }}
+                className="rounded"
+              />
+              {v.name}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* Publishing Options */}
+      <div className="grid grid-cols-3 gap-4 border-t pt-4 mt-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">Author</label>
+          <Input
+            value={formData.author}
+            onChange={(e) => setFormData({...formData, author: e.target.value})}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Publish Date</label>
+          <Input
+            type="date"
+            value={formData.published_date}
+            onChange={(e) => setFormData({...formData, published_date: e.target.value})}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Status</label>
+          <Select value={formData.status} onValueChange={(v) => setFormData({...formData, status: v})}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={formData.is_featured}
+          onChange={(e) => setFormData({...formData, is_featured: e.target.checked})}
+          className="rounded"
+        />
+        Featured post (show prominently on blog page)
+      </label>
+    </div>
+  );
+
+  return (
+    <div data-testid="admin-blog">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="font-heading text-3xl">Blog Management</h1>
+          <p className="text-muted-foreground mt-1">Create and manage SEO-optimized blog posts</p>
+        </div>
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus size={16} />
+              New Post
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Create Blog Post</DialogTitle>
+            </DialogHeader>
+            <BlogForm />
+            <DialogFooter>
+              <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+              <Button onClick={handleCreate}>Create Post</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-card border border-border p-4">
+          <p className="text-sm text-muted-foreground mb-1">Total Posts</p>
+          <p className="font-heading text-2xl">{posts.length}</p>
+        </div>
+        <div className="bg-card border border-border p-4">
+          <p className="text-sm text-muted-foreground mb-1">Published</p>
+          <p className="font-heading text-2xl text-green-600">{posts.filter(p => p.status === 'published').length}</p>
+        </div>
+        <div className="bg-card border border-border p-4">
+          <p className="text-sm text-muted-foreground mb-1">Drafts</p>
+          <p className="font-heading text-2xl text-yellow-600">{posts.filter(p => p.status === 'draft').length}</p>
+        </div>
+        <div className="bg-card border border-border p-4">
+          <p className="text-sm text-muted-foreground mb-1">Featured</p>
+          <p className="font-heading text-2xl text-accent">{posts.filter(p => p.is_featured).length}</p>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <div className="flex gap-2 mb-6">
+        {["all", "published", "draft", "archived"].map((f) => (
+          <Button
+            key={f}
+            variant={filter === f ? "default" : "outline"}
+            size="sm"
+            onClick={() => setFilter(f)}
+          >
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </Button>
+        ))}
+      </div>
+
+      {/* Posts List */}
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-card border border-border p-6 animate-pulse">
+              <div className="h-4 bg-muted w-1/4 mb-4" />
+              <div className="h-6 bg-muted w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : filteredPosts.length === 0 ? (
+        <div className="text-center py-12 bg-card border border-border">
+          <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">No blog posts yet</p>
+          <p className="text-sm text-muted-foreground mt-1">Create your first post to improve SEO</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredPosts.map((post) => (
+            <div key={post.post_id} className="bg-card border border-border p-6">
+              <div className="flex gap-6">
+                {post.featured_image && (
+                  <img src={post.featured_image} alt="" className="w-32 h-24 object-cover rounded flex-shrink-0" />
+                )}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="font-medium">{post.title}</h3>
+                    <span className={`px-2 py-0.5 text-xs rounded ${
+                      post.status === 'published' ? 'bg-green-100 text-green-800' :
+                      post.status === 'draft' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {post.status}
+                    </span>
+                    {post.is_featured && (
+                      <span className="px-2 py-0.5 text-xs rounded bg-accent/20 text-accent">Featured</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{post.excerpt}</p>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>{post.category}</span>
+                    <span>{post.published_date}</span>
+                    <span>{post.read_time}</span>
+                    <span className="text-accent">/blog/{post.slug}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {post.status === 'draft' ? (
+                    <Button size="sm" onClick={() => handlePublish(post.post_id)}>Publish</Button>
+                  ) : post.status === 'published' ? (
+                    <Button size="sm" variant="outline" onClick={() => handleUnpublish(post.post_id)}>Unpublish</Button>
+                  ) : null}
+                  <Dialog open={editingPost?.post_id === post.post_id} onOpenChange={(open) => !open && setEditingPost(null)}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="outline" onClick={() => startEdit(post)}>
+                        <Edit size={14} />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-3xl">
+                      <DialogHeader>
+                        <DialogTitle>Edit Blog Post</DialogTitle>
+                      </DialogHeader>
+                      <BlogForm isEdit />
+                      <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button onClick={handleUpdate}>Save Changes</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                  <Button size="sm" variant="outline" onClick={() => handleDelete(post.post_id)}>
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* SEO Tips */}
+      <div className="mt-8 bg-accent/10 border border-accent/30 p-6">
+        <h3 className="font-medium mb-3">SEO Best Practices</h3>
+        <ul className="text-sm text-muted-foreground space-y-1">
+          <li>• Keep meta titles under 60 characters and meta descriptions under 160</li>
+          <li>• Use relevant keywords naturally in your content</li>
+          <li>• Link to villa pages from blog posts to improve internal linking</li>
+          <li>• Include location-based keywords (e.g., "luxury villa Goa", "Anjuna beach stay")</li>
+          <li>• Publish consistently - aim for 2-4 posts per month</li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
 // Admin Event Pricing
 const AdminEventPricing = () => {
   const [events, setEvents] = useState([]);
