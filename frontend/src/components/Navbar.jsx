@@ -34,10 +34,12 @@ const Navbar = () => {
   ];
 
   const isHomePage = location.pathname === "/";
-  const navBg = isScrolled || !isHomePage
+  const isLightBg = isScrolled || !isHomePage;
+  const navBg = isLightBg
     ? "bg-background/95 backdrop-blur-md border-b border-border/50"
     : "bg-transparent";
-  const textColor = isScrolled || !isHomePage ? "text-foreground" : "text-white";
+  const textColor = isLightBg ? "text-foreground" : "text-white";
+  const logoFilter = isLightBg ? "" : "brightness-0 invert";
 
   return (
     <header
@@ -55,7 +57,7 @@ const Navbar = () => {
             <img 
               src="https://customer-assets.emergentagent.com/job_a02e6845-0627-4fe0-974d-59466982af90/artifacts/2zbfpiwh_Logo%202.png" 
               alt="Travaholic Stays"
-              className="h-14 md:h-16 w-auto bg-transparent brightness-0 invert"
+              className={`h-14 md:h-16 w-auto bg-transparent transition-all duration-300 ${logoFilter}`}
             />
           </Link>
 
