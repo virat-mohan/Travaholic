@@ -3416,13 +3416,13 @@ async def unpublish_blog_post(post_id: str, user: User = Depends(require_admin))
 # ==================== COUPON MANAGEMENT ====================
 
 @api_router.get("/admin/coupons")
-async def get_coupons(user: dict = Depends(get_admin_user)):
+async def get_coupons(user: User = Depends(require_admin)):
     """Get all coupons (admin only)"""
     coupons = await db.coupons.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return {"coupons": coupons, "total": len(coupons)}
 
 @api_router.post("/admin/coupons")
-async def create_coupon(coupon_data: CouponCreate, user: dict = Depends(get_admin_user)):
+async def create_coupon(coupon_data: CouponCreate, user: User = Depends(require_admin)):
     """Create a new coupon (admin only)"""
     # Check if code already exists
     existing = await db.coupons.find_one({"code": coupon_data.code.upper()})
@@ -3448,7 +3448,7 @@ async def create_coupon(coupon_data: CouponCreate, user: dict = Depends(get_admi
     return {"message": "Coupon created successfully", "coupon_id": coupon.coupon_id}
 
 @api_router.put("/admin/coupons/{coupon_id}")
-async def update_coupon(coupon_id: str, coupon_data: CouponCreate, user: dict = Depends(get_admin_user)):
+async def update_coupon(coupon_id: str, coupon_data: CouponCreate, user: User = Depends(require_admin)):
     """Update a coupon (admin only)"""
     # Check if new code conflicts with another coupon
     existing = await db.coupons.find_one({"code": coupon_data.code.upper(), "coupon_id": {"$ne": coupon_id}})
@@ -3476,7 +3476,7 @@ async def update_coupon(coupon_id: str, coupon_data: CouponCreate, user: dict = 
     return {"message": "Coupon updated successfully"}
 
 @api_router.delete("/admin/coupons/{coupon_id}")
-async def delete_coupon(coupon_id: str, user: dict = Depends(get_admin_user)):
+async def delete_coupon(coupon_id: str, user: User = Depends(require_admin)):
     """Delete a coupon (admin only)"""
     result = await db.coupons.delete_one({"coupon_id": coupon_id})
     if result.deleted_count == 0:
