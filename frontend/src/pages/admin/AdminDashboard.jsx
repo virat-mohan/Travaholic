@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Home, Calendar, Users, DollarSign, MessageSquare,
   Settings, LogOut, Menu, X, Plus, ChevronDown, FileText, Building,
   Edit, Trash2, Eye, Check, Phone, Mail, Search, Filter, Download,
-  AlertCircle, Clock, CheckCircle, XCircle, RefreshCw
+  AlertCircle, Clock, CheckCircle, XCircle, RefreshCw, BookOpen, Image, Tag
 } from "lucide-react";
 import { useAuth, API } from "../../App";
 import { Button } from "../../components/ui/button";
