@@ -141,6 +141,8 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   return children;
 };
 
+import WhatsAppButton from "./components/WhatsAppButton";
+
 // Layout wrapper for public pages
 const PublicLayout = ({ children }) => {
   return (
@@ -148,6 +150,7 @@ const PublicLayout = ({ children }) => {
       <Navbar />
       <main>{children}</main>
       <Footer />
+      <WhatsAppButton />
     </>
   );
 };
