@@ -2971,6 +2971,420 @@ const AdminEventPricing = () => {
   );
 };
 
+// Admin Coupons Management
+const AdminCoupons = () => {
+  const [coupons, setCoupons] = useState([]);
+  const [villas, setVillas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState(null);
+  const [formData, setFormData] = useState({
+    code: "",
+    description: "",
+    discount_type: "percentage",
+    discount_value: 10,
+    min_booking_value: 0,
+    max_discount: null,
+    valid_from: "",
+    valid_to: "",
+    usage_limit: null,
+    per_user_limit: 1,
+    applicable_villas: [],
+    is_active: true
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [couponsRes, villasRes] = await Promise.all([
+        axios.get(`${API}/admin/coupons`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/villas`, { headers: getAuthHeaders() })
+      ]);
+      setCoupons(couponsRes.data.coupons || []);
+      setVillas(villasRes.data.villas || []);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      code: "",
+      description: "",
+      discount_type: "percentage",
+      discount_value: 10,
+      min_booking_value: 0,
+      max_discount: null,
+      valid_from: "",
+      valid_to: "",
+      usage_limit: null,
+      per_user_limit: 1,
+      applicable_villas: [],
+      is_active: true
+    });
+    setEditingCoupon(null);
+  };
+
+  const handleCreate = async () => {
+    if (!formData.code || !formData.discount_value) {
+      toast.error("Please fill required fields");
+      return;
+    }
+    try {
+      await axios.post(`${API}/admin/coupons`, formData, { headers: getAuthHeaders() });
+      toast.success("Coupon created successfully");
+      setShowCreate(false);
+      resetForm();
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to create coupon");
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!formData.code || !formData.discount_value) {
+      toast.error("Please fill required fields");
+      return;
+    }
+    try {
+      await axios.put(`${API}/admin/coupons/${editingCoupon.coupon_id}`, formData, { headers: getAuthHeaders() });
+      toast.success("Coupon updated successfully");
+      setShowCreate(false);
+      resetForm();
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Failed to update coupon");
+    }
+  };
+
+  const handleDelete = async (couponId) => {
+    if (!window.confirm("Are you sure you want to delete this coupon?")) return;
+    try {
+      await axios.delete(`${API}/admin/coupons/${couponId}`, { headers: getAuthHeaders() });
+      toast.success("Coupon deleted");
+      fetchData();
+    } catch (error) {
+      toast.error("Failed to delete coupon");
+    }
+  };
+
+  const openEditModal = (coupon) => {
+    setEditingCoupon(coupon);
+    setFormData({
+      code: coupon.code,
+      description: coupon.description || "",
+      discount_type: coupon.discount_type,
+      discount_value: coupon.discount_value,
+      min_booking_value: coupon.min_booking_value || 0,
+      max_discount: coupon.max_discount || null,
+      valid_from: coupon.valid_from ? coupon.valid_from.split("T")[0] : "",
+      valid_to: coupon.valid_to ? coupon.valid_to.split("T")[0] : "",
+      usage_limit: coupon.usage_limit || null,
+      per_user_limit: coupon.per_user_limit || 1,
+      applicable_villas: coupon.applicable_villas || [],
+      is_active: coupon.is_active
+    });
+    setShowCreate(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw className="animate-spin text-muted-foreground" size={24} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6" data-testid="admin-coupons">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-heading">Coupon Management</h1>
+          <p className="text-muted-foreground">Create and manage discount codes</p>
+        </div>
+        <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) resetForm(); }}>
+          <DialogTrigger asChild>
+            <Button className="btn-luxury" data-testid="create-coupon-btn">
+              <Plus size={16} className="mr-2" />
+              Create Coupon
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingCoupon ? "Edit Coupon" : "Create New Coupon"}</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+              <div className="md:col-span-2">
+                <label className="text-sm text-muted-foreground">Coupon Code *</label>
+                <Input
+                  value={formData.code}
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                  placeholder="e.g., WELCOME10"
+                  className="uppercase"
+                  data-testid="coupon-code-input"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm text-muted-foreground">Description</label>
+                <Input
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="e.g., 10% off for new customers"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Discount Type *</label>
+                <Select value={formData.discount_type} onValueChange={(v) => setFormData({ ...formData, discount_type: v })}>
+                  <SelectTrigger data-testid="discount-type-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Percentage (%)</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">
+                  Discount Value * {formData.discount_type === "percentage" ? "(%)" : "(₹)"}
+                </label>
+                <Input
+                  type="number"
+                  value={formData.discount_value}
+                  onChange={(e) => setFormData({ ...formData, discount_value: parseFloat(e.target.value) || 0 })}
+                  data-testid="discount-value-input"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Minimum Booking Value (₹)</label>
+                <Input
+                  type="number"
+                  value={formData.min_booking_value}
+                  onChange={(e) => setFormData({ ...formData, min_booking_value: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Max Discount Cap (₹)</label>
+                <Input
+                  type="number"
+                  value={formData.max_discount || ""}
+                  onChange={(e) => setFormData({ ...formData, max_discount: e.target.value ? parseFloat(e.target.value) : null })}
+                  placeholder="No limit"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Valid From</label>
+                <Input
+                  type="date"
+                  value={formData.valid_from}
+                  onChange={(e) => setFormData({ ...formData, valid_from: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Valid To</label>
+                <Input
+                  type="date"
+                  value={formData.valid_to}
+                  onChange={(e) => setFormData({ ...formData, valid_to: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Usage Limit (Total)</label>
+                <Input
+                  type="number"
+                  value={formData.usage_limit || ""}
+                  onChange={(e) => setFormData({ ...formData, usage_limit: e.target.value ? parseInt(e.target.value) : null })}
+                  placeholder="Unlimited"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Per User Limit</label>
+                <Input
+                  type="number"
+                  value={formData.per_user_limit}
+                  onChange={(e) => setFormData({ ...formData, per_user_limit: parseInt(e.target.value) || 1 })}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-sm text-muted-foreground mb-2 block">Applicable Villas</label>
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border border-border p-2 rounded">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={formData.applicable_villas.length === 0}
+                      onChange={() => setFormData({ ...formData, applicable_villas: [] })}
+                      className="rounded"
+                    />
+                    All Villas
+                  </label>
+                  {villas.map((villa) => (
+                    <label key={villa.villa_id} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={formData.applicable_villas.includes(villa.villa_id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({ ...formData, applicable_villas: [...formData.applicable_villas, villa.villa_id] });
+                          } else {
+                            setFormData({ ...formData, applicable_villas: formData.applicable_villas.filter(v => v !== villa.villa_id) });
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      {villa.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_active}
+                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Active</span>
+                </label>
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button onClick={editingCoupon ? handleUpdate : handleCreate} data-testid="save-coupon-btn">
+                {editingCoupon ? "Update Coupon" : "Create Coupon"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-card border border-border p-4 text-center">
+          <p className="text-2xl font-heading">{coupons.length}</p>
+          <p className="text-sm text-muted-foreground">Total Coupons</p>
+        </div>
+        <div className="bg-card border border-border p-4 text-center">
+          <p className="text-2xl font-heading text-green-600">{coupons.filter(c => c.is_active).length}</p>
+          <p className="text-sm text-muted-foreground">Active</p>
+        </div>
+        <div className="bg-card border border-border p-4 text-center">
+          <p className="text-2xl font-heading">{coupons.reduce((sum, c) => sum + (c.used_count || 0), 0)}</p>
+          <p className="text-sm text-muted-foreground">Total Uses</p>
+        </div>
+        <div className="bg-card border border-border p-4 text-center">
+          <p className="text-2xl font-heading text-accent">{coupons.filter(c => c.discount_type === "percentage").length}</p>
+          <p className="text-sm text-muted-foreground">% Discounts</p>
+        </div>
+      </div>
+
+      {/* Coupons List */}
+      {coupons.length === 0 ? (
+        <div className="text-center py-16 bg-card border border-border">
+          <Ticket size={48} className="mx-auto text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">No coupons created yet</p>
+          <p className="text-sm text-muted-foreground mt-1">Create your first discount coupon to get started</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {coupons.map((coupon) => (
+            <div
+              key={coupon.coupon_id}
+              className="bg-card border border-border p-6 flex flex-col md:flex-row md:items-center justify-between gap-4"
+              data-testid={`coupon-card-${coupon.code}`}
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-mono text-lg font-bold bg-muted px-3 py-1 rounded">{coupon.code}</span>
+                  <span className={`px-2 py-0.5 text-xs rounded ${
+                    coupon.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                  }`}>
+                    {coupon.is_active ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                {coupon.description && (
+                  <p className="text-sm text-muted-foreground mb-1">{coupon.description}</p>
+                )}
+                <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                  {coupon.valid_from && coupon.valid_to && (
+                    <span>Valid: {coupon.valid_from.split("T")[0]} → {coupon.valid_to.split("T")[0]}</span>
+                  )}
+                  {coupon.usage_limit && (
+                    <span>Uses: {coupon.used_count || 0} / {coupon.usage_limit}</span>
+                  )}
+                  {coupon.min_booking_value > 0 && (
+                    <span>Min: ₹{coupon.min_booking_value.toLocaleString()}</span>
+                  )}
+                  {coupon.applicable_villas?.length > 0 && (
+                    <span>For: {coupon.applicable_villas.length} villa(s)</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <p className="text-2xl font-heading text-accent">
+                    {coupon.discount_type === "percentage" ? `${coupon.discount_value}%` : `₹${coupon.discount_value.toLocaleString()}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {coupon.discount_type === "percentage" ? "Off" : "Flat Off"}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => openEditModal(coupon)} data-testid={`edit-coupon-${coupon.code}`}>
+                    <Edit size={14} />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => handleDelete(coupon.coupon_id)} data-testid={`delete-coupon-${coupon.code}`}>
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Quick Create Common Coupons */}
+      <div className="bg-muted/50 border border-border p-6">
+        <h3 className="font-medium mb-4">Quick Create Common Coupons</h3>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { code: "WELCOME10", desc: "10% off for new customers", type: "percentage", value: 10 },
+            { code: "SUMMER20", desc: "20% off summer special", type: "percentage", value: 20 },
+            { code: "FLAT5000", desc: "₹5,000 off on bookings", type: "fixed", value: 5000 },
+            { code: "LONGSTAY15", desc: "15% off for 7+ night stays", type: "percentage", value: 15 },
+          ].map((preset) => (
+            <Button
+              key={preset.code}
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setFormData({
+                  ...formData,
+                  code: preset.code,
+                  description: preset.desc,
+                  discount_type: preset.type,
+                  discount_value: preset.value,
+                });
+                setShowCreate(true);
+              }}
+            >
+              + {preset.code}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Razorpay Setup Guide
 const RazorpaySetup = () => {
   const [settings, setSettings] = useState(null);
