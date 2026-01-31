@@ -35,6 +35,7 @@ const AdminDashboard = () => {
     { icon: Users, label: "Owners", path: "/admin/owners" },
     { icon: DollarSign, label: "Payouts", path: "/admin/payouts" },
     { icon: Clock, label: "Event Pricing", path: "/admin/pricing" },
+    { icon: BookOpen, label: "Blog", path: "/admin/blog" },
     { icon: Building, label: "Listings", path: "/admin/listings" },
     { icon: Settings, label: "Razorpay Setup", path: "/admin/razorpay" },
   ];
