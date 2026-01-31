@@ -362,6 +362,43 @@ class BlogPostCreate(BaseModel):
     is_featured: bool = False
     related_villa_ids: List[str] = []
 
+class Coupon(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    coupon_id: str = Field(default_factory=lambda: f"coupon_{uuid.uuid4().hex[:12]}")
+    code: str  # e.g., "WELCOME10", "SUMMER2026"
+    description: Optional[str] = None
+    discount_type: str = "percentage"  # "percentage" or "fixed"
+    discount_value: float  # e.g., 10 for 10% or 5000 for ₹5000 off
+    min_booking_value: float = 0  # Minimum subtotal required
+    max_discount: Optional[float] = None  # Cap for percentage discounts
+    valid_from: Optional[str] = None  # ISO date string
+    valid_to: Optional[str] = None  # ISO date string
+    usage_limit: Optional[int] = None  # Max total uses, None = unlimited
+    used_count: int = 0
+    per_user_limit: int = 1  # Uses per customer
+    applicable_villas: List[str] = []  # Empty = all villas
+    is_active: bool = True
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CouponCreate(BaseModel):
+    code: str
+    description: Optional[str] = None
+    discount_type: str = "percentage"
+    discount_value: float
+    min_booking_value: float = 0
+    max_discount: Optional[float] = None
+    valid_from: Optional[str] = None
+    valid_to: Optional[str] = None
+    usage_limit: Optional[int] = None
+    per_user_limit: int = 1
+    applicable_villas: List[str] = []
+    is_active: bool = True
+
+class CouponValidateRequest(BaseModel):
+    code: str
+    villa_id: str
+    subtotal: float  # Amount before coupon discount
+
 class BookingAddOn(BaseModel):
     addon_id: str
     name: str
