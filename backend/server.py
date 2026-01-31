@@ -3236,6 +3236,144 @@ async def delete_event_pricing(event_id: str, user: User = Depends(require_admin
         raise HTTPException(status_code=404, detail="Event not found")
     return {"message": "Event pricing deleted"}
 
+# ==================== BLOG MANAGEMENT ====================
+
+@api_router.get("/blog/posts")
+async def get_blog_posts(status: Optional[str] = None, category: Optional[str] = None, limit: int = 50):
+    """Get blog posts (public endpoint - only returns published posts)"""
+    query = {"status": "published"}
+    if category:
+        query["category"] = category
+    
+    posts = await db.blog_posts.find(query, {"_id": 0}).sort("published_date", -1).limit(limit).to_list(limit)
+    return {"posts": posts, "total": len(posts)}
+
+@api_router.get("/blog/posts/{slug}")
+async def get_blog_post(slug: str):
+    """Get single blog post by slug (public)"""
+    post = await db.blog_posts.find_one({"slug": slug, "status": "published"}, {"_id": 0})
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Get related villas if any
+    related_villas = []
+    if post.get("related_villa_ids"):
+        related_villas = await db.villas.find(
+            {"villa_id": {"$in": post["related_villa_ids"]}},
+            {"_id": 0, "villa_id": 1, "name": 1, "slug": 1, "thumbnail": 1, "location": 1, "base_price": 1}
+        ).to_list(10)
+    
+    # Get more posts in same category
+    related_posts = await db.blog_posts.find(
+        {"category": post["category"], "slug": {"$ne": slug}, "status": "published"},
+        {"_id": 0, "post_id": 1, "slug": 1, "title": 1, "featured_image": 1, "category": 1}
+    ).limit(3).to_list(3)
+    
+    return {"post": post, "related_villas": related_villas, "related_posts": related_posts}
+
+@api_router.get("/blog/categories")
+async def get_blog_categories():
+    """Get all blog categories with post counts"""
+    pipeline = [
+        {"$match": {"status": "published"}},
+        {"$group": {"_id": "$category", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}}
+    ]
+    categories = await db.blog_posts.aggregate(pipeline).to_list(100)
+    return {"categories": [{"name": c["_id"], "count": c["count"]} for c in categories]}
+
+# Admin blog endpoints
+@api_router.get("/admin/blog/posts")
+async def admin_list_blog_posts(user: User = Depends(require_admin)):
+    """List all blog posts (admin - includes drafts)"""
+    posts = await db.blog_posts.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"posts": posts, "total": len(posts)}
+
+@api_router.post("/admin/blog/posts")
+async def create_blog_post(post_data: BlogPostCreate, user: User = Depends(require_admin)):
+    """Create a new blog post"""
+    # Check for duplicate slug
+    existing = await db.blog_posts.find_one({"slug": post_data.slug})
+    if existing:
+        raise HTTPException(status_code=400, detail="A post with this slug already exists")
+    
+    post = BlogPost(
+        slug=post_data.slug,
+        title=post_data.title,
+        excerpt=post_data.excerpt,
+        content=post_data.content,
+        featured_image=post_data.featured_image,
+        category=post_data.category,
+        tags=post_data.tags,
+        meta_title=post_data.meta_title or post_data.title,
+        meta_description=post_data.meta_description or post_data.excerpt,
+        meta_keywords=post_data.meta_keywords,
+        author=post_data.author,
+        published_date=post_data.published_date,
+        read_time=post_data.read_time,
+        status=post_data.status,
+        is_featured=post_data.is_featured,
+        related_villa_ids=post_data.related_villa_ids
+    )
+    
+    doc = post.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    doc["updated_at"] = doc["updated_at"].isoformat()
+    
+    await db.blog_posts.insert_one(doc)
+    
+    return {"post_id": post.post_id, "slug": post.slug, "message": "Blog post created"}
+
+@api_router.put("/admin/blog/posts/{post_id}")
+async def update_blog_post(post_id: str, data: Dict[str, Any], user: User = Depends(require_admin)):
+    """Update a blog post"""
+    # Check if post exists
+    existing = await db.blog_posts.find_one({"post_id": post_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # If slug is being changed, check for duplicates
+    if "slug" in data and data["slug"] != existing["slug"]:
+        duplicate = await db.blog_posts.find_one({"slug": data["slug"]})
+        if duplicate:
+            raise HTTPException(status_code=400, detail="A post with this slug already exists")
+    
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    await db.blog_posts.update_one({"post_id": post_id}, {"$set": data})
+    
+    return {"message": "Blog post updated"}
+
+@api_router.delete("/admin/blog/posts/{post_id}")
+async def delete_blog_post(post_id: str, user: User = Depends(require_admin)):
+    """Delete a blog post"""
+    result = await db.blog_posts.delete_one({"post_id": post_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return {"message": "Blog post deleted"}
+
+@api_router.post("/admin/blog/posts/{post_id}/publish")
+async def publish_blog_post(post_id: str, user: User = Depends(require_admin)):
+    """Publish a draft blog post"""
+    result = await db.blog_posts.update_one(
+        {"post_id": post_id},
+        {"$set": {"status": "published", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return {"message": "Blog post published"}
+
+@api_router.post("/admin/blog/posts/{post_id}/unpublish")
+async def unpublish_blog_post(post_id: str, user: User = Depends(require_admin)):
+    """Unpublish a blog post (set to draft)"""
+    result = await db.blog_posts.update_one(
+        {"post_id": post_id},
+        {"$set": {"status": "draft", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return {"message": "Blog post unpublished"}
+
 # ==================== HEALTH CHECK ====================
 
 @api_router.get("/health")
