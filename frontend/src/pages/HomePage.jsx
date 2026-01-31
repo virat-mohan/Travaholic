@@ -313,15 +313,15 @@ const HomePage = () => {
               </div>
               <div className="space-y-4 pt-12">
                 <div className="bg-foreground text-background p-6">
-                  <p className="text-4xl font-heading mb-2">500+</p>
+                  <p className="text-4xl font-heading mb-2">25,000+</p>
                   <p className="text-sm uppercase tracking-wider">
                     Happy Guests
                   </p>
                 </div>
                 <div className="aspect-[3/4] overflow-hidden group">
                   <img
-                    src="https://images.unsplash.com/photo-1758192838598-a1de4da5dcaf?w=800&q=80"
-                    alt="Infinity Pool Paradise"
+                    src="https://customer-assets.emergentagent.com/job_46fdf40d-d471-4ebc-8342-5064df045175/artifacts/36ebgu9i_Screenshot%202026-01-31%20at%203.55.44%E2%80%AFPM.png"
+                    alt="Travaholic Team"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                 </div>
