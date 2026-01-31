@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 const AboutPage = () => {
   const stats = [
     { value: "20+", label: "Luxury Properties" },
-    { value: "500+", label: "Happy Guests" },
+    { value: "25,000+", label: "Happy Guests" },
     { value: "5+", label: "Destinations" },
     { value: "24/7", label: "Guest Support" },
   ];
