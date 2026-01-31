@@ -17,6 +17,7 @@ import AuthCallback from "./pages/AuthCallback";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import PrivateOfferPage from "./pages/PrivateOfferPage";
+import BlogPostPage from "./pages/BlogPostPage";
 
 // Components
 import Navbar from "./components/Navbar";
