@@ -104,7 +104,7 @@ const ListYourVillaPage = () => {
       <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1920&q=80"
+            src="https://customer-assets.emergentagent.com/job_46fdf40d-d471-4ebc-8342-5064df045175/artifacts/sbw61yzf_List%20your%20villa.png"
             alt="List Your Villa"
             className="w-full h-full object-cover"
           />
