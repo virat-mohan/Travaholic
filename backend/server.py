@@ -315,6 +315,53 @@ class PaymentSettings(BaseModel):
     updated_by: Optional[str] = None
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class BlogPost(BaseModel):
+    """Blog post with SEO optimization"""
+    model_config = ConfigDict(extra="ignore")
+    post_id: str = Field(default_factory=lambda: f"post_{uuid.uuid4().hex[:12]}")
+    slug: str  # URL-friendly slug
+    title: str
+    excerpt: str  # Short description for cards
+    content: str  # Full blog content (supports markdown)
+    featured_image: str
+    category: str  # Travel Guide, Destinations, Travel Tips, Villa Guide
+    tags: List[str] = []
+    # SEO fields
+    meta_title: Optional[str] = None  # Falls back to title if not set
+    meta_description: Optional[str] = None  # Falls back to excerpt if not set
+    meta_keywords: List[str] = []
+    canonical_url: Optional[str] = None
+    # Author & dates
+    author: str = "Team Travaholic"
+    published_date: str  # Display date
+    read_time: str = "5 min read"
+    # Status
+    status: str = "draft"  # draft, published, archived
+    is_featured: bool = False
+    # Related content
+    related_villa_ids: List[str] = []  # Link to specific villas
+    # Timestamps
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class BlogPostCreate(BaseModel):
+    slug: str
+    title: str
+    excerpt: str
+    content: str
+    featured_image: str
+    category: str
+    tags: List[str] = []
+    meta_title: Optional[str] = None
+    meta_description: Optional[str] = None
+    meta_keywords: List[str] = []
+    author: str = "Team Travaholic"
+    published_date: str
+    read_time: str = "5 min read"
+    status: str = "draft"
+    is_featured: bool = False
+    related_villa_ids: List[str] = []
+
 class BookingAddOn(BaseModel):
     addon_id: str
     name: str
