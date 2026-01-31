@@ -73,9 +73,9 @@ const HomePage = () => {
 
   const amenities = [
     { icon: Waves, name: "Private Pool" },
-    { icon: UtensilsCrossed, name: "Gourmet Kitchen" },
+    { icon: UtensilsCrossed, name: "Home Style Meals" },
     { icon: Sparkles, name: "Daily Housekeeping" },
-    { icon: Wine, name: "Premium Bar" },
+    { icon: Wine, name: "Culinary Excellence" },
     { icon: Palmtree, name: "Tropical Gardens" },
     { icon: Mountain, name: "Scenic Views" },
   ];
