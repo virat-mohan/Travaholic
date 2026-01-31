@@ -80,30 +80,6 @@ const HomePage = () => {
     { icon: Mountain, name: "Scenic Views" },
   ];
 
-  // Experience categories for visual section
-  const experiences = [
-    {
-      image: "https://images.unsplash.com/photo-1643633052713-3978931c81a6?w=800&q=80",
-      title: "Sunset Cocktails",
-      desc: "Sip & unwind"
-    },
-    {
-      image: "https://images.unsplash.com/photo-1759741558258-f24a3e847968?w=800&q=80",
-      title: "Fine Dining",
-      desc: "Culinary excellence"
-    },
-    {
-      image: "https://images.unsplash.com/photo-1739314990513-49717c633401?w=800&q=80",
-      title: "Beach Escapes",
-      desc: "Paradise found"
-    },
-    {
-      image: "https://images.unsplash.com/photo-1760067537116-de1f76fe8f95?w=800&q=80",
-      title: "Serene Mornings",
-      desc: "Wake up refreshed"
-    }
-  ];
-
   return (
     <div data-testid="home-page">
       {/* Hero Section with Slideshow */}
