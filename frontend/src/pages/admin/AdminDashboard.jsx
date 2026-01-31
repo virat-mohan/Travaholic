@@ -146,6 +146,7 @@ const AdminDashboard = () => {
             <Route path="owners" element={<AdminOwners />} />
             <Route path="payouts" element={<AdminPayouts />} />
             <Route path="pricing" element={<AdminEventPricing />} />
+            <Route path="blog" element={<AdminBlog />} />
             <Route path="listings" element={<AdminListings />} />
             <Route path="razorpay" element={<RazorpaySetup />} />
           </Routes>
