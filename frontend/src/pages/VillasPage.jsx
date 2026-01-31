@@ -160,16 +160,16 @@ const VillasPage = () => {
                     Location
                   </label>
                   <Select
-                    value={filters.location}
+                    value={filters.location || "all"}
                     onValueChange={(value) =>
-                      setFilters({ ...filters, location: value })
+                      setFilters({ ...filters, location: value === "all" ? "" : value })
                     }
                   >
                     <SelectTrigger data-testid="location-filter">
                       <SelectValue placeholder="All Locations" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Locations</SelectItem>
+                      <SelectItem value="all">All Locations</SelectItem>
                       {locations.map((loc) => (
                         <SelectItem key={loc} value={loc}>
                           {loc}
@@ -185,16 +185,16 @@ const VillasPage = () => {
                     Region
                   </label>
                   <Select
-                    value={filters.region}
+                    value={filters.region || "all"}
                     onValueChange={(value) =>
-                      setFilters({ ...filters, region: value })
+                      setFilters({ ...filters, region: value === "all" ? "" : value })
                     }
                   >
                     <SelectTrigger data-testid="region-filter">
                       <SelectValue placeholder="All Regions" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Regions</SelectItem>
+                      <SelectItem value="all">All Regions</SelectItem>
                       {regions.map((reg) => (
                         <SelectItem key={reg} value={reg}>
                           {reg}
@@ -210,16 +210,16 @@ const VillasPage = () => {
                     Min Guests
                   </label>
                   <Select
-                    value={filters.minGuests}
+                    value={filters.minGuests || "any"}
                     onValueChange={(value) =>
-                      setFilters({ ...filters, minGuests: value })
+                      setFilters({ ...filters, minGuests: value === "any" ? "" : value })
                     }
                   >
                     <SelectTrigger data-testid="guests-filter">
                       <SelectValue placeholder="Any" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any</SelectItem>
+                      <SelectItem value="any">Any</SelectItem>
                       <SelectItem value="2">2+ Guests</SelectItem>
                       <SelectItem value="4">4+ Guests</SelectItem>
                       <SelectItem value="6">6+ Guests</SelectItem>
