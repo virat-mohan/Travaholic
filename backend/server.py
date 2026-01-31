@@ -677,7 +677,9 @@ async def get_villas(
     skip: int = 0
 ):
     """Get all active villas with optional filters"""
-    query = {"is_active": True}
+    query = {"$or": [{"is_active": True}, {"is_active": {"$exists": False}}]}
+    # Exclude off-market villas from public listing
+    query["$and"] = [{"$or": [{"is_off_market": False}, {"is_off_market": {"$exists": False}}]}]
     
     if location:
         query["location"] = {"$regex": location, "$options": "i"}
@@ -690,8 +692,8 @@ async def get_villas(
             query["max_guests"]["$lte"] = max_guests
         else:
             query["max_guests"] = {"$lte": max_guests}
-    if has_pool is not None:
-        query["has_pool"] = has_pool
+    if has_pool is True:
+        query["has_pool"] = True
     if min_price:
         query["base_price"] = {"$gte": min_price}
     if max_price:
