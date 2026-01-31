@@ -14,7 +14,7 @@ const WhatsAppButton = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50" data-testid="whatsapp-floating-btn">
+    <div className="fixed bottom-20 right-6 z-50" data-testid="whatsapp-floating-btn">
       {/* Tooltip */}
       <AnimatePresence>
         {showTooltip && (
