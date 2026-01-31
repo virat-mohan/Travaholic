@@ -381,14 +381,6 @@ const HomePage = () => {
             <h2 className="font-heading text-4xl md:text-5xl">
               What Our Guests Say
             </h2>
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <div className="flex gap-1 text-accent">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={20} fill="currentColor" />
-                ))}
-              </div>
-              <span className="text-muted-foreground">5.0 on Google</span>
-            </div>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
