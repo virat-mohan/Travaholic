@@ -96,9 +96,57 @@ const VillaDetailPage = () => {
         addons: selectedAddons.map((a) => ({ addon_id: a.addon_id, quantity: a.quantity || 1 })),
       });
       setPricing(response.data);
+      // Reset coupon when price recalculates
+      if (couponDiscount) {
+        setCouponDiscount(null);
+        setCouponCode("");
+      }
     } catch (error) {
       console.error("Error calculating price:", error);
     }
+  };
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError("Please enter a coupon code");
+      return;
+    }
+    if (!pricing) {
+      setCouponError("Please select dates first");
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError("");
+    
+    try {
+      const response = await axios.post(`${API}/coupons/validate`, {
+        code: couponCode.trim(),
+        villa_id: villa.villa_id,
+        subtotal: pricing.subtotal
+      });
+      setCouponDiscount(response.data);
+      toast.success(`Coupon applied! ${response.data.description}`);
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || "Invalid coupon code";
+      setCouponError(errorMsg);
+      setCouponDiscount(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode("");
+    setCouponDiscount(null);
+    setCouponError("");
+  };
+
+  // Calculate final total with coupon
+  const getFinalTotal = () => {
+    if (!pricing) return 0;
+    const discount = couponDiscount?.discount_amount || 0;
+    return pricing.total_amount - discount;
   };
 
   const handleAddonToggle = (addon) => {
