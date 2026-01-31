@@ -43,6 +43,12 @@ const VillaDetailPage = () => {
     specialRequests: "",
   });
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
+
   useEffect(() => {
     fetchVilla();
     fetchAddons();
