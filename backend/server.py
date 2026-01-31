@@ -3423,6 +3423,16 @@ async def generate_sitemap():
     <priority>0.8</priority>
   </url>\n'''
     
+    # Add blog posts
+    blog_posts = await db.blog_posts.find({"status": "published"}, {"slug": 1, "updated_at": 1, "_id": 0}).to_list(1000)
+    for post in blog_posts:
+        xml_content += f'''  <url>
+    <loc>{base_url}/blog/{post["slug"]}</loc>
+    <lastmod>{today}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>\n'''
+    
     xml_content += '</urlset>'
     
     return Response(content=xml_content, media_type="application/xml")
