@@ -44,6 +44,13 @@
 - [x] **Razorpay Setup Guide**: Step-by-step instructions in admin panel
 - [x] **Event Pricing Admin**: Manage special pricing periods with quick presets
 - [x] **Private Offer Page**: Guest-facing payment acceptance page
+- [x] **Blog Management System**: Full CRUD with dynamic public pages and sitemap integration
+
+### Phase 3: Bug Fixes & UI Polish (Jan 31, 2026)
+- [x] **Logo Update**: New triangular "TRAYAHOLIC" logo with dynamic color inversion (white on dark, black on light backgrounds)
+- [x] **Villa Filter Fix**: Fixed Select component crash (empty string values replaced with "all"/"any" placeholders)
+- [x] **Navbar Logo**: Conditional CSS filter for dark/light navbar states
+- [x] **Footer Logo**: Inverted logo for visibility on dark footer
 
 ### UI/UX Enhancements
 - [x] Hero slideshow with smooth transitions
