@@ -51,6 +51,8 @@
 - [x] **Villa Filter Fix**: Fixed Select component crash (empty string values replaced with "all"/"any" placeholders)
 - [x] **Navbar Logo**: Conditional CSS filter for dark/light navbar states
 - [x] **Footer Logo**: Inverted logo for visibility on dark footer
+- [x] **WhatsApp Floating Button**: Quick contact button with pre-filled message, appears on all public pages
+- [x] **Coupon System**: Full discount coupon management with admin CRUD and booking page integration
 
 ### UI/UX Enhancements
 - [x] Hero slideshow with smooth transitions
