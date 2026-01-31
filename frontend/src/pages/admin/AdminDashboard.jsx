@@ -31,6 +31,7 @@ const AdminDashboard = () => {
     { icon: Home, label: "Villas", path: "/admin/villas" },
     { icon: Calendar, label: "Bookings", path: "/admin/bookings" },
     { icon: FileText, label: "Private Offers", path: "/admin/offers" },
+    { icon: Ticket, label: "Coupons", path: "/admin/coupons" },
     { icon: MessageSquare, label: "Leads", path: "/admin/leads" },
     { icon: Users, label: "Owners", path: "/admin/owners" },
     { icon: DollarSign, label: "Payouts", path: "/admin/payouts" },
