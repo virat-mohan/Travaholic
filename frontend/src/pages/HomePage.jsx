@@ -214,45 +214,6 @@ const HomePage = () => {
         </motion.div>
       </section>
 
-      {/* Luxury Experiences Strip */}
-      <section className="bg-foreground py-16 overflow-hidden">
-        <div className="container-luxury">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center mb-10"
-          >
-            <p className="text-xs uppercase tracking-[0.3em] text-white/60 mb-3">Curated For You</p>
-            <h2 className="font-heading text-3xl md:text-4xl text-white">The Travaholic Experience</h2>
-          </motion.div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {experiences.map((exp, index) => (
-              <motion.div
-                key={exp.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                className="group relative aspect-[3/4] overflow-hidden cursor-pointer"
-              >
-                <img
-                  src={exp.image}
-                  alt={exp.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-5">
-                  <p className="text-xs text-white/70 uppercase tracking-wider mb-1">{exp.desc}</p>
-                  <h3 className="font-heading text-lg md:text-xl text-white">{exp.title}</h3>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Featured Villas */}
       <section className="section-spacing bg-background" data-testid="featured-villas-section">
         <div className="container-luxury">
