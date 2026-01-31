@@ -903,6 +903,43 @@ const VillaDetailPage = () => {
                 />
               </div>
 
+              {/* Coupon Code Section */}
+              {pricing && (
+                <div className="mb-6 p-4 border border-dashed border-accent/50 bg-accent/5">
+                  <label className="text-sm font-medium mb-2 block">Have a coupon code?</label>
+                  {couponDiscount ? (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 p-3 rounded">
+                      <div>
+                        <span className="font-mono font-bold text-green-700">{couponDiscount.coupon_code}</span>
+                        <p className="text-sm text-green-600">{couponDiscount.description}</p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={removeCoupon} className="text-red-500 hover:text-red-700">
+                        Remove
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter coupon code"
+                        value={couponCode}
+                        onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(""); }}
+                        className="input-luxury uppercase flex-1"
+                        data-testid="coupon-code-input"
+                      />
+                      <Button 
+                        variant="outline" 
+                        onClick={applyCoupon} 
+                        disabled={couponLoading}
+                        data-testid="apply-coupon-btn"
+                      >
+                        {couponLoading ? "..." : "Apply"}
+                      </Button>
+                    </div>
+                  )}
+                  {couponError && <p className="text-sm text-red-500 mt-2">{couponError}</p>}
+                </div>
+              )}
+
               {/* Updated Total with GST Breakdown */}
               {pricing && (
                 <div className="bg-accent/10 p-4 mb-6">
@@ -921,11 +958,20 @@ const VillaDetailPage = () => {
                         <span>{formatPrice(pricing.security_deposit)}</span>
                       </div>
                     )}
+                    {couponDiscount && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Coupon Discount ({couponDiscount.coupon_code})</span>
+                        <span>-{formatPrice(couponDiscount.discount_amount)}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t border-accent/30">
                     <span className="font-medium">Total Amount</span>
-                    <span className="font-heading text-2xl">{formatPrice(pricing.total_amount)}</span>
+                    <span className="font-heading text-2xl">{formatPrice(getFinalTotal())}</span>
                   </div>
+                  {couponDiscount && (
+                    <p className="text-xs text-green-600 mt-1">You save {formatPrice(couponDiscount.discount_amount)}!</p>
+                  )}
                 </div>
               )}
 
