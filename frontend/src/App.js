@@ -221,6 +221,14 @@ function AppRouter() {
           </PublicLayout>
         }
       />
+      <Route
+        path="/blog/:slug"
+        element={
+          <PublicLayout>
+            <BlogPostPage />
+          </PublicLayout>
+        }
+      />
       <Route path="/login" element={<LoginPage />} />
 
       {/* Private Offer Payment Page */}
