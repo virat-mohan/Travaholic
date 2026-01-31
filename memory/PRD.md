@@ -100,6 +100,17 @@
 - villa_id/name, booking_id
 - gross_amount, commission_percent/amount
 - net_payable, status, paid_date
+
+### Coupon
+```
+- coupon_id, code, description
+- discount_type (percentage/fixed), discount_value
+- min_booking_value, max_discount
+- valid_from, valid_to
+- usage_limit, used_count, per_user_limit
+- applicable_villas (empty = all)
+- is_active, created_at
+```
 - payment_reference, payment_mode
 ```
 
