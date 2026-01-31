@@ -3413,6 +3413,133 @@ async def unpublish_blog_post(post_id: str, user: User = Depends(require_admin))
         raise HTTPException(status_code=404, detail="Post not found")
     return {"message": "Blog post unpublished"}
 
+# ==================== COUPON MANAGEMENT ====================
+
+@api_router.get("/admin/coupons")
+async def get_coupons(user: dict = Depends(get_admin_user)):
+    """Get all coupons (admin only)"""
+    coupons = await db.coupons.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"coupons": coupons, "total": len(coupons)}
+
+@api_router.post("/admin/coupons")
+async def create_coupon(coupon_data: CouponCreate, user: dict = Depends(get_admin_user)):
+    """Create a new coupon (admin only)"""
+    # Check if code already exists
+    existing = await db.coupons.find_one({"code": coupon_data.code.upper()})
+    if existing:
+        raise HTTPException(status_code=400, detail="Coupon code already exists")
+    
+    coupon = Coupon(
+        code=coupon_data.code.upper(),
+        description=coupon_data.description,
+        discount_type=coupon_data.discount_type,
+        discount_value=coupon_data.discount_value,
+        min_booking_value=coupon_data.min_booking_value,
+        max_discount=coupon_data.max_discount,
+        valid_from=coupon_data.valid_from,
+        valid_to=coupon_data.valid_to,
+        usage_limit=coupon_data.usage_limit,
+        per_user_limit=coupon_data.per_user_limit,
+        applicable_villas=coupon_data.applicable_villas,
+        is_active=coupon_data.is_active
+    )
+    
+    await db.coupons.insert_one(coupon.model_dump())
+    return {"message": "Coupon created successfully", "coupon_id": coupon.coupon_id}
+
+@api_router.put("/admin/coupons/{coupon_id}")
+async def update_coupon(coupon_id: str, coupon_data: CouponCreate, user: dict = Depends(get_admin_user)):
+    """Update a coupon (admin only)"""
+    # Check if new code conflicts with another coupon
+    existing = await db.coupons.find_one({"code": coupon_data.code.upper(), "coupon_id": {"$ne": coupon_id}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Coupon code already exists")
+    
+    update_data = {
+        "code": coupon_data.code.upper(),
+        "description": coupon_data.description,
+        "discount_type": coupon_data.discount_type,
+        "discount_value": coupon_data.discount_value,
+        "min_booking_value": coupon_data.min_booking_value,
+        "max_discount": coupon_data.max_discount,
+        "valid_from": coupon_data.valid_from,
+        "valid_to": coupon_data.valid_to,
+        "usage_limit": coupon_data.usage_limit,
+        "per_user_limit": coupon_data.per_user_limit,
+        "applicable_villas": coupon_data.applicable_villas,
+        "is_active": coupon_data.is_active
+    }
+    
+    result = await db.coupons.update_one({"coupon_id": coupon_id}, {"$set": update_data})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+    return {"message": "Coupon updated successfully"}
+
+@api_router.delete("/admin/coupons/{coupon_id}")
+async def delete_coupon(coupon_id: str, user: dict = Depends(get_admin_user)):
+    """Delete a coupon (admin only)"""
+    result = await db.coupons.delete_one({"coupon_id": coupon_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Coupon not found")
+    return {"message": "Coupon deleted successfully"}
+
+@api_router.post("/coupons/validate")
+async def validate_coupon(request: CouponValidateRequest):
+    """Validate a coupon code and calculate discount (public)"""
+    coupon = await db.coupons.find_one({"code": request.code.upper(), "is_active": True}, {"_id": 0})
+    
+    if not coupon:
+        raise HTTPException(status_code=404, detail="Invalid or expired coupon code")
+    
+    # Check validity dates
+    now = datetime.now(timezone.utc)
+    if coupon.get("valid_from"):
+        valid_from = datetime.fromisoformat(coupon["valid_from"].replace("Z", "+00:00"))
+        if now < valid_from:
+            raise HTTPException(status_code=400, detail="Coupon is not yet valid")
+    
+    if coupon.get("valid_to"):
+        valid_to = datetime.fromisoformat(coupon["valid_to"].replace("Z", "+00:00"))
+        if now > valid_to:
+            raise HTTPException(status_code=400, detail="Coupon has expired")
+    
+    # Check usage limit
+    if coupon.get("usage_limit") and coupon.get("used_count", 0) >= coupon["usage_limit"]:
+        raise HTTPException(status_code=400, detail="Coupon usage limit reached")
+    
+    # Check applicable villas
+    if coupon.get("applicable_villas") and len(coupon["applicable_villas"]) > 0:
+        if request.villa_id not in coupon["applicable_villas"]:
+            raise HTTPException(status_code=400, detail="Coupon not valid for this villa")
+    
+    # Check minimum booking value
+    if request.subtotal < coupon.get("min_booking_value", 0):
+        min_val = coupon.get("min_booking_value", 0)
+        raise HTTPException(status_code=400, detail=f"Minimum booking value of ₹{min_val:,.0f} required")
+    
+    # Calculate discount
+    discount_type = coupon.get("discount_type", "percentage")
+    discount_value = coupon.get("discount_value", 0)
+    
+    if discount_type == "percentage":
+        discount_amount = request.subtotal * (discount_value / 100)
+        # Apply max discount cap if set
+        if coupon.get("max_discount"):
+            discount_amount = min(discount_amount, coupon["max_discount"])
+    else:
+        discount_amount = min(discount_value, request.subtotal)  # Can't exceed subtotal
+    
+    return {
+        "valid": True,
+        "coupon_code": coupon["code"],
+        "discount_type": discount_type,
+        "discount_value": discount_value,
+        "discount_amount": round(discount_amount, 2),
+        "description": coupon.get("description", f"{discount_value}{'%' if discount_type == 'percentage' else ''} off"),
+        "min_booking_value": coupon.get("min_booking_value", 0),
+        "max_discount": coupon.get("max_discount")
+    }
+
 # ==================== HEALTH CHECK ====================
 
 @api_router.get("/health")
