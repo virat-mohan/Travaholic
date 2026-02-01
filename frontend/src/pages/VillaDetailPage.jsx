@@ -414,10 +414,29 @@ const VillaDetailPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           {/* Left - Details */}
           <div className="lg:col-span-7">
-            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-4">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm mb-2">
               <MapPin size={16} />
               <span>{villa.location}, {villa.region}</span>
             </div>
+            
+            {/* Address and Map Link */}
+            {villa.address && (
+              <div className="flex items-start gap-2 text-muted-foreground text-sm mb-4">
+                <span className="text-foreground/70">{villa.address}</span>
+                {villa.map_link && (
+                  <a 
+                    href={villa.map_link} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-accent hover:underline whitespace-nowrap"
+                    data-testid="map-link"
+                  >
+                    <ExternalLink size={14} />
+                    View on Map
+                  </a>
+                )}
+              </div>
+            )}
 
             <h1 className="font-heading text-4xl md:text-5xl mb-6">{villa.name}</h1>
 
