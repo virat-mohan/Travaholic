@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import {
   MapPin, Users, Bed, Bath, Check, Phone, MessageCircle,
-  ChevronLeft, ChevronRight, Calendar, Plus, Minus, X
+  ChevronLeft, ChevronRight, Calendar, Plus, Minus, X, ExternalLink
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Calendar as CalendarComponent } from "../components/ui/calendar";
