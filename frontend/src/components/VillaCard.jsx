@@ -23,7 +23,7 @@ const getImageCaption = (url) => {
   }
 };
 
-const VillaCard = ({ villa, index = 0 }) => {
+const VillaCard = ({ villa, index = 0, showCaption = false }) => {
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -33,7 +33,7 @@ const VillaCard = ({ villa, index = 0 }) => {
   };
 
   const thumbnailUrl = villa.thumbnail || villa.images?.[0] || "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800";
-  const imageCaption = getImageCaption(thumbnailUrl);
+  const imageCaption = showCaption ? getImageCaption(thumbnailUrl) : "";
 
   return (
     <motion.div
