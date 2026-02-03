@@ -2068,7 +2068,7 @@ async def create_lead(lead_data: LeadCreate):
         try:
             await asyncio.to_thread(resend.Emails.send, {
                 "from": SENDER_EMAIL,
-                "to": [os.environ.get("ADMIN_EMAIL", "admin@travaholicstays.com")],
+                "to": [os.environ.get("ADMIN_EMAIL", "Travaholicstays@gmail.com")],
                 "subject": f"New Lead: {lead.name} ({lead.lead_type})",
                 "html": f"""
                     <h2>New {lead.lead_type.title()} Lead</h2>
