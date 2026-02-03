@@ -588,65 +588,79 @@ const VillaDetailPage = () => {
                 </p>
               </div>
 
-              <div className="flex items-baseline justify-between mb-6">
-                <div>
-                  <span className="text-xs text-muted-foreground uppercase tracking-wider">From</span>
-                  <p className="font-heading text-3xl">
-                    {formatPrice(villa.base_price)}
-                    <span className="text-base font-body text-muted-foreground">/night</span>
-                  </p>
-                </div>
-                {villa.weekend_price && villa.weekend_price !== villa.base_price && (
-                  <div className="text-right">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Weekend</span>
-                    <p className="font-heading text-xl text-muted-foreground">
-                      {formatPrice(villa.weekend_price)}
+              {/* Price Display - Only show if not hidden */}
+              {!villa.hide_price ? (
+                <div className="flex items-baseline justify-between mb-6">
+                  <div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">From</span>
+                    <p className="font-heading text-3xl">
+                      {formatPrice(villa.base_price)}
+                      <span className="text-base font-body text-muted-foreground">/night</span>
                     </p>
                   </div>
-                )}
-              </div>
+                  {villa.weekend_price && villa.weekend_price !== villa.base_price && (
+                    <div className="text-right">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider">Weekend</span>
+                      <p className="font-heading text-xl text-muted-foreground">
+                        {formatPrice(villa.weekend_price)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="mb-6 text-center">
+                  <p className="font-heading text-2xl text-accent mb-2">Price on Request</p>
+                  <p className="text-sm text-muted-foreground">Contact us for availability and pricing</p>
+                </div>
+              )}
 
-              {/* Date Selection */}
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="justify-start text-left font-normal" data-testid="checkin-btn">
-                      <Calendar size={16} className="mr-2" />
-                      {checkIn ? format(checkIn, "MMM dd") : "Check-in"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={checkIn}
-                      onSelect={(date) => {
-                        setCheckIn(date);
-                        if (checkOut && !isAfter(checkOut, date)) {
-                          setCheckOut(addDays(date, villa.minimum_nights || 1));
-                        }
-                      }}
-                      disabled={(date) => isBefore(date, new Date()) || isDateBlocked(date)}
-                    />
-                  </PopoverContent>
-                </Popover>
+              {/* Booking Section - Only show if booking not disabled */}
+              {!villa.booking_disabled ? (
+                <>
+                  {/* Date Selection */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="justify-start text-left font-normal" data-testid="checkin-btn">
+                          <Calendar size={16} className="mr-2" />
+                          {checkIn ? format(checkIn, "MMM dd") : "Check-in"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={checkIn}
+                          onSelect={(date) => {
+                            setCheckIn(date);
+                            if (checkOut && !isAfter(checkOut, date)) {
+                              setCheckOut(addDays(date, villa.minimum_nights || 1));
+                            }
+                          }}
+                          disabled={(date) => isBefore(date, new Date()) || isDateBlocked(date)}
+                        />
+                      </PopoverContent>
+                    </Popover>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="justify-start text-left font-normal" data-testid="checkout-btn">
-                      <Calendar size={16} className="mr-2" />
-                      {checkOut ? format(checkOut, "MMM dd") : "Check-out"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={checkOut}
-                      onSelect={setCheckOut}
-                      disabled={(date) => !checkIn || isBefore(date, addDays(checkIn, villa.minimum_nights || 1)) || isDateBlocked(date)}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="justify-start text-left font-normal" data-testid="checkout-btn">
+                          <Calendar size={16} className="mr-2" />
+                          {checkOut ? format(checkOut, "MMM dd") : "Check-out"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <CalendarComponent
+                          mode="single"
+                          selected={checkOut}
+                          onSelect={setCheckOut}
+                          disabled={(date) =>
+                            isBefore(date, addDays(checkIn || new Date(), villa.minimum_nights || 1)) ||
+                            isDateBlocked(date)
+                          }
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
 
               {/* Guests */}
               <div className="flex items-center justify-between py-4 border-y border-border mb-4">
