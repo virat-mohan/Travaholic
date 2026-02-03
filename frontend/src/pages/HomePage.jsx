@@ -230,10 +230,51 @@ const HomePage = () => {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {villas.map((villa, index) => (
-                <VillaCard key={villa.villa_id} villa={villa} index={index} />
-              ))}
+            <div className="relative group/slider">
+              {/* Scroll Left Button */}
+              <button 
+                onClick={() => {
+                  const container = document.getElementById('villa-scroller');
+                  if (container) container.scrollBy({ left: -350, behavior: 'smooth' });
+                }}
+                className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 bg-background/90 hover:bg-background border border-border shadow-lg rounded-full p-3 opacity-0 group-hover/slider:opacity-100 transition-opacity duration-300 hidden md:flex"
+                data-testid="scroll-left-btn"
+              >
+                <ChevronLeft size={24} />
+              </button>
+              
+              {/* Scrollable Container */}
+              <div 
+                id="villa-scroller"
+                className="flex gap-6 overflow-x-auto scroll-smooth pb-4 snap-x snap-mandatory scrollbar-hide"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {villas.map((villa, index) => (
+                  <div 
+                    key={villa.villa_id} 
+                    className="flex-none w-[300px] md:w-[350px] snap-start"
+                  >
+                    <VillaCard villa={villa} index={index} />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Scroll Right Button */}
+              <button 
+                onClick={() => {
+                  const container = document.getElementById('villa-scroller');
+                  if (container) container.scrollBy({ left: 350, behavior: 'smooth' });
+                }}
+                className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 bg-background/90 hover:bg-background border border-border shadow-lg rounded-full p-3 opacity-0 group-hover/slider:opacity-100 transition-opacity duration-300 hidden md:flex"
+                data-testid="scroll-right-btn"
+              >
+                <ChevronRightIcon size={24} />
+              </button>
+              
+              {/* Scroll Indicator */}
+              <div className="flex justify-center mt-6 gap-2 md:hidden">
+                <p className="text-sm text-muted-foreground">Swipe to explore →</p>
+              </div>
             </div>
           )}
         </div>
