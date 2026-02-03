@@ -158,15 +158,23 @@ const VillaCard = ({ villa, index = 0, showCaption = false }) => {
           {/* Price */}
           <div className="flex items-baseline justify-between pt-4 border-t border-border">
             <div>
-              <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                From
-              </span>
-              <p className="font-heading text-xl">
-                {formatPrice(villa.base_price)}
-                <span className="text-sm font-body text-muted-foreground">
-                  /night
-                </span>
-              </p>
+              {villa.hide_price ? (
+                <p className="font-heading text-lg text-accent">
+                  Request Callback
+                </p>
+              ) : (
+                <>
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                    From
+                  </span>
+                  <p className="font-heading text-xl">
+                    {formatPrice(villa.base_price)}
+                    <span className="text-sm font-body text-muted-foreground">
+                      /night
+                    </span>
+                  </p>
+                </>
+              )}
             </div>
             <span className="text-sm uppercase tracking-wider text-accent group-hover:underline">
               View Details
