@@ -662,83 +662,97 @@ const VillaDetailPage = () => {
                     </Popover>
                   </div>
 
-              {/* Guests */}
-              <div className="flex items-center justify-between py-4 border-y border-border mb-4">
-                <span className="text-sm">Guests</span>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setNumGuests(Math.max(1, numGuests - 1))}
-                    className="p-1 border border-border rounded"
-                    data-testid="decrease-guests-btn"
-                  >
-                    <Minus size={16} />
-                  </button>
-                  <span className="w-8 text-center">{numGuests}</span>
-                  <button
-                    onClick={() => setNumGuests(Math.min(villa.max_guests, numGuests + 1))}
-                    className="p-1 border border-border rounded"
-                    data-testid="increase-guests-btn"
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-              </div>
+                  {/* Guests */}
+                  <div className="flex items-center justify-between py-4 border-y border-border mb-4">
+                    <span className="text-sm">Guests</span>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={() => setNumGuests(Math.max(1, numGuests - 1))}
+                        className="p-1 border border-border rounded"
+                        data-testid="decrease-guests-btn"
+                      >
+                        <Minus size={16} />
+                      </button>
+                      <span className="w-8 text-center">{numGuests}</span>
+                      <button
+                        onClick={() => setNumGuests(Math.min(villa.max_guests, numGuests + 1))}
+                        className="p-1 border border-border rounded"
+                        data-testid="increase-guests-btn"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                  </div>
 
-              {/* Pricing Summary */}
-              {pricing && (
-                <div className="space-y-3 mb-6 text-sm">
-                  <div className="flex justify-between">
-                    <span>{formatPrice(villa.base_price)} x {pricing.num_nights} nights</span>
-                    <span>{formatPrice(pricing.base_amount)}</span>
-                  </div>
-                  {pricing.long_stay_discount_amount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Long Stay Discount ({pricing.long_stay_discount_percent}%)</span>
-                      <span>-{formatPrice(pricing.long_stay_discount_amount)}</span>
+                  {/* Pricing Summary */}
+                  {pricing && (
+                    <div className="space-y-3 mb-6 text-sm">
+                      <div className="flex justify-between">
+                        <span>{formatPrice(villa.base_price)} x {pricing.num_nights} nights</span>
+                        <span>{formatPrice(pricing.base_amount)}</span>
+                      </div>
+                      {pricing.long_stay_discount_amount > 0 && (
+                        <div className="flex justify-between text-green-600">
+                          <span>Long Stay Discount ({pricing.long_stay_discount_percent}%)</span>
+                          <span>-{formatPrice(pricing.long_stay_discount_amount)}</span>
+                        </div>
+                      )}
+                      {pricing.cleaning_fee > 0 && (
+                        <div className="flex justify-between">
+                          <span>Cleaning Fee</span>
+                          <span>{formatPrice(pricing.cleaning_fee)}</span>
+                        </div>
+                      )}
+                      {pricing.addons_total > 0 && (
+                        <div className="flex justify-between">
+                          <span>Add-ons</span>
+                          <span>{formatPrice(pricing.addons_total)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between pt-2 border-t border-border/50">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>{formatPrice(pricing.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>GST (18%)</span>
+                        <span>{formatPrice(pricing.gst_amount)}</span>
+                      </div>
+                      {pricing.security_deposit > 0 && (
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Security Deposit (refundable)</span>
+                          <span>{formatPrice(pricing.security_deposit)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between pt-3 border-t border-border font-medium text-base">
+                        <span>Total</span>
+                        <span>{formatPrice(pricing.total_amount)}</span>
+                      </div>
                     </div>
                   )}
-                  {pricing.cleaning_fee > 0 && (
-                    <div className="flex justify-between">
-                      <span>Cleaning Fee</span>
-                      <span>{formatPrice(pricing.cleaning_fee)}</span>
-                    </div>
-                  )}
-                  {pricing.addons_total > 0 && (
-                    <div className="flex justify-between">
-                      <span>Add-ons</span>
-                      <span>{formatPrice(pricing.addons_total)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between pt-2 border-t border-border/50">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>{formatPrice(pricing.subtotal)}</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>GST (18%)</span>
-                    <span>{formatPrice(pricing.gst_amount)}</span>
-                  </div>
-                  {pricing.security_deposit > 0 && (
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Security Deposit (refundable)</span>
-                      <span>{formatPrice(pricing.security_deposit)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between pt-3 border-t border-border font-medium text-base">
-                    <span>Total</span>
-                    <span>{formatPrice(pricing.total_amount)}</span>
-                  </div>
+
+                  <Button
+                    className="w-full btn-luxury mb-4"
+                    onClick={() => setShowBookingModal(true)}
+                    disabled={!checkIn || !checkOut}
+                    data-testid="book-now-btn"
+                  >
+                    {checkIn && checkOut ? "Book Now" : "Select Dates"}
+                  </Button>
+
+                  <p className="text-xs text-muted-foreground text-center mt-4">
+                    Minimum {villa.minimum_nights} night{villa.minimum_nights > 1 ? "s" : ""} stay
+                  </p>
+                </>
+              ) : (
+                <div className="text-center mb-6">
+                  <p className="font-heading text-xl text-accent mb-4">Booking Currently Unavailable</p>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    This villa is not available for online booking at the moment. Please contact us directly for availability and reservations.
+                  </p>
                 </div>
               )}
 
-              <Button
-                className="w-full btn-luxury mb-4"
-                onClick={() => setShowBookingModal(true)}
-                disabled={!checkIn || !checkOut}
-                data-testid="book-now-btn"
-              >
-                {checkIn && checkOut ? "Book Now" : "Select Dates"}
-              </Button>
-
+              {/* Contact buttons - Always show */}
               <div className="flex gap-4">
                 <Button
                   variant="outline"
@@ -765,10 +779,6 @@ const VillaDetailPage = () => {
                   </a>
                 </Button>
               </div>
-
-              <p className="text-xs text-muted-foreground text-center mt-4">
-                Minimum {villa.minimum_nights} night{villa.minimum_nights > 1 ? "s" : ""} stay
-              </p>
             </div>
           </div>
         </div>
