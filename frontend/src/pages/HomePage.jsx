@@ -299,7 +299,7 @@ const HomePage = () => {
               <div className="space-y-4">
                 <div className="aspect-[3/4] overflow-hidden group">
                   <img
-                    src="https://images.unsplash.com/photo-1759281944533-a9eea164ffe3?w=800&q=80"
+                    src="https://images.unsplash.com/photo-1767284478133-033c43deaaa9?w=800&q=80"
                     alt="Luxury Mountain Retreat"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
