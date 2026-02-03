@@ -95,10 +95,10 @@ const ContactPage = () => {
                 <div>
                   <h3 className="font-medium mb-1">Email</h3>
                   <a
-                    href="mailto:hello@travaholicstays.com"
+                    href="mailto:Travaholicstays@gmail.com"
                     className="text-muted-foreground hover:text-accent transition-colors"
                   >
-                    hello@travaholicstays.com
+                    Travaholicstays@gmail.com
                   </a>
                 </div>
               </div>
