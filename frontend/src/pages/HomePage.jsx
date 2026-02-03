@@ -263,7 +263,7 @@ const HomePage = () => {
                 extraordinary.
               </p>
               <p className="text-muted-foreground text-lg leading-relaxed mb-8">
-                From private infinity pools overlooking pristine beaches to cozy
+                From private pools overlooking pristine beaches to cozy
                 mountain retreats with breathtaking views, every property in our
                 portfolio is handpicked for its unique character, impeccable
                 service, and attention to detail.
