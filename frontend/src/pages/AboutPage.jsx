@@ -70,44 +70,40 @@ const AboutPage = () => {
         <div className="container-luxury">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <p className="caption-text mb-4">Who We Are</p>
+              <p className="caption-text mb-4">The Travaholic Story</p>
               <h2 className="font-heading text-4xl md:text-5xl mb-6">
-                Crafting Luxury
+                Where Wanderlust
                 <br />
-                <span className="italic">Experiences</span>
+                <span className="italic">Becomes a Way of Life</span>
               </h2>
               <div className="space-y-6 text-muted-foreground text-lg leading-relaxed">
                 <p>
-                  Travaholic Stays was born from a simple vision: to redefine
-                  the vacation rental experience in India. We believe that where
-                  you stay shapes your entire journey, and we're committed to
-                  making every stay extraordinary.
+                  Ishan Seth's journey began on the sun-drenched shores of Durban, South Africa—a childhood defined by surfing, hiking, and endless adventures, always with a trusty cap on his head. That simple accessory became a symbol of something deeper: a life lived outdoors, chasing horizons.
                 </p>
                 <p>
-                  Our journey began in the sun-kissed beaches of North Goa,
-                  where we curated our first collection of ultra-luxury villas.
-                  Today, we've expanded to the misty hills of Mussoorie and the
-                  serene landscapes of Himachal Pradesh, bringing our signature
-                  hospitality to each destination.
+                  As wanderlust grew, so did his art. Hand-sketched landscapes—mountains, beaches, deserts—transformed into <a href="https://travaholic.in/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline font-medium">Travaholic Caps</a>, each design a tribute to places that stir the soul. From charcoal sketches to global adventures, the brand became a badge for fellow explorers.
                 </p>
                 <p>
-                  What sets us apart is our unwavering commitment to quality.
-                  Every property in our portfolio is handpicked, ensuring it
-                  meets our exacting standards for comfort, aesthetics, and
-                  service.
+                  The trails led further. <strong>Travaholic Treks</strong> took kindred spirits through the Himalayas, forging bonds under open skies. Then came <strong>Travaholic Stays</strong>—luxury villas in Goa and the hills, where every home tells a story.
+                </p>
+                <p>
+                  Now, the vision expands. <strong>Travaholic Realty</strong> will craft tomorrow's most sought-after addresses in Goa—spaces designed for those who don't just travel, but <em>live</em> the journey.
+                </p>
+                <p className="text-foreground font-medium italic">
+                  This is Travaholic. Adventure, reimagined.
                 </p>
               </div>
             </div>
             <div className="relative">
               <div className="aspect-[4/5] overflow-hidden">
                 <img
-                  src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800"
-                  alt="Luxury Villa"
+                  src="https://customer-assets.emergentagent.com/job_a02e6845-0627-4fe0-974d-59466982af90/artifacts/tgwuxgmk_story-image-for-ishan-new-jpg.webp"
+                  alt="Ishan Seth - Founder of Travaholic"
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="absolute -bottom-8 -left-8 bg-accent text-accent-foreground p-8 w-48">
-                <p className="text-4xl font-heading mb-2">2020</p>
+                <p className="text-4xl font-heading mb-2">2016</p>
                 <p className="text-sm uppercase tracking-wider">Est.</p>
               </div>
             </div>
