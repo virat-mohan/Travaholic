@@ -62,7 +62,7 @@ const HomePage = () => {
 
   const fetchVillas = async () => {
     try {
-      const response = await axios.get(`${API}/villas?limit=4`);
+      const response = await axios.get(`${API}/villas?limit=12`);
       setVillas(response.data.villas);
     } catch (error) {
       console.error("Error fetching villas:", error);
