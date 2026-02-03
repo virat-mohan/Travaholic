@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, MapPin, Star, Phone, Calendar, Users, ChevronDown, Waves, UtensilsCrossed, Mountain, Sparkles, Wine, Palmtree } from "lucide-react";
+import { ArrowRight, MapPin, Star, Phone, Calendar, Users, ChevronDown, Waves, UtensilsCrossed, Mountain, Sparkles, Wine, Palmtree, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
 import VillaCard from "../components/VillaCard";
 import CallbackModal from "../components/CallbackModal";
