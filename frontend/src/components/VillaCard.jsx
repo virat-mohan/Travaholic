@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Users, Bed, Bath } from "lucide-react";
+import { MapPin, Users, Bed, Bath, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
 
 // Extract caption from image URL filename
@@ -24,6 +25,8 @@ const getImageCaption = (url) => {
 };
 
 const VillaCard = ({ villa, index = 0, showCaption = false }) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
   const formatPrice = (price) => {
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -32,8 +35,22 @@ const VillaCard = ({ villa, index = 0, showCaption = false }) => {
     }).format(price);
   };
 
-  const thumbnailUrl = villa.thumbnail || villa.images?.[0] || "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800";
-  const imageCaption = showCaption ? getImageCaption(thumbnailUrl) : "";
+  // Get up to 5 images for the carousel
+  const images = villa.images?.slice(0, 5) || [villa.thumbnail || "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800"];
+  const currentImage = images[currentImageIndex] || images[0];
+  const imageCaption = showCaption ? getImageCaption(currentImage) : "";
+
+  const nextImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
 
   return (
     <motion.div
@@ -44,13 +61,55 @@ const VillaCard = ({ villa, index = 0, showCaption = false }) => {
       data-testid={`villa-card-${villa.slug}`}
     >
       <Link to={`/villas/${villa.slug}`}>
-        {/* Image */}
+        {/* Image Carousel */}
         <div className="relative aspect-[4/3] overflow-hidden">
           <img
-            src={thumbnailUrl}
+            src={currentImage}
             alt={villa.name}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
+          
+          {/* Navigation Arrows */}
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={prevImage}
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                data-testid="villa-card-prev"
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={nextImage}
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                data-testid="villa-card-next"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </>
+          )}
+          
+          {/* Image Dots Indicator */}
+          {images.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {images.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setCurrentImageIndex(idx);
+                  }}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    idx === currentImageIndex 
+                      ? "bg-white w-4" 
+                      : "bg-white/50 hover:bg-white/75"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+          
           {villa.has_pool && (
             <span className="absolute top-4 left-4 bg-accent text-accent-foreground px-3 py-1 text-xs uppercase tracking-wider">
               Private Pool
