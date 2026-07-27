@@ -566,6 +566,17 @@ const AdminVillas = () => {
   );
 };
 
+// Standardized amenity options, grouped for readability - drawn from what's
+// actually used across the real villa portfolio so nothing gets missed or
+// entered inconsistently (e.g. "WiFi" vs "wifi" vs "Wi-Fi").
+const AMENITY_GROUPS = {
+  "Comfort": ["Air Conditioning", "High-Speed WiFi", "Smart TV", "Generator Backup"],
+  "Kitchen & Dining": ["Fully Equipped Kitchen", "Microwave & Oven", "Chef Service", "Breakfast Service"],
+  "Pool & Outdoors": ["Private Pool", "Heated Pool", "Garden", "Parking"],
+  "Service & Staff": ["Daily Housekeeping", "Butler Service", "Concierge Service", "Caretaker", "Travel Desk", "In-villa Spa Service"],
+  "Practical": ["24/7 Security", "Locker Available", "Washing Machine", "Baby Cot Available", "High-end Toiletries"],
+};
+
 // Villa Form Component
 const VillaForm = ({ villa, onSuccess }) => {
   const [formData, setFormData] = useState({
@@ -584,7 +595,7 @@ const VillaForm = ({ villa, onSuccess }) => {
     minimum_nights: villa?.minimum_nights || 2,
     security_deposit: villa?.security_deposit || 10000,
     commission_percent: villa?.commission_percent || 30,
-    amenities: villa?.amenities?.join(", ") || "",
+    amenities: villa?.amenities || [],
     thumbnail: villa?.thumbnail || "",
     images: villa?.images || [],
   });
@@ -630,6 +641,15 @@ const VillaForm = ({ villa, onSuccess }) => {
     setFormData((prev) => ({ ...prev, thumbnail: url }));
   };
 
+  const toggleAmenity = (amenity) => {
+    setFormData((prev) => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter((a) => a !== amenity)
+        : [...prev.amenities, amenity],
+    }));
+  };
+
   const generateSlug = (name) => {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   };
@@ -641,7 +661,6 @@ const VillaForm = ({ villa, onSuccess }) => {
     try {
       const payload = {
         ...formData,
-        amenities: formData.amenities.split(",").map(a => a.trim()).filter(Boolean),
         slug: formData.slug || generateSlug(formData.name),
       };
 
@@ -769,12 +788,29 @@ const VillaForm = ({ villa, onSuccess }) => {
       </div>
 
       <div>
-        <label className="text-sm font-medium">Amenities (comma-separated)</label>
-        <Input 
-          value={formData.amenities} 
-          onChange={(e) => setFormData({ ...formData, amenities: e.target.value })}
-          placeholder="Private Pool, WiFi, AC, Kitchen..."
-        />
+        <label className="text-sm font-medium">Amenities</label>
+        <p className="text-xs text-muted-foreground mb-2">
+          Check everything that applies to this villa.
+        </p>
+        <div className="space-y-4 border border-border rounded-md p-4">
+          {Object.entries(AMENITY_GROUPS).map(([group, options]) => (
+            <div key={group}>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{group}</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {options.map((amenity) => (
+                  <label key={amenity} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.amenities.includes(amenity)}
+                      onChange={() => toggleAmenity(amenity)}
+                    />
+                    {amenity}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div>
