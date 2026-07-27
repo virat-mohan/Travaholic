@@ -4,9 +4,10 @@ import {
   LayoutDashboard, Home, Calendar, Users, DollarSign, MessageSquare,
   Settings, LogOut, Menu, X, Plus, ChevronDown, FileText, Building,
   Edit, Trash2, Eye, Check, Phone, Mail, Search, Filter, Download,
-  AlertCircle, Clock, CheckCircle, XCircle, RefreshCw, BookOpen, Image, Tag, Ticket, Percent
+  AlertCircle, Clock, CheckCircle, XCircle, RefreshCw, BookOpen, Image, Tag, Ticket, Percent,
+  Upload, Star
 } from "lucide-react";
-import { useAuth, API } from "../../App";
+import { useAuth, API, BACKEND_URL } from "../../App";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -563,9 +564,49 @@ const VillaForm = ({ villa, onSuccess }) => {
     commission_percent: villa?.commission_percent || 30,
     amenities: villa?.amenities?.join(", ") || "",
     thumbnail: villa?.thumbnail || "",
-    images: villa?.images?.join("\n") || "",
+    images: villa?.images || [],
   });
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const form = new FormData();
+        form.append("file", file);
+        const response = await axios.post(`${API}/admin/upload-image`, form, {
+          headers: getAuthHeaders(),
+        });
+        const fullUrl = `${BACKEND_URL}${response.data.url}`;
+        setFormData((prev) => ({
+          ...prev,
+          images: [...prev.images, fullUrl],
+          thumbnail: prev.thumbnail || fullUrl,
+        }));
+      }
+      toast.success(`${files.length} image${files.length > 1 ? "s" : ""} uploaded`);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to upload image"));
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveImage = (url) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((i) => i !== url),
+      thumbnail: prev.thumbnail === url ? (prev.images.find((i) => i !== url) || "") : prev.thumbnail,
+    }));
+  };
+
+  const handleSetThumbnail = (url) => {
+    setFormData((prev) => ({ ...prev, thumbnail: url }));
+  };
 
   const generateSlug = (name) => {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -579,7 +620,6 @@ const VillaForm = ({ villa, onSuccess }) => {
       const payload = {
         ...formData,
         amenities: formData.amenities.split(",").map(a => a.trim()).filter(Boolean),
-        images: formData.images.split("\n").map(i => i.trim()).filter(Boolean),
         slug: formData.slug || generateSlug(formData.name),
       };
 
@@ -716,20 +756,53 @@ const VillaForm = ({ villa, onSuccess }) => {
       </div>
 
       <div>
-        <label className="text-sm font-medium">Thumbnail URL</label>
-        <Input 
-          value={formData.thumbnail} 
-          onChange={(e) => setFormData({ ...formData, thumbnail: e.target.value })}
-        />
-      </div>
+        <label className="text-sm font-medium">Photos</label>
+        <p className="text-xs text-muted-foreground mb-2">
+          Upload photos, then click one to set it as the thumbnail shown on villa cards.
+        </p>
 
-      <div>
-        <label className="text-sm font-medium">Image URLs (one per line)</label>
-        <Textarea 
-          value={formData.images} 
-          onChange={(e) => setFormData({ ...formData, images: e.target.value })}
-          rows={3}
-        />
+        <label className="flex items-center justify-center gap-2 border border-dashed border-border rounded-md p-4 cursor-pointer hover:border-accent transition-colors text-sm text-muted-foreground">
+          <Upload size={16} />
+          {uploading ? "Uploading..." : "Click to upload images"}
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleImageUpload}
+            disabled={uploading}
+            className="hidden"
+          />
+        </label>
+
+        {formData.images.length > 0 && (
+          <div className="grid grid-cols-4 gap-3 mt-4">
+            {formData.images.map((url) => (
+              <div key={url} className="relative group">
+                <button
+                  type="button"
+                  onClick={() => handleSetThumbnail(url)}
+                  className={`block w-full aspect-square overflow-hidden rounded-md border-2 ${
+                    formData.thumbnail === url ? "border-accent" : "border-transparent"
+                  }`}
+                >
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                </button>
+                {formData.thumbnail === url && (
+                  <div className="absolute top-1 left-1 bg-accent text-accent-foreground rounded-full p-1">
+                    <Star size={10} fill="currentColor" />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(url)}
+                  className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <DialogFooter>
