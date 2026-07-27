@@ -589,7 +589,6 @@ const VillaForm = ({ villa, onSuccess }) => {
     max_guests: villa?.max_guests || 6,
     bedrooms: villa?.bedrooms || 3,
     bathrooms: villa?.bathrooms || 3,
-    has_pool: villa?.has_pool || false,
     base_price: villa?.base_price || 25000,
     weekend_price: villa?.weekend_price || 30000,
     minimum_nights: villa?.minimum_nights || 2,
@@ -661,6 +660,7 @@ const VillaForm = ({ villa, onSuccess }) => {
     try {
       const payload = {
         ...formData,
+        has_pool: formData.amenities.includes("Private Pool") || formData.amenities.includes("Heated Pool"),
         slug: formData.slug || generateSlug(formData.name),
       };
 
@@ -740,7 +740,7 @@ const VillaForm = ({ villa, onSuccess }) => {
         />
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <div>
           <label className="text-sm font-medium">Max Guests</label>
           <Input type="number" value={formData.max_guests} onChange={(e) => setFormData({ ...formData, max_guests: parseInt(e.target.value) })} />
@@ -752,12 +752,6 @@ const VillaForm = ({ villa, onSuccess }) => {
         <div>
           <label className="text-sm font-medium">Bathrooms</label>
           <Input type="number" value={formData.bathrooms} onChange={(e) => setFormData({ ...formData, bathrooms: parseInt(e.target.value) })} />
-        </div>
-        <div className="flex items-end gap-2">
-          <label className="text-sm font-medium flex items-center gap-2">
-            <input type="checkbox" checked={formData.has_pool} onChange={(e) => setFormData({ ...formData, has_pool: e.target.checked })} />
-            Has Pool
-          </label>
         </div>
       </div>
 
