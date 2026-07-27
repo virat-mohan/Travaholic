@@ -13,7 +13,7 @@ const Footer = () => {
           <div className="lg:col-span-1">
             <Link to="/" className="block">
               <img 
-                src="https://customer-assets.emergentagent.com/job_a02e6845-0627-4fe0-974d-59466982af90/artifacts/2zbfpiwh_Logo%202.png" 
+                src="/travaholic-logo.png" 
                 alt="Travaholic Stays"
                 className="h-16 w-auto bg-transparent brightness-0 invert"
               />

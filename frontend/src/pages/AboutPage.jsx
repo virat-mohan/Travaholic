@@ -40,7 +40,7 @@ const AboutPage = () => {
       <section className="relative h-[60vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="https://customer-assets.emergentagent.com/job_46fdf40d-d471-4ebc-8342-5064df045175/artifacts/9eav0qbi_La%20Morena%204.png"
+            src="/about-hero.jpg"
             alt="About Travaholic Stays"
             className="w-full h-full object-cover"
           />
@@ -97,7 +97,7 @@ const AboutPage = () => {
             <div className="relative">
               <div className="aspect-[4/5] overflow-hidden">
                 <img
-                  src="https://customer-assets.emergentagent.com/job_a02e6845-0627-4fe0-974d-59466982af90/artifacts/tgwuxgmk_story-image-for-ishan-new-jpg.webp"
+                  src="/founder-ishan.jpg"
                   alt="Ishan Seth - Founder of Travaholic"
                   className="w-full h-full object-cover"
                 />
