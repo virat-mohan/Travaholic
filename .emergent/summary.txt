@@ -7,57 +7,29 @@ The user wants to build a fully functional, SEO-optimised, ultra-luxury villa bo
 - **Payment Gateway:** Razorpay integration for full or partial payments.
 - **Admin Panel:** A backend for the Travaholic team to manage villas, bookings, leads, and villa owners. It should include a financial ledger and a feature to manually input bookings (with advance/security deposit tracking) and generate confirmations. A full blog management system is required.
 - **Villa Owner Portal:** A login for villa owners to view their booking calendar, block dates, and see their earnings.
-- **Commission System:** A variable, per-villa commission logic with a default of 30%.
+- **Commission System:** A variable, per-villa commission logic.
 - **Lead Capture & Notifications:** Forms for Request a Callback and List Your Villa. Automated WhatsApp and email confirmations should be sent for bookings.
-- **SEO:** SEO-friendly URLs, editable meta tags, schema markup, and an auto-generated sitemap that includes blog posts.
+- **SEO:** SEO-friendly URLs, editable meta tags, schema markup, and an auto-generated sitemap.
 - **Authentication:** Role-based access for Admin and Owner via Google Auth.
 - **Content:** The platform should display images with captions, support video tours, and have detailed villa information, house rules, and cancellation policies.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A full-stack application with a React frontend and FastAPI backend.
-- **Frontend**: The homepage has been redesigned with a luxury aesthetic, featuring a full-screen hero slideshow. All public pages (Villas, About, etc.) have been created and recently updated with new images and content. The Villa Detail page now displays a GST breakdown, video tours, and detailed descriptions. A dynamic, database-driven blog with individual post pages is live. A comprehensive Admin Panel exists with CRUD for villas, bookings, leads, a financial ledger, and a newly added blog management system. A complete Villa Owner Portal is also functional.
-- **Backend**: The API supports all frontend features. The data models and API endpoints have been significantly expanded to support dynamic pricing (events, long-stay discounts), private offers with time-limited payment links, and a full CRUD system for blog posts. The  endpoint now dynamically includes blog posts. A fix for the villa filtering logic has been implemented.
-- **Content**: The La Selva Villa 6 property has been updated with a video tour and a detailed user-provided description. Three sample blog posts have been added via the new admin system.
+A full-stack application with a React frontend and FastAPI backend. The UI/UX has been significantly enhanced with a floating WhatsApp button, background audio player, and image scrollers on the homepage villa cards. The content has been extensively updated: the villa database was curated to a final list of 12 properties, populated with images, detailed features, addresses, and pricing from user-provided documents. A full coupon code system has been implemented, including backend APIs, an admin management UI, and integration into the booking flow. The About Us page has been rewritten with a founder story and new images. Pricing logic now supports Price on Request for specific villas, disabling the booking form and showing a Request Callback button instead.
 
 **Last working item**:
-    - Last item agent was working: The agent was implementing a large batch of user-requested UI changes and bug fixes across the homepage, about page, and villas page. This included text changes, image replacements, logo updates, and removing sections.
+    - Last item agent was working: The agent was in the process of changing the  meta tag in  to update the preview image for social media sharing, as requested by the user. The agent selected an image from 'La Sierra 12' and was about to edit the HTML file.
     - Status: IN PROGRESS
     - Agent Testing Done: N
-    - Which testing method agent to use? screenshot tool
+    - Which testing method agent to use? manual testing by curl
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: Logo has a white background instead of transparent. (PRIORITY: P0)
-  - Issue 2: The villa page filter fix has been implemented on the backend but has not been verified via the frontend UI. (PRIORITY: P1)
-  - Issue 3: Database instability was observed in a previous session and has not been investigated. (PRIORITY: P2)
+  - Issue 1: Database instability was observed in a previous session and has not been investigated. (PRIORITY: P2)
 
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent replaced the logo file in the  and  components.
-     - Next debug checklist: 
-       1. Verify the  file in  is indeed transparent.
-       2. Check the CSS applied to the logo's  tag or its parent containers for any  property that might be causing the issue.
-       3. Re-save/re-export the logo file to ensure it has a proper alpha channel.
-     - Why fix this issue and what will be achieved with the fix?: The non-transparent logo cheapens the ultra-luxury aesthetic the user wants. Fixing it is crucial for brand presentation.
-     - Status: NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix?: frontend
-     - Blocked on other issue: none
-  - Issue 2: 
-     - Attempted fixes: The agent updated the  endpoint in  to correctly handle filter parameters.
-     - Next debug checklist: 
-       1. Go to the  page.
-       2. Use the filter controls (e.g., toggle Private Pool, select a location).
-       3. Verify that the list of villas updates correctly based on the selection.
-       4. If it fails, inspect the network request being sent from the frontend to ensure the correct query parameters are being appended to the URL.
-     - Why fix this issue and what will be achieved with the fix?: The villa filter is a core feature for user navigation. Fixing it improves user experience and allows customers to find relevant properties.
-     - Status: TESTING PENDING
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix?: frontend
-     - Blocked on other issue: none
-  - Issue 3: 
      - Attempted fixes: None. The database was re-seeded in the past as a workaround.
      - Next debug checklist: 
        1. Before any major operation, add logging to verify data existence ().
@@ -70,16 +42,12 @@ A full-stack application with a React frontend and FastAPI backend.
      - Blocked on other issue: none
 
 **In progress Task List**:
-  - Task 1: Complete verification of all recent UI/content changes. (PRIORITY: P0)
+  - Task 1: Complete the update of the  meta tag in  to use an image from 'La Sierra 12' for social media previews. (PRIORITY: P0)
 
  Task Detail:
   - Task 1: 
-     - Where to resume: Systematically go through the user's last request and verify each item with screenshots.
-        1. Homepage: Check logo placement/size, 25,000+ guests text, Home style meals text, removal of dreams meet reality and 5 star on google sections.
-        2. About Page: Check the top image (), the image behind 2020, and the 25,000+ guests text.
-        3. List Your Villa Page: Check the new banner image ().
-        4. Villas Page: Test the filter functionality (Issue #2).
-     - What will be achieved with this?: Fulfills the user's direct requests and ensures the UI is in the desired state.
+     - Where to resume: Edit the file  and replace the existing  content URL with an absolute URL to a La Sierra 12 image (e.g., ).
+     - What will be achieved with this?: Fulfills the user's request to have a specific, more attractive preview image when the website link is shared on social media.
      - Status: IN PROGRESS
      - Should Test frontend/backend/both after fix?: frontend
      - Blocked on something: None
@@ -87,35 +55,37 @@ A full-stack application with a React frontend and FastAPI backend.
 **Upcoming and Future Tasks**
 Upcoming Tasks:
 - **P0: Implement Resend Email Integration**: Wire up the existing placeholder functions to send automated booking confirmations. Requires getting an API key from the user.
-- **P1: Implement Razorpay Integration**: Build the full checkout flow, payment verification, and webhook handling. The backend structure and admin setup page are in place but are not functional.
-- **P2: Clarify and Implement WhatsApp Automation**: Discuss with the user that true automation requires a paid third-party service (like Twilio) as the current  link is manual.
+- **P1: Implement Razorpay Payment Integration**: Build the full checkout flow, payment verification, and webhook handling.
 - **P2: SEO Schema Markup**: Implement  and  schema on villa detail pages.
 
 Future Tasks:
-- Add Content for Remaining Villas: Populate the other 18+ villas with unique descriptions and images.
-- Refactor : This file is extremely large and should be broken down into smaller components (e.g., , , ).
-- Refactor : The main backend file is over 3400 lines and should be modularized into a  directory.
+- **Refactor **: This file is extremely large and should be broken down into smaller components (e.g., , , ).
+- **Refactor **: The main backend file is over 3400 lines and should be modularized into a  directory.
+- **User Referral System**: The agent suggested this as a potential enhancement; the user may be interested in implementing it.
 
 **Completed work in this session**
-- **Homepage Redesign**: Implemented a full-screen hero slideshow with a Ken Burns effect and updated all images for a more luxurious feel.
-- **Dynamic Pricing & Private Offers**:
-  - Enhanced backend models and added APIs for Private Offers, Payouts, and Event-based Pricing.
-  - Updated the price calculation logic to factor in long-stay discounts and event pricing.
-- **Admin Blog Management System**:
-  - Implemented a full CRUD backend for blog posts.
-  - Built a blog management UI in the Admin Panel with a rich text editor.
-  - Created a dynamic public blog page and individual post pages, which are now included in the auto-generated sitemap.
-- **Frontend & Content Updates**:
-  - Added video display functionality to the  and added a user-provided video to La Selva Villa 6.
-  - Updated villa descriptions and features based on user input.
-  - Displayed the 18% GST breakdown on the Villa Detail Page booking form and modal.
-  - Implemented numerous UI tweaks requested by the user (e.g., changing guest count from 500+ to 25,000+, updating images, removing sections, updating logos).
-- **Bug Fixes**:
-  - Resolved a critical backend  in  that was preventing the server from starting.
-  - Implemented a fix for the villa page filtering logic on the backend.
+- **UI/UX Enhancements**:
+  - Implemented a floating WhatsApp button.
+  - Added a background audio player with mute/unmute controls.
+  - Implemented a horizontal scroller for the Featured Villas section on the homepage.
+  - Implemented an image scroller within each villa card on the homepage.
+- **Content & Data Management**:
+  - Populated the database with images, features, addresses, and pricing for all 12 final villas from user-provided spreadsheets and documents.
+  - Curated the final villa list down to 12 properties as requested.
+  - Updated the About page to About Us, adding a detailed founder story and photo.
+  - Updated email address to  across the site and for backend notifications.
+- **Feature Implementation**:
+  - Implemented a full coupon code system with backend CRUD APIs, an admin management UI, and frontend validation on the villa detail page.
+  - Implemented Price on Request functionality for specific villas, hiding the price and replacing the booking form with a Request Callback button.
+- **Bug Fixes & Refinements**:
+  - Fixed the logo transparency issue with a new user-provided logo and conditional CSS  filter for dark/light backgrounds.
+  - Fixed a villa filter bug on the  page.
+  - Resized the homepage logo multiple times based on user feedback.
+  - Adjusted the WhatsApp button position to prevent overlap.
+  - Removed image captions from villa cards on the homepage and  page.
 
 **Earlier issues found/mentioned but not fixed**
-   - Issue 1: A testing agent report () mentioned that Villa cards were not displayed on the villas page, but this was not reproducible via manual checks. It may be a flaky test and is considered low priority.
+   - None other than the recurring database instability.
 
 **Known issue recurrence from previous fork**
   - **Issue recurrence in previous fork**: Database instability where the database appeared empty.
@@ -129,75 +99,61 @@ Future Tasks:
 - **Frontend**: React, TailwindCSS, Framer Motion, , .
 - **Backend**: FastAPI (Python), Pydantic.
 - **Database**: MongoDB.
-- **Dependencies**:  (Python).
 
 **key DB schema**
-  - **villas**: Added  (active/draft), , , , .
-  - **bookings**: Added  to link to private offers.
-  - **blog_posts**: New collection for the blog system .
-  - **private_offers**: New collection .
-  - **payouts**: New collection for tracking owner payouts.
-  - **event_prices**: New collection to store special pricing for specific date ranges.
-  - **payment_settings**: New collection to store admin payment keys (e.g., Razorpay).
+  - **villas**: Updated with ,  (boolean), , , , and a large array of .
+  - **coupons**: New collection .
 
 **changes in tech stack**
-  - Added backend dependency: .
+  - No changes in the core tech stack.
 
 **All files of reference**
-- : Contains all API logic, including new endpoints for the blog, private offers, payouts, and dynamic pricing.
-- : Monolithic component for the admin panel, expanded with UIs for blog management, private offers, payouts, and Razorpay settings.
-- : Major visual overhaul and content updates.
-- : Updated to show GST, video, and new user-provided content.
-- : Rewritten to be a dynamic page fetching data from the new blog API.
-- : New file for displaying a single blog article.
-- : New file for handling the acceptance of private offers.
-- : Updated with new routes for the blog and private offer pages.
-- , : Updated with new images and text.
-- , : Updated with new logo.
+- : All API logic, expanded with coupon management endpoints.
+- : Monolithic admin panel, expanded with a UI for coupon management.
+- : Updated with horizontal villa scroller and new mountain image.
+- : Updated to include an internal image scroller.
+- : Updated to handle coupon codes and Price on Request logic.
+- : Rewritten to include the founder's story.
+- : New component for the floating button.
+- : New component for background music.
+- : The target file for the next action (updating ).
 
 **Areas that need refactoring**:
-- : Critically oversized. It urgently needs to be broken into smaller, feature-specific components.
-- : Now over 3400 lines, making it difficult to maintain. API routes must be modularized into separate router files.
+- : Critically oversized (~3000+ lines). Urgently needs to be broken into smaller, feature-specific components.
+- : Now over 3500 lines, making it difficult to maintain. API routes must be modularized.
 
 **key api endpoints**
-- : Full CRUD for blog posts.
-- : Create and retrieve private offers.
-- : Endpoint to initiate payment for a private offer.
-- : Manage owner payouts.
-- : Manage event-based pricing.
-- : Manage payment gateway keys.
-- : Updated to include dynamic blog post URLs.
+- : Validates a coupon code.
+- : Full CRUD for managing coupons in the admin panel.
 
 **Critical Info for New Agent**
-- The user is now providing very specific, batched UI feedback. Address these small visual tasks with high precision.
-- A full, dynamic blog management system has been implemented from backend to frontend.
-- The backend foundation for an advanced booking system (private offers, dynamic pricing) is in place, but the payment gateway (Razorpay) is not yet functional.
-- The two largest files,  and , have grown significantly and are becoming technical debt. Prioritize refactoring them after completing the user's immediate requests.
-- Investigate the recurring database instability issue before adding more complex features.
-- The new logo is not rendering with a transparent background; this is a high-priority visual bug.
+- The user provides instructions in rapid-fire batches, often referencing Google Docs/Sheets for content and data. You must be able to parse these external documents and apply changes systematically across the codebase.
+- The two largest files,  and , are extremely bloated and have become significant technical debt. Exercise caution when modifying them. Refactoring should be prioritized after the current user requests are fulfilled.
+- The recurring database instability issue has not been investigated and remains a potential risk.
+- Core integrations (Resend for emails, Razorpay for payments) are still unimplemented placeholders.
 
 **documents and test reports created in this job**
 -  (updated)
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Provided a large list of UI changes and a bug fix for the villa filter. (IN PROGRESS)
-2.  **User**: Confirmed to proceed with building the admin blog management system. (COMPLETED)
-3.  **User**: Asked how the blog section will be updated for SEO. (Agent responded, led to new feature)
-4.  **User**: Added detailed content for the La Selva Villa 6 page. (COMPLETED)
-5.  **User**: Added a video to the La Selva Villa 6 page. (COMPLETED)
-6.  **User**: Requested removal of the Travaholic Experience section from the homepage. (COMPLETED)
-7.  **Agent**: Finished Phase 1 MVP implementation and asked about next steps (Resend). (User responded with new tasks instead)
-8.  **User**: Confirmed to go ahead with the MVP plan. (Agent proceeded)
-9.  **Agent**: Asked for clarification on the ambitious enterprise-grade feature set. (User responded)
-10. **User**: Pasted a very large, detailed prompt outlining a massive expansion of the project scope. (Agent planned MVP)
+1.  **User**: Change the  preview link to use an image from La Sierra 12. (IN PROGRESS)
+2.  **User**: Set specific starting prices for villas and disable online booking for Eagle Nest and Breezedale Mashobra, making them Request Callback only. (COMPLETED)
+3.  **User**: Update the contact email to  everywhere. (COMPLETED)
+4.  **User**: Add images for Eagle Nest villa. (COMPLETED)
+5.  **User**: Add images for Breezedale Mashobra villa. (COMPLETED)
+6.  **User**: Add images for Clouds Nest villa. (COMPLETED)
+7.  **User**: Add an image scroller *within* each villa listing on the homepage. (COMPLETED)
+8.  **User**: Remove infinity from text, change mountain image, and add a horizontal scroller for featured villas on the homepage. (COMPLETED)
+9.  **User**: Add images for La Maroma 2 villa. (COMPLETED)
+10. **User**: Add images for Villa Serene, Sierra 15, and Dream Villa. (COMPLETED)
 
 **Project Health Check:**
-- **Broken**: Razorpay and Resend integrations are non-functional placeholders. The new logo's transparency is not working.
-- **Mocked**: Data for most villas is placeholder content. The Become Admin/Owner flow is a temporary setup mechanism.
+- **Broken**: Razorpay and Resend integrations are non-functional placeholders.
+- **Mocked**: Some villa data (e.g., specific amenities) might still be placeholders, but most content is now real.
 
 **3rd Party Integrations**
 - **Emergent-managed Google Auth**: Implemented and functional.
-- **Razorpay**: Placeholder configuration exists. Backend package installed. Requires full implementation.
+- **Razorpay**: Placeholder configuration exists. Requires full implementation.
 - **Resend**: Placeholder configuration exists. Requires implementation.
 - **reportlab**: Installed and used for PDF generation.
 
@@ -205,14 +161,13 @@ Future Tasks:
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions: Logo transparency is not working.
+  - Known regressions: None.
 
 **Credentials to test flow:**
-Login via Google Auth. Use the Become Admin or Become Villa Owner buttons on the page that appears after logging in for the first time to gain access to the respective dashboards.
+Login via Google Auth. Use the Become Admin button on the page that appears after logging in for the first time to gain access to the admin dashboard.
 
 **What agent forgot to execute**
-- The agent did not fully verify the last batch of UI changes and fixes requested by the user.
-- The agent identified the logo transparency issue but did not resolve it.
-- Key integrations like Razorpay and Resend are still pending user API keys and full implementation.
-- The plan to discuss true WhatsApp automation with the user has not been executed.
-- Core SEO schema markup (, ) is still pending.</analysis>
+- The agent did not resolve the recurring database instability issue.
+- The agent has not yet implemented the core Resend and Razorpay integrations from the backlog.
+- SEO Schema Markup is still pending.
+- The agent was in the middle of executing the last user request (updating ).</analysis>
