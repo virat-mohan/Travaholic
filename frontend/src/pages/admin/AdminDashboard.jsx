@@ -359,6 +359,28 @@ const AdminOverview = () => {
               Add Sample Data
             </Button>
           </div>
+
+          {/* Blog Posts Import Button */}
+          <div className="mt-6 p-6 bg-accent/10 border border-accent/20">
+            <h3 className="font-heading text-lg mb-2">Launch Blog Posts</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              One-click import of 5 ready-to-publish blog posts. Safe to click more than once.
+            </p>
+            <Button
+              onClick={async () => {
+                try {
+                  const response = await axios.post(`${API}/admin/seed-blog-posts`, {}, { headers: getAuthHeaders() });
+                  toast.success(`Blog posts imported (${response.data.inserted} new, ${response.data.updated} updated)`);
+                } catch (error) {
+                  toast.error(getErrorMessage(error, "Failed to import blog posts"));
+                }
+              }}
+              className="btn-luxury"
+              data-testid="seed-blog-btn"
+            >
+              Import Blog Posts
+            </Button>
+          </div>
         </>
       )}
     </div>
