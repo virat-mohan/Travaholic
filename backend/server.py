@@ -24,6 +24,7 @@ import urllib.request
 import urllib.parse
 import hmac
 import hashlib
+import bcrypt
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -602,75 +603,68 @@ async def require_owner_or_admin(authorization: str = Header(None), request: Req
 
 # ==================== AUTH ROUTES ====================
 
-@api_router.get("/auth/session")
-async def create_session(session_id: str = Header(None, alias="X-Session-ID")):
-    """Exchange session_id from Emergent Auth for user data and session_token"""
-    if not session_id:
-        raise HTTPException(status_code=400, detail="Session ID required")
-    
-    import requests
-    try:
-        response = requests.get(
-            "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-            headers={"X-Session-ID": session_id}
-        )
-        if response.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid session ID")
-        
-        data = response.json()
-        email = data.get("email")
-        name = data.get("name")
-        picture = data.get("picture")
-        
-        # Check if user exists
-        existing_user = await db.users.find_one({"email": email}, {"_id": 0})
-        
-        if existing_user:
-            user_id = existing_user["user_id"]
-            # Update user info
-            await db.users.update_one(
-                {"user_id": user_id},
-                {"$set": {"name": name, "picture": picture, "updated_at": datetime.now(timezone.utc).isoformat()}}
-            )
-            role = existing_user.get("role", "guest")
-        else:
-            # Create new user
-            user_id = f"user_{uuid.uuid4().hex[:12]}"
-            role = "guest"
-            user_doc = {
-                "user_id": user_id,
-                "email": email,
-                "name": name,
-                "picture": picture,
-                "role": role,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
-            await db.users.insert_one(user_doc)
-        
-        # Create session
-        session_token = f"sess_{uuid.uuid4().hex}"
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        
-        session_doc = {
-            "session_id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "session_token": session_token,
-            "expires_at": expires_at.isoformat(),
-            "created_at": datetime.now(timezone.utc).isoformat()
-        }
-        await db.user_sessions.insert_one(session_doc)
-        
-        return {
-            "user_id": user_id,
-            "email": email,
-            "name": name,
-            "picture": picture,
-            "role": role,
-            "session_token": session_token
-        }
-    except Exception as e:
-        logger.error(f"Auth error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Authentication failed: {str(e)}")
+class RegisterRequest(BaseModel):
+    name: str
+    email: EmailStr
+    password: str = Field(min_length=6)
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+async def _create_session_response(user_doc: Dict[str, Any]) -> Dict[str, Any]:
+    session_token = f"sess_{uuid.uuid4().hex}"
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    session_doc = {
+        "session_id": str(uuid.uuid4()),
+        "user_id": user_doc["user_id"],
+        "session_token": session_token,
+        "expires_at": expires_at.isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.user_sessions.insert_one(session_doc)
+
+    return {
+        "user_id": user_doc["user_id"],
+        "email": user_doc["email"],
+        "name": user_doc["name"],
+        "picture": user_doc.get("picture"),
+        "role": user_doc.get("role", "guest"),
+        "session_token": session_token
+    }
+
+@api_router.post("/auth/register")
+async def register(data: RegisterRequest):
+    """Create a new account with email/password"""
+    existing_user = await db.users.find_one({"email": data.email})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="An account with this email already exists")
+
+    hashed_password = bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode()
+    user_doc = {
+        "user_id": f"user_{uuid.uuid4().hex[:12]}",
+        "email": data.email,
+        "name": data.name,
+        "picture": None,
+        "role": "guest",
+        "hashed_password": hashed_password,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.users.insert_one(user_doc)
+
+    return await _create_session_response(user_doc)
+
+@api_router.post("/auth/login")
+async def login(data: LoginRequest):
+    """Log in with email/password"""
+    user_doc = await db.users.find_one({"email": data.email})
+    if not user_doc or not user_doc.get("hashed_password"):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not bcrypt.checkpw(data.password.encode(), user_doc["hashed_password"].encode()):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    return await _create_session_response(user_doc)
 
 @api_router.get("/auth/me")
 async def get_me(user: User = Depends(require_auth)):
@@ -2171,7 +2165,7 @@ async def update_homeowner_listing(listing_id: str, data: Dict[str, Any], user: 
 @api_router.get("/owners")
 async def get_owners(user: User = Depends(require_admin)):
     """Get all villa owners (admin only)"""
-    owners = await db.users.find({"role": "owner"}, {"_id": 0}).to_list(1000)
+    owners = await db.users.find({"role": "owner"}, {"_id": 0, "hashed_password": 0}).to_list(1000)
     return {"owners": owners}
 
 @api_router.put("/users/{user_id}/role")
@@ -2181,7 +2175,7 @@ async def update_user_role(user_id: str, data: Dict[str, Any], admin: User = Dep
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
     
-    updated = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    updated = await db.users.find_one({"user_id": user_id}, {"_id": 0, "hashed_password": 0})
     return updated
 
 @api_router.post("/owners/{owner_id}/agreement")
@@ -3159,7 +3153,7 @@ async def generate_payouts_from_bookings(user: User = Depends(require_admin)):
         if not villa or not villa.get("owner_id"):
             continue
         
-        owner = await db.users.find_one({"user_id": villa["owner_id"]}, {"_id": 0})
+        owner = await db.users.find_one({"user_id": villa["owner_id"]}, {"_id": 0, "hashed_password": 0})
         if not owner:
             continue
         

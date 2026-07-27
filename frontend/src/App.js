@@ -13,7 +13,6 @@ import ContactPage from "./pages/ContactPage";
 import ListYourVillaPage from "./pages/ListYourVillaPage";
 import BlogPage from "./pages/BlogPage";
 import LoginPage from "./pages/LoginPage";
-import AuthCallback from "./pages/AuthCallback";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import PrivateOfferPage from "./pages/PrivateOfferPage";
@@ -159,14 +158,6 @@ const PublicLayout = ({ children }) => {
 
 // App Router Component
 function AppRouter() {
-  const location = useLocation();
-
-  // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-  // Handle auth callback - check for session_id in URL fragment
-  if (location.hash?.includes("session_id=")) {
-    return <AuthCallback />;
-  }
-
   return (
     <Routes>
       {/* Public Routes */}
