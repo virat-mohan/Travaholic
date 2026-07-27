@@ -18,6 +18,7 @@ import {
 } from "../../components/ui/select";
 import { toast } from "sonner";
 import axios from "axios";
+import { getErrorMessage } from "@/lib/utils";
 
 // Admin Dashboard Component
 const AdminDashboard = () => {
@@ -589,7 +590,7 @@ const VillaForm = ({ villa, onSuccess }) => {
       }
       onSuccess();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to save villa");
+      toast.error(getErrorMessage(error, "Failed to save villa"));
     } finally {
       setSubmitting(false);
     }
@@ -1165,7 +1166,7 @@ const ManualBookingForm = ({ villas, onSuccess }) => {
       toast.success("Booking created successfully");
       onSuccess();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to create booking");
+      toast.error(getErrorMessage(error, "Failed to create booking"));
     } finally {
       setSubmitting(false);
     }
@@ -1687,7 +1688,7 @@ const AdminPrivateOffers = () => {
         toast.success("Payment link copied to clipboard!");
       }
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to create offer");
+      toast.error(getErrorMessage(error, "Failed to create offer"));
     }
   };
 
@@ -2265,7 +2266,7 @@ const AdminBlog = () => {
       resetForm();
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to create post");
+      toast.error(getErrorMessage(error, "Failed to create post"));
     }
   };
 
@@ -2283,7 +2284,7 @@ const AdminBlog = () => {
       resetForm();
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to update post");
+      toast.error(getErrorMessage(error, "Failed to update post"));
     }
   };
 
@@ -3042,7 +3043,7 @@ const AdminCoupons = () => {
       resetForm();
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to create coupon");
+      toast.error(getErrorMessage(error, "Failed to create coupon"));
     }
   };
 
@@ -3058,7 +3059,7 @@ const AdminCoupons = () => {
       resetForm();
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to update coupon");
+      toast.error(getErrorMessage(error, "Failed to update coupon"));
     }
   };
 
