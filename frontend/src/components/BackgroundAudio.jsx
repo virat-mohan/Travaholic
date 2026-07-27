@@ -7,7 +7,7 @@ const BackgroundAudio = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
 
-  const audioUrl = "https://customer-assets.emergentagent.com/job_a02e6845-0627-4fe0-974d-59466982af90/artifacts/764mjweq_Travaholic%20website.mp3";
+  const audioUrl = "/travaholic-background.mp3";
 
   useEffect(() => {
     // Try to play on first user interaction
