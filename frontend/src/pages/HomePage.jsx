@@ -14,35 +14,31 @@ const HomePage = () => {
   const [callbackOpen, setCallbackOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Hero slideshow images - curated luxury collection
+  // Hero slideshow images - real photos from the Travaholic portfolio,
+  // spanning Goa and the hills
   const heroSlides = [
     {
-      image: "https://images.unsplash.com/photo-1758192838598-a1de4da5dcaf?w=1920&q=80",
-      title: "Infinity Pool Paradise",
+      image: "/villas/la-selva-6/Villa%20facade.jpeg",
+      title: "Timeless Goan Heritage",
+      subtitle: "Indo-Portuguese villas, reimagined"
+    },
+    {
+      image: "/villas/dream-villa/Pool%20side.jpg",
+      title: "Rooftop Serenity",
       subtitle: "Where sky meets water"
     },
     {
-      image: "https://images.unsplash.com/photo-1759405198466-d7f97ef8b4a7?w=1920&q=80",
-      title: "Oceanfront Luxury",
-      subtitle: "Wake up to endless views"
-    },
-    {
-      image: "https://images.unsplash.com/photo-1768307198062-67020de156a2?w=1920&q=80",
+      image: "/villas/clouds-nest/Cottage%20view.jpg",
       title: "Mountain Retreats",
-      subtitle: "Serenity at its peak"
+      subtitle: "Serenity at its peak, in Mussoorie"
     },
     {
-      image: "https://images.unsplash.com/photo-1685271552630-9bc169185566?w=1920&q=80",
-      title: "Golden Sunsets",
+      image: "/villas/villa-serene/Pool%20area.jpeg",
+      title: "Poolside Reflections",
       subtitle: "Moments worth remembering"
     },
     {
-      image: "https://images.unsplash.com/photo-1759281944533-a9eea164ffe3?w=1920&q=80",
-      title: "Cozy Escapes",
-      subtitle: "Your home away from home"
-    },
-    {
-      image: "https://images.pexels.com/photos/12715491/pexels-photo-12715491.jpeg?w=1920&q=80",
+      image: "/villas/la-morena-4/Pool%20view.jpg",
       title: "Private Havens",
       subtitle: "Exclusive experiences await"
     }
