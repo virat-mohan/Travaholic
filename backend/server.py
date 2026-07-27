@@ -25,6 +25,8 @@ import urllib.parse
 import hmac
 import hashlib
 import bcrypt
+import base64
+from PIL import Image
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -787,6 +789,54 @@ async def delete_villa(villa_id: str, user: User = Depends(require_admin)):
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Villa not found")
     return {"message": "Villa deleted successfully"}
+
+# ==================== IMAGE UPLOAD ====================
+# Images are stored base64-encoded in MongoDB (no external storage service
+# configured) - resized/compressed on upload to keep documents small.
+
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10MB raw upload cap, before compression
+
+@api_router.post("/admin/upload-image")
+async def upload_image(file: UploadFile = File(...), user: User = Depends(require_admin)):
+    """Upload an image (admin only) - resizes and stores it in MongoDB,
+    returns a URL to reference it from a villa's images/thumbnail fields."""
+    raw = await file.read()
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Image too large (max 10MB)")
+
+    try:
+        img = Image.open(BytesIO(raw))
+        img = img.convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="File is not a valid image")
+
+    max_dimension = 1920
+    if img.width > max_dimension or img.height > max_dimension:
+        img.thumbnail((max_dimension, max_dimension), Image.LANCZOS)
+
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG", quality=85, optimize=True)
+    compressed = buffer.getvalue()
+
+    image_id = f"img_{uuid.uuid4().hex[:16]}"
+    await db.images.insert_one({
+        "image_id": image_id,
+        "data": base64.b64encode(compressed).decode(),
+        "content_type": "image/jpeg",
+        "uploaded_by": user.user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    return {"url": f"/api/images/{image_id}"}
+
+@api_router.get("/images/{image_id}")
+async def get_image(image_id: str):
+    """Serve a previously uploaded image (public - villa photos are public marketing content)"""
+    doc = await db.images.find_one({"image_id": image_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Image not found")
+    raw = base64.b64decode(doc["data"])
+    return Response(content=raw, media_type=doc.get("content_type", "image/jpeg"))
 
 # ==================== AVAILABILITY & PRICING ====================
 
