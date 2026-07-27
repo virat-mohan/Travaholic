@@ -157,6 +157,16 @@ const PublicLayout = ({ children }) => {
   );
 };
 
+// Resets scroll position to the top on every route change - browsers don't
+// do this automatically for client-side navigation.
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
 // App Router Component
 function AppRouter() {
   return (
@@ -296,6 +306,7 @@ function App() {
       <BrowserRouter>
         <AuthProvider>
           <div className="App min-h-screen bg-background">
+            <ScrollToTop />
             <AppRouter />
             <Toaster position="top-right" richColors />
           </div>
