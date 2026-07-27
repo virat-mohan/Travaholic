@@ -659,6 +659,8 @@ async def register(data: RegisterRequest):
 async def login(data: LoginRequest):
     """Log in with email/password"""
     user_doc = await db.users.find_one({"email": data.email})
+    if user_doc and user_doc.get("invite_token") and not user_doc.get("hashed_password"):
+        raise HTTPException(status_code=401, detail="This account was invited but hasn't been activated yet. Use your invite link to set a password first.")
     if not user_doc or not user_doc.get("hashed_password"):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not bcrypt.checkpw(data.password.encode(), user_doc["hashed_password"].encode()):
@@ -2625,23 +2627,127 @@ async def seed_sample_data():
 
 @api_router.post("/make-admin")
 async def make_current_user_admin(user: User = Depends(require_auth)):
-    """Make the current logged-in user an admin (for initial setup)"""
-    # Check if any admin exists
+    """Bootstrap the very first admin account on a fresh deploy. Once any
+    admin exists, this stays locked - use the invite flow instead
+    (Admin > Team > Invite Admin)."""
     existing_admin = await db.users.find_one({"role": "admin"})
-    
+
     if existing_admin and existing_admin.get("user_id") != user.user_id:
-        # If admin exists and it's not the current user, only allow if no bookings yet (fresh setup)
-        booking_count = await db.bookings.count_documents({})
-        if booking_count > 0:
-            raise HTTPException(status_code=403, detail="Admin already exists. Contact existing admin for access.")
-    
+        raise HTTPException(status_code=403, detail="An admin already exists. Ask them to invite you instead.")
+
     # Update user role to admin
     await db.users.update_one(
         {"user_id": user.user_id},
         {"$set": {"role": "admin"}}
     )
-    
+
     return {"message": f"User {user.email} is now an admin", "role": "admin"}
+
+class InviteAdminRequest(BaseModel):
+    email: EmailStr
+    name: str
+
+class AcceptInviteRequest(BaseModel):
+    token: str
+    password: str = Field(min_length=6)
+
+def _check_invite_not_expired(user_doc: Dict[str, Any]):
+    expires_at = user_doc.get("invite_expires_at")
+    if not expires_at:
+        return
+    exp = datetime.fromisoformat(expires_at)
+    if exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if exp < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="This invite link has expired")
+
+@api_router.get("/admin/team")
+async def list_admin_team(admin: User = Depends(require_admin)):
+    """List all admin users, including pending invites (for the Team page)"""
+    admins = await db.users.find({"role": "admin"}, {"_id": 0, "hashed_password": 0}).to_list(100)
+    for a in admins:
+        a["invite_pending"] = bool(a.get("invite_token"))
+    return {"admins": admins}
+
+@api_router.post("/admin/invite-admin")
+async def invite_admin(data: InviteAdminRequest, admin: User = Depends(require_admin)):
+    """Invite someone by email to become an admin. Returns a one-time invite
+    token for a shareable link - the invitee sets their own password when
+    they open it. Also attempts to email it if Resend is configured."""
+    existing = await db.users.find_one({"email": data.email})
+    invite_token = uuid.uuid4().hex
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    if existing:
+        if existing.get("hashed_password"):
+            raise HTTPException(status_code=400, detail="A user with this email already has an account.")
+        await db.users.update_one(
+            {"user_id": existing["user_id"]},
+            {"$set": {
+                "name": data.name,
+                "role": "admin",
+                "invite_token": invite_token,
+                "invite_expires_at": expires_at.isoformat(),
+            }}
+        )
+    else:
+        await db.users.insert_one({
+            "user_id": f"user_{uuid.uuid4().hex[:12]}",
+            "email": data.email,
+            "name": data.name,
+            "picture": None,
+            "role": "admin",
+            "hashed_password": None,
+            "invite_token": invite_token,
+            "invite_expires_at": expires_at.isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+    try:
+        resend_key = os.environ.get("RESEND_API_KEY")
+        if resend_key and not resend_key.startswith("re_placeholder"):
+            resend.api_key = resend_key
+            resend.Emails.send({
+                "from": "Travaholic Stays <onboarding@travaholicstays.com>",
+                "to": [data.email],
+                "subject": "You've been invited to Travaholic Stays admin",
+                "html": f"<p>Hi {data.name},</p><p>You've been invited as an admin on Travaholic Stays. Use the link the person who invited you shared with you to set your password and log in.</p>"
+            })
+    except Exception as e:
+        logger.error(f"Failed to send invite email: {e}")
+
+    return {"message": "Invite created", "invite_token": invite_token, "email": data.email}
+
+@api_router.get("/auth/invite/{token}")
+async def get_invite(token: str):
+    """Look up a pending invite by token (public - used by the accept-invite page)"""
+    user_doc = await db.users.find_one({"invite_token": token}, {"_id": 0, "hashed_password": 0})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="Invalid or expired invite link")
+    _check_invite_not_expired(user_doc)
+    return {"email": user_doc["email"], "name": user_doc["name"], "role": user_doc.get("role", "guest")}
+
+@api_router.post("/auth/accept-invite")
+async def accept_invite(data: AcceptInviteRequest):
+    """Set a password for an invited account and log in"""
+    user_doc = await db.users.find_one({"invite_token": data.token})
+    if not user_doc:
+        raise HTTPException(status_code=400, detail="Invalid or expired invite link")
+    if user_doc.get("hashed_password"):
+        raise HTTPException(status_code=400, detail="This invite has already been used")
+    _check_invite_not_expired(user_doc)
+
+    hashed_password = bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one(
+        {"user_id": user_doc["user_id"]},
+        {
+            "$set": {"hashed_password": hashed_password},
+            "$unset": {"invite_token": "", "invite_expires_at": ""}
+        }
+    )
+
+    updated = await db.users.find_one({"user_id": user_doc["user_id"]})
+    return await _create_session_response(updated)
 
 @api_router.post("/make-owner")
 async def make_current_user_owner(user: User = Depends(require_auth)):

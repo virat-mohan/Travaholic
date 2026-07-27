@@ -35,6 +35,7 @@ const AdminDashboard = () => {
     { icon: Ticket, label: "Coupons", path: "/admin/coupons" },
     { icon: MessageSquare, label: "Leads", path: "/admin/leads" },
     { icon: Users, label: "Owners", path: "/admin/owners" },
+    { icon: Users, label: "Team", path: "/admin/team" },
     { icon: DollarSign, label: "Payouts", path: "/admin/payouts" },
     { icon: Clock, label: "Event Pricing", path: "/admin/pricing" },
     { icon: BookOpen, label: "Blog", path: "/admin/blog" },
@@ -147,6 +148,7 @@ const AdminDashboard = () => {
             <Route path="coupons" element={<AdminCoupons />} />
             <Route path="leads" element={<AdminLeads />} />
             <Route path="owners" element={<AdminOwners />} />
+            <Route path="team" element={<AdminTeam />} />
             <Route path="payouts" element={<AdminPayouts />} />
             <Route path="pricing" element={<AdminEventPricing />} />
             <Route path="blog" element={<AdminBlog />} />
@@ -1544,6 +1546,135 @@ const AdminOwners = () => {
       ) : (
         <div className="text-center py-12 bg-card border border-border">
           <p className="text-muted-foreground">No owners registered yet</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Admin Team - invite other admins by email
+const AdminTeam = () => {
+  const [admins, setAdmins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [inviting, setInviting] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "" });
+  const [inviteLink, setInviteLink] = useState(null);
+
+  useEffect(() => {
+    fetchTeam();
+  }, []);
+
+  const fetchTeam = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/team`, { headers: getAuthHeaders() });
+      setAdmins(response.data.admins || []);
+    } catch (error) {
+      console.error("Error fetching team:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    setInviting(true);
+    setInviteLink(null);
+    try {
+      const response = await axios.post(
+        `${API}/admin/invite-admin`,
+        { name: form.name, email: form.email },
+        { headers: getAuthHeaders() }
+      );
+      const link = `${window.location.origin}/accept-invite/${response.data.invite_token}`;
+      setInviteLink(link);
+      toast.success("Invite created - share the link below");
+      setForm({ name: "", email: "" });
+      fetchTeam();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to create invite"));
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    toast.success("Copied to clipboard");
+  };
+
+  return (
+    <div>
+      <h1 className="font-heading text-3xl mb-8">Team</h1>
+
+      <div className="bg-card border border-border p-6 mb-8 max-w-xl">
+        <h2 className="font-medium mb-4">Invite a new admin</h2>
+        <form onSubmit={handleInvite} className="space-y-4">
+          <Input
+            placeholder="Name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
+          <Input
+            type="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
+          <Button type="submit" className="btn-luxury" disabled={inviting}>
+            {inviting ? "Creating invite..." : "Send Invite"}
+          </Button>
+        </form>
+
+        {inviteLink && (
+          <div className="mt-4 p-4 bg-muted/50 border border-border">
+            <p className="text-sm text-muted-foreground mb-2">
+              Share this link with them (it's not emailed automatically unless email sending is configured):
+            </p>
+            <div className="flex gap-2">
+              <Input value={inviteLink} readOnly className="text-xs" />
+              <Button type="button" variant="outline" onClick={copyLink}>
+                Copy
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <h2 className="font-medium mb-4">Current admins</h2>
+      {loading ? (
+        <div className="animate-pulse space-y-4">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="h-16 bg-muted" />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-card border border-border overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left p-4 text-sm font-medium">Name</th>
+                <th className="text-left p-4 text-sm font-medium">Email</th>
+                <th className="text-left p-4 text-sm font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {admins.map((a) => (
+                <tr key={a.user_id} className="border-t border-border">
+                  <td className="p-4 font-medium">{a.name}</td>
+                  <td className="p-4 text-muted-foreground">{a.email}</td>
+                  <td className="p-4">
+                    {a.invite_pending ? (
+                      <span className="text-xs uppercase tracking-wider text-accent">Invite Pending</span>
+                    ) : (
+                      <span className="text-xs uppercase tracking-wider text-green-600">Active</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
