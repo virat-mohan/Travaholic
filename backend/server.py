@@ -52,6 +52,19 @@ if RESEND_API_KEY:
 
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
 
+# Twilio WhatsApp client - optional. Booking confirmations are sent over
+# WhatsApp only once TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/TWILIO_WHATSAPP_FROM
+# are configured; otherwise send_whatsapp_booking_confirmation() is a no-op,
+# same graceful-degradation pattern as the Resend/Razorpay clients above.
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')  # e.g. "whatsapp:+14155238886"
+
+twilio_client = None
+if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
+    from twilio.rest import Client as TwilioClient
+    twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
 app = FastAPI(title="Travaholic Stays API")
 api_router = APIRouter(prefix="/api")
 
@@ -1114,6 +1127,40 @@ async def calculate_price(data: Dict[str, Any]):
     pricing = calculate_booking_price(villa, data["check_in"], data["check_out"], addons, overrides, event_pricing)
     return pricing
 
+def send_whatsapp_booking_confirmation(booking: dict, villa: dict):
+    """Best-effort WhatsApp confirmation via Twilio. No-ops silently if
+    Twilio isn't configured (see TWILIO_* env vars above) - same
+    graceful-degradation pattern as the Resend email and Razorpay payment
+    integrations elsewhere in this file."""
+    if not twilio_client or not TWILIO_WHATSAPP_FROM:
+        return
+    try:
+        digits = "".join(ch for ch in booking.get("guest_phone", "") if ch.isdigit())
+        if not digits:
+            return
+        # Assume an Indian number when no country code was entered
+        to_number = digits if len(digits) > 10 else f"91{digits}"
+        total = booking.get("total_booking_amount", booking.get("total_amount", 0))
+        message = (
+            f"Thank you for your booking at {villa.get('name')}, Travaholic Stays!\n\n"
+            f"This is subject to receipt of payment.\n\n"
+            f"Check-in: {booking.get('check_in')}\n"
+            f"Check-out: {booking.get('check_out')}\n"
+            f"Guests: {booking.get('num_guests')}\n"
+            f"Total: Rs. {total:,.0f}\n"
+            f"Booking ID: {booking.get('booking_id')}\n\n"
+            f"Your full proposal - tariff breakdown, bank details for payment, "
+            f"amenities and house rules - has been emailed to you."
+        )
+        twilio_client.messages.create(
+            from_=TWILIO_WHATSAPP_FROM,
+            to=f"whatsapp:+{to_number}",
+            body=message,
+        )
+        logging.info(f"WhatsApp confirmation sent to +{to_number}")
+    except Exception as e:
+        logging.error(f"Failed to send WhatsApp confirmation: {e}")
+
 @api_router.post("/bookings")
 async def create_booking(booking_data: BookingCreate):
     """Create a new booking"""
@@ -1199,6 +1246,9 @@ async def create_booking(booking_data: BookingCreate):
             logging.info(f"Proposal email sent to {booking_data.guest_email}")
     except Exception as e:
         logging.error(f"Failed to send email: {e}")
+
+    # WhatsApp confirmation (best-effort, no-ops if Twilio isn't configured)
+    send_whatsapp_booking_confirmation(doc, villa)
 
     # Generate WhatsApp link for the booking
     booking_dict = doc.copy()

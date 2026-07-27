@@ -823,8 +823,9 @@ const VillaDetailPage = () => {
                   <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
                     <Check className="text-accent" size={28} />
                   </div>
-                  <h3 className="font-heading text-2xl mb-2">Booking Proposal Ready</h3>
+                  <h3 className="font-heading text-2xl mb-2">Thank You for Your Booking!</h3>
                   <p className="text-muted-foreground mb-6">
+                    Your booking request is confirmed <span className="font-medium text-foreground">subject to receipt of payment</span>.
                     We've emailed your detailed booking proposal to{" "}
                     <span className="font-medium text-foreground">{bookingResult.guest_email}</span>
                     {" "}- including the tariff breakdown, bank details for payment, villa amenities and house rules.
