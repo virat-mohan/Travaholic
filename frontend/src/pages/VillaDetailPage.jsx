@@ -387,9 +387,10 @@ const VillaDetailPage = () => {
             )}
           </div>
 
-          {/* Thumbnail Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {villa.images?.slice(0, 4).map((img, index) => (
+          {/* Thumbnail Grid - shows every photo (scrollable), not just the first few,
+              so nothing (bedrooms, bathrooms, etc.) looks missing */}
+          <div className="grid grid-cols-2 gap-4 overflow-y-auto max-h-[600px] pr-1">
+            {villa.images?.map((img, index) => (
               <div
                 key={index}
                 className="cursor-pointer"
