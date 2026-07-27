@@ -1175,31 +1175,79 @@ async def create_booking(booking_data: BookingCreate):
     block_doc["created_at"] = block_doc["created_at"].isoformat()
     await db.blocked_dates.insert_one(block_doc)
     
-    # Send email confirmation for online bookings
+    # Send booking proposal email (booking details, bank details, amenities,
+    # house rules as a PDF attachment) for online bookings
     try:
         resend_key = os.environ.get("RESEND_API_KEY")
         if resend_key and not resend_key.startswith("re_placeholder"):
             resend.api_key = resend_key
+            proposal_pdf = generate_booking_confirmation_pdf(
+                doc, villa,
+                document_title="BOOKING PROPOSAL",
+                intro_text="Thank you for choosing Travaholic Stays! Please find your booking proposal below and attached as a PDF, including the tariff breakdown, bank details for payment, villa amenities and house rules."
+            )
             resend.Emails.send({
                 "from": "Travaholic Stays <bookings@travaholicstays.com>",
                 "to": [booking_data.guest_email],
-                "subject": f"Booking Received - {villa['name']} | Travaholic Stays",
-                "html": generate_booking_received_email(doc, villa)
+                "subject": f"Your Booking Proposal - {villa['name']} | Travaholic Stays",
+                "html": generate_booking_received_email(doc, villa),
+                "attachments": [{
+                    "filename": f"Travaholic_Booking_Proposal_{booking.booking_id}.pdf",
+                    "content": list(proposal_pdf.getvalue()),
+                }],
             })
-            logging.info(f"Email sent to {booking_data.guest_email}")
+            logging.info(f"Proposal email sent to {booking_data.guest_email}")
     except Exception as e:
         logging.error(f"Failed to send email: {e}")
-    
+
     # Generate WhatsApp link for the booking
     booking_dict = doc.copy()
     booking_dict.pop("_id", None)
-    
+
     return booking
+
+@api_router.get("/bookings/{booking_id}/proposal-pdf")
+async def get_booking_proposal_pdf(booking_id: str):
+    """Publicly viewable booking proposal PDF - booking details, bank account
+    details, amenities and house rules. Linked from the checkout page right
+    after a booking is submitted, and from the proposal email."""
+    booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    villa = await db.villas.find_one({"villa_id": booking["villa_id"]}, {"_id": 0})
+    if not villa:
+        raise HTTPException(status_code=404, detail="Villa not found")
+
+    pdf_buffer = generate_booking_confirmation_pdf(
+        booking, villa,
+        document_title="BOOKING PROPOSAL",
+        intro_text="Thank you for choosing Travaholic Stays! Please find below your booking proposal, including the tariff breakdown, bank details for payment, villa amenities and house rules."
+    )
+
+    return Response(
+        content=pdf_buffer.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"inline; filename=booking_proposal_{booking_id}.pdf"
+        }
+    )
 
 # ==================== MANUAL BOOKING (ADMIN) ====================
 
-def generate_booking_confirmation_pdf(booking_data: dict, villa: dict) -> BytesIO:
-    """Generate a professional booking confirmation PDF"""
+def generate_booking_confirmation_pdf(
+    booking_data: dict,
+    villa: dict,
+    document_title: str = "BOOKING CONFIRMATION",
+    intro_text: str = "Greetings from Travaholic Stays! We look forward to hosting you in Goa.",
+) -> BytesIO:
+    """Generate a professional booking confirmation / proposal PDF.
+
+    Used both for the admin-triggered post-payment confirmation and for the
+    booking proposal sent/viewable at the time a guest submits a booking
+    request - same layout (tariff, bank details, amenities, house rules),
+    different heading/intro so it reads correctly at each stage.
+    """
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
     
@@ -1214,7 +1262,7 @@ def generate_booking_confirmation_pdf(booking_data: dict, villa: dict) -> BytesI
     styles.add(ParagraphStyle(name='TitleStyle', fontName='Helvetica-Bold', fontSize=20, textColor=dark_teal, alignment=TA_CENTER, spaceAfter=20))
     styles.add(ParagraphStyle(name='SubtitleStyle', fontName='Helvetica', fontSize=12, textColor=grey, alignment=TA_CENTER, spaceAfter=30))
     styles.add(ParagraphStyle(name='SectionHeader', fontName='Helvetica-Bold', fontSize=14, textColor=teal, spaceBefore=20, spaceAfter=10))
-    styles.add(ParagraphStyle(name='BodyText', fontName='Helvetica', fontSize=10, textColor=grey, spaceAfter=6, leading=14))
+    styles.add(ParagraphStyle(name='BodyTextStyle', fontName='Helvetica', fontSize=10, textColor=grey, spaceAfter=6, leading=14))
     styles.add(ParagraphStyle(name='BoldText', fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, spaceAfter=6))
     styles.add(ParagraphStyle(name='SmallText', fontName='Helvetica', fontSize=9, textColor=grey, spaceAfter=4))
     styles.add(ParagraphStyle(name='Footer', fontName='Helvetica', fontSize=8, textColor=grey, alignment=TA_CENTER))
@@ -1226,15 +1274,15 @@ def generate_booking_confirmation_pdf(booking_data: dict, villa: dict) -> BytesI
     elements.append(Paragraph("Luxury Villa Rentals in Goa", styles['SubtitleStyle']))
     elements.append(Spacer(1, 10))
     
-    # Booking Confirmation Header
-    elements.append(Paragraph("BOOKING CONFIRMATION", styles['SectionHeader']))
-    elements.append(Paragraph(f"Date: {datetime.now().strftime('%d %B %Y')}", styles['BodyText']))
-    elements.append(Paragraph(f"Booking ID: {booking_data.get('booking_id', 'N/A')}", styles['BodyText']))
+    # Confirmation / Proposal Header
+    elements.append(Paragraph(document_title, styles['SectionHeader']))
+    elements.append(Paragraph(f"Date: {datetime.now().strftime('%d %B %Y')}", styles['BodyTextStyle']))
+    elements.append(Paragraph(f"Booking ID: {booking_data.get('booking_id', 'N/A')}", styles['BodyTextStyle']))
     elements.append(Spacer(1, 10))
-    
+
     # Greeting
     elements.append(Paragraph(f"Dear {booking_data['guest_name']},", styles['BoldText']))
-    elements.append(Paragraph("Greetings from Travaholic Stays! We look forward to hosting you in Goa.", styles['BodyText']))
+    elements.append(Paragraph(intro_text, styles['BodyTextStyle']))
     elements.append(Spacer(1, 15))
     
     # Villa Details Section
@@ -1279,19 +1327,30 @@ def generate_booking_confirmation_pdf(booking_data: dict, villa: dict) -> BytesI
     
     # Pricing Section
     elements.append(Paragraph("PRICING BREAKDOWN", styles['SectionHeader']))
-    tariff_per_night = booking_data.get('tariff_per_night', booking_data.get('base_price', 0))
+    num_nights_val = booking_data.get('total_nights') or booking_data.get('num_nights') or 0
+    tariff_per_night = booking_data.get('tariff_per_night')
+    if tariff_per_night is None:
+        if booking_data.get('base_amount') and num_nights_val:
+            tariff_per_night = booking_data['base_amount'] / num_nights_val
+        else:
+            tariff_per_night = villa.get('base_price', 0)
     total_amount = booking_data.get('total_booking_amount', booking_data.get('total_amount', 0))
-    security = booking_data.get('security_deposit', 20000)
-    
+    security = booking_data.get('security_deposit')
+    if security is None:
+        security = villa.get('security_deposit', 20000)
+
     pricing_data = [
         ['Tariff per night:', f"₹{tariff_per_night:,.0f}"],
         ['Total Booking Amount:', f"₹{total_amount:,.0f} (Inclusive of GST)"],
         ['Security Deposit:', f"₹{security:,.0f} (Refundable)"],
     ]
-    
+
+    if booking_data.get('addons_total', 0) > 0:
+        pricing_data.insert(1, ['Add-ons:', f"₹{booking_data['addons_total']:,.0f}"])
+
     if booking_data.get('extra_pax_charge', 0) > 0:
         pricing_data.insert(1, ['Extra Pax Charge:', f"₹{booking_data['extra_pax_charge']:,.0f}"])
-    
+
     if booking_data.get('advance_amount', 0) > 0:
         pricing_data.append(['Advance Paid:', f"₹{booking_data['advance_amount']:,.0f}"])
         balance = booking_data.get('balance_amount', total_amount - booking_data['advance_amount'])
@@ -1336,24 +1395,24 @@ def generate_booking_confirmation_pdf(booking_data: dict, villa: dict) -> BytesI
     
     # Cancellation Policy
     elements.append(Paragraph("CANCELLATION POLICY", styles['SectionHeader']))
-    elements.append(Paragraph("• <b>100% refund</b> - If cancellation is made 30 days or more before check-in", styles['BodyText']))
-    elements.append(Paragraph("• <b>50% refund</b> - If cancellation is made between 15 to 30 days before check-in", styles['BodyText']))
-    elements.append(Paragraph("• <b>No refund</b> - If cancellation is made within 15 days of check-in", styles['BodyText']))
+    elements.append(Paragraph("• <b>100% refund</b> - If cancellation is made 30 days or more before check-in", styles['BodyTextStyle']))
+    elements.append(Paragraph("• <b>50% refund</b> - If cancellation is made between 15 to 30 days before check-in", styles['BodyTextStyle']))
+    elements.append(Paragraph("• <b>No refund</b> - If cancellation is made within 15 days of check-in", styles['BodyTextStyle']))
     elements.append(Spacer(1, 15))
     
     # House Rules
     elements.append(Paragraph("HOUSE RULES", styles['SectionHeader']))
-    elements.append(Paragraph("• <b>No Drugs:</b> Strictly prohibited on the premises", styles['BodyText']))
-    elements.append(Paragraph("• <b>No Smoking Inside:</b> Smoking allowed only on balconies and outdoor areas. ₹10,000 cleaning fee per room if smoking inside.", styles['BodyText']))
-    elements.append(Paragraph("• <b>Guest Registration:</b> Provide accurate guest details. Strict 'no visitor' policy.", styles['BodyText']))
-    elements.append(Paragraph("• <b>Peaceful Community:</b> Loud music and parties not allowed beyond 10 PM.", styles['BodyText']))
-    elements.append(Paragraph(f"• <b>Extra Guests:</b> Base rate is for 6 pax. ₹2,000/person for additional guests.", styles['BodyText']))
-    elements.append(Paragraph("• <b>Check-in:</b> 2:00 PM | <b>Check-out:</b> 11:00 AM (Early/late subject to availability)", styles['BodyText']))
+    elements.append(Paragraph("• <b>No Drugs:</b> Strictly prohibited on the premises", styles['BodyTextStyle']))
+    elements.append(Paragraph("• <b>No Smoking Inside:</b> Smoking allowed only on balconies and outdoor areas. ₹10,000 cleaning fee per room if smoking inside.", styles['BodyTextStyle']))
+    elements.append(Paragraph("• <b>Guest Registration:</b> Provide accurate guest details. Strict 'no visitor' policy.", styles['BodyTextStyle']))
+    elements.append(Paragraph("• <b>Peaceful Community:</b> Loud music and parties not allowed beyond 10 PM.", styles['BodyTextStyle']))
+    elements.append(Paragraph(f"• <b>Extra Guests:</b> Base rate is for 6 pax. ₹2,000/person for additional guests.", styles['BodyTextStyle']))
+    elements.append(Paragraph("• <b>Check-in:</b> 2:00 PM | <b>Check-out:</b> 11:00 AM (Early/late subject to availability)", styles['BodyTextStyle']))
     elements.append(Spacer(1, 15))
     
     # ID Requirements
     elements.append(Paragraph("ID REQUIREMENTS", styles['SectionHeader']))
-    elements.append(Paragraph("As per government regulations, all guests must carry valid photo ID and address proof at check-in. <b>PAN cards are not accepted.</b> Without valid documents, check-in cannot proceed and booking will be considered 'no show' (no refund).", styles['BodyText']))
+    elements.append(Paragraph("As per government regulations, all guests must carry valid photo ID and address proof at check-in. <b>PAN cards are not accepted.</b> Without valid documents, check-in cannot proceed and booking will be considered 'no show' (no refund).", styles['BodyTextStyle']))
     elements.append(Spacer(1, 15))
     
     # Villa Features
@@ -1361,15 +1420,15 @@ def generate_booking_confirmation_pdf(booking_data: dict, villa: dict) -> BytesI
     features = villa.get('amenities', [])
     if features:
         features_text = " • ".join(features[:12])
-        elements.append(Paragraph(f"• {features_text}", styles['BodyText']))
+        elements.append(Paragraph(f"• {features_text}", styles['BodyTextStyle']))
     else:
-        elements.append(Paragraph("• Private Pool • Housekeeping • WiFi • Air Conditioning • Smart TV • Full Kitchen • Parking", styles['BodyText']))
+        elements.append(Paragraph("• Private Pool • Housekeeping • WiFi • Air Conditioning • Smart TV • Full Kitchen • Parking", styles['BodyTextStyle']))
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph("<b>Additional Services (on request):</b> Private Chef, Spa Session, BBQ Night, Decoration, Airport Transfers", styles['BodyText']))
+    elements.append(Paragraph("<b>Additional Services (on request):</b> Private Chef, Spa Session, BBQ Night, Decoration, Airport Transfers", styles['BodyTextStyle']))
     elements.append(Spacer(1, 30))
     
     # Footer
-    elements.append(Paragraph("Warm Regards,", styles['BodyText']))
+    elements.append(Paragraph("Warm Regards,", styles['BodyTextStyle']))
     elements.append(Paragraph("<b>Team Travaholic</b>", styles['BoldText']))
     elements.append(Spacer(1, 20))
     elements.append(Paragraph("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", styles['Footer']))

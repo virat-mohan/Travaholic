@@ -37,6 +37,7 @@ const VillaDetailPage = () => {
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [pricing, setPricing] = useState(null);
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingResult, setBookingResult] = useState(null);
   const [guestInfo, setGuestInfo] = useState({
     name: "",
     email: "",
@@ -199,8 +200,9 @@ const VillaDetailPage = () => {
       };
 
       const response = await axios.post(`${API}/bookings`, bookingData);
-      toast.success("Booking created! Proceeding to payment...");
-      
+      toast.success("Booking request received! Your proposal has been emailed to you.");
+      setBookingResult({ booking_id: response.data.booking_id, guest_email: guestInfo.email });
+
       // Create payment order
       try {
         const paymentResponse = await axios.post(`${API}/payments/create-order`, {
@@ -223,7 +225,6 @@ const VillaDetailPage = () => {
                 razorpay_signature: response.razorpay_signature,
               });
               toast.success("Payment successful! Booking confirmed.");
-              setShowBookingModal(false);
               fetchVilla(); // Refresh availability
             } catch (error) {
               toast.error("Payment verification failed");
@@ -250,6 +251,11 @@ const VillaDetailPage = () => {
     } finally {
       setBookingLoading(false);
     }
+  };
+
+  const closeBookingModal = () => {
+    setShowBookingModal(false);
+    setBookingResult(null);
   };
 
   const formatPrice = (price) => {
@@ -796,7 +802,7 @@ const VillaDetailPage = () => {
             className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
             data-testid="booking-modal"
           >
-            <div className="absolute inset-0 bg-foreground/60 backdrop-blur-sm" onClick={() => setShowBookingModal(false)} />
+            <div className="absolute inset-0 bg-foreground/60 backdrop-blur-sm" onClick={closeBookingModal} />
 
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -805,13 +811,58 @@ const VillaDetailPage = () => {
               className="relative bg-card w-full max-w-2xl p-8 my-8 max-h-[90vh] overflow-y-auto"
             >
               <button
-                onClick={() => setShowBookingModal(false)}
+                onClick={closeBookingModal}
                 className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground"
                 data-testid="close-booking-modal"
               >
                 <X size={20} />
               </button>
 
+              {bookingResult ? (
+                <div className="text-center py-4" data-testid="booking-proposal-view">
+                  <div className="w-14 h-14 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                    <Check className="text-accent" size={28} />
+                  </div>
+                  <h3 className="font-heading text-2xl mb-2">Booking Proposal Ready</h3>
+                  <p className="text-muted-foreground mb-6">
+                    We've emailed your detailed booking proposal to{" "}
+                    <span className="font-medium text-foreground">{bookingResult.guest_email}</span>
+                    {" "}- including the tariff breakdown, bank details for payment, villa amenities and house rules.
+                  </p>
+
+                  <div className="bg-muted/50 p-4 mb-6 text-left">
+                    <div className="flex justify-between mb-2">
+                      <span>Villa</span>
+                      <span className="font-medium">{villa.name}</span>
+                    </div>
+                    <div className="flex justify-between mb-2">
+                      <span>Check-in</span>
+                      <span className="font-medium">{checkIn ? format(checkIn, "MMM dd, yyyy") : "-"}</span>
+                    </div>
+                    <div className="flex justify-between mb-2">
+                      <span>Check-out</span>
+                      <span className="font-medium">{checkOut ? format(checkOut, "MMM dd, yyyy") : "-"}</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-border">
+                      <span className="font-medium">Total</span>
+                      <span className="font-medium">{pricing ? formatPrice(getFinalTotal()) : "-"}</span>
+                    </div>
+                  </div>
+
+                  <a
+                    href={`${API}/bookings/${bookingResult.booking_id}/proposal-pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    data-testid="view-proposal-link"
+                  >
+                    <Button className="w-full btn-luxury mb-3">View / Download Booking Proposal (PDF)</Button>
+                  </a>
+                  <Button variant="outline" className="w-full btn-luxury-outline" onClick={closeBookingModal}>
+                    Close
+                  </Button>
+                </div>
+              ) : (
+              <>
               <h3 className="font-heading text-2xl mb-2">Complete Your Booking</h3>
               <p className="text-muted-foreground mb-6">{villa.name}</p>
 
@@ -1058,6 +1109,8 @@ const VillaDetailPage = () => {
               >
                 {bookingLoading ? "Processing..." : "Confirm & Pay"}
               </Button>
+              </>
+              )}
             </motion.div>
           </motion.div>
         )}
