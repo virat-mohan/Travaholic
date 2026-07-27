@@ -203,6 +203,7 @@ const ListYourVillaPage = () => {
                         description: "",
                       });
                     }}
+                    variant="outline"
                     className="btn-luxury-outline"
                   >
                     Submit Another Property

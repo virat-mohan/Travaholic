@@ -324,7 +324,7 @@ const HomePage = () => {
               </div>
 
               <Link to="/about">
-                <Button className="btn-luxury-outline" data-testid="learn-more-btn">
+                <Button variant="outline" className="btn-luxury-outline" data-testid="learn-more-btn">
                   Learn More
                   <ArrowRight size={16} className="ml-2" />
                 </Button>
@@ -537,6 +537,7 @@ const HomePage = () => {
                 </Button>
               </Link>
               <Button
+                variant="outline"
                 className="btn-luxury-outline border-foreground text-foreground hover:bg-foreground hover:text-accent px-8 py-6"
                 onClick={() => setCallbackOpen(true)}
                 data-testid="callback-cta-btn"

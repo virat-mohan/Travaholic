@@ -769,7 +769,7 @@ const VillaDetailPage = () => {
                   asChild
                 >
                   <a
-                    href={`https://wa.me/919876543210?text=Hi, I'm interested in ${villa.name}`}
+                    href={`https://wa.me/919958871283?text=Hi, I'm interested in ${villa.name}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     data-testid="whatsapp-btn"

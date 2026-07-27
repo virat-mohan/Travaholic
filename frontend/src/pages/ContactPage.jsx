@@ -80,10 +80,10 @@ const ContactPage = () => {
                 <div>
                   <h3 className="font-medium mb-1">Phone</h3>
                   <a
-                    href="tel:+919876543210"
+                    href="tel:+919958871283"
                     className="text-muted-foreground hover:text-accent transition-colors"
                   >
-                    +91 98765 43210
+                    +91 99588 71283
                   </a>
                 </div>
               </div>
@@ -125,11 +125,11 @@ const ContactPage = () => {
                 Message us directly for quick responses.
               </p>
               <a
-                href="https://wa.me/919876543210?text=Hi, I have a question about Travaholic Stays"
+                href="https://wa.me/919958871283?text=Hi, I have a question about Travaholic Stays"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Button className="btn-luxury-outline" data-testid="whatsapp-contact-btn">
+                <Button variant="outline" className="btn-luxury-outline" data-testid="whatsapp-contact-btn">
                   Chat on WhatsApp
                 </Button>
               </a>
