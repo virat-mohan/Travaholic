@@ -23,6 +23,7 @@ import BlogPostPage from "./pages/BlogPostPage";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { Toaster } from "./components/ui/sonner";
+import SplashScreen, { shouldShowSplash } from "./components/SplashScreen";
 
 export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
@@ -301,6 +302,8 @@ const DashboardRedirect = () => {
 };
 
 function App() {
+  const [showSplash, setShowSplash] = useState(() => shouldShowSplash());
+
   return (
     <HelmetProvider>
       <BrowserRouter>
@@ -309,6 +312,7 @@ function App() {
             <ScrollToTop />
             <AppRouter />
             <Toaster position="top-right" richColors />
+            {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
           </div>
         </AuthProvider>
       </BrowserRouter>
