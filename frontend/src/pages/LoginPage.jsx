@@ -49,21 +49,6 @@ const LoginPage = () => {
     }
   };
 
-  const handleMakeAdmin = async () => {
-    try {
-      const token = localStorage.getItem("session_token");
-      await axios.post(`${API}/make-admin`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      toast.success("You are now an admin! Redirecting...");
-      setTimeout(() => {
-        window.location.href = "/admin";
-      }, 1000);
-    } catch (error) {
-      toast.error(getErrorMessage(error, "Failed to set admin role"));
-    }
-  };
-
   const handleMakeOwner = async () => {
     try {
       const token = localStorage.getItem("session_token");
@@ -103,14 +88,11 @@ const LoginPage = () => {
               </Link>
             ) : (
               <>
-                <Button onClick={handleMakeAdmin} className="w-full btn-luxury">
-                  Become Admin (First-time Setup)
-                </Button>
                 <Button onClick={handleMakeOwner} variant="outline" className="w-full">
                   Become Villa Owner (Demo)
                 </Button>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Select a role to access your dashboard
+                  Ask an existing admin to invite you from Admin &gt; Team.
                 </p>
               </>
             )}

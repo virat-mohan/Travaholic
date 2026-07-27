@@ -13,6 +13,7 @@ import ContactPage from "./pages/ContactPage";
 import ListYourVillaPage from "./pages/ListYourVillaPage";
 import BlogPage from "./pages/BlogPage";
 import LoginPage from "./pages/LoginPage";
+import AcceptInvitePage from "./pages/AcceptInvitePage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import PrivateOfferPage from "./pages/PrivateOfferPage";
@@ -226,6 +227,7 @@ function AppRouter() {
         }
       />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/accept-invite/:token" element={<AcceptInvitePage />} />
 
       {/* Private Offer Payment Page */}
       <Route
