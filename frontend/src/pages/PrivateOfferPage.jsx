@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import axios from "axios";
 import { API } from "../App";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 const PrivateOfferPage = () => {
   const { offerId } = useParams();
@@ -127,7 +128,7 @@ const PrivateOfferPage = () => {
       razorpay.open();
     } catch (error) {
       console.error("Payment error:", error);
-      toast.error(error.response?.data?.detail || "Failed to initiate payment");
+      toast.error(getErrorMessage(error, "Failed to initiate payment"));
       setProcessing(false);
     }
   };

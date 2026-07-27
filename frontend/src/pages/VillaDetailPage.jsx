@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { format, addDays, differenceInDays, isAfter, isBefore, parseISO } from "date-fns";
 import axios from "axios";
 import { API } from "../App";
+import { getErrorMessage } from "@/lib/utils";
 
 const VillaDetailPage = () => {
   const { slug } = useParams();
@@ -128,7 +129,7 @@ const VillaDetailPage = () => {
       setCouponDiscount(response.data);
       toast.success(`Coupon applied! ${response.data.description}`);
     } catch (error) {
-      const errorMsg = error.response?.data?.detail || "Invalid coupon code";
+      const errorMsg = getErrorMessage(error, "Invalid coupon code");
       setCouponError(errorMsg);
       setCouponDiscount(null);
     } finally {
@@ -245,7 +246,7 @@ const VillaDetailPage = () => {
       }
     } catch (error) {
       console.error("Booking error:", error);
-      toast.error(error.response?.data?.detail || "Failed to create booking");
+      toast.error(getErrorMessage(error, "Failed to create booking"));
     } finally {
       setBookingLoading(false);
     }

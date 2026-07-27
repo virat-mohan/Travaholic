@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import axios from "axios";
 import { format, parseISO, addDays, differenceInDays, isBefore, isAfter, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay } from "date-fns";
+import { getErrorMessage } from "@/lib/utils";
 
 // Helper function
 const formatPrice = (price) => {
@@ -555,7 +556,7 @@ const OwnerCalendar = () => {
       setBlockReason("");
       setShowBlockDialog(false);
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Failed to block dates");
+      toast.error(getErrorMessage(error, "Failed to block dates"));
     } finally {
       setBlocking(false);
     }
