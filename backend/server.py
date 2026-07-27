@@ -2673,6 +2673,48 @@ async def seed_sample_data():
     
     return {"message": "Sample data seeded successfully", "villas": len(sample_villas), "addons": len(sample_addons)}
 
+@api_router.post("/admin/seed-blog-posts")
+async def seed_blog_posts(user: User = Depends(require_admin)):
+    """One-click import of the launch blog posts (admin only) - upserts by
+    slug, safe to click more than once."""
+    import json as _json
+
+    data_path = ROOT_DIR / "scripts" / "blog_posts_data.json"
+    if not data_path.exists():
+        raise HTTPException(status_code=500, detail="Blog post data file not found on server")
+
+    with open(data_path) as f:
+        posts = _json.load(f)["posts"]
+
+    now = datetime.now(timezone.utc).isoformat()
+    inserted = 0
+    updated = 0
+    for post in posts:
+        set_fields = {
+            "status": "published",
+            "related_villa_ids": [],
+            "canonical_url": None,
+            "updated_at": now,
+            **post,
+        }
+        result = await db.blog_posts.update_one(
+            {"slug": post["slug"]},
+            {
+                "$set": set_fields,
+                "$setOnInsert": {
+                    "post_id": f"post_{uuid.uuid4().hex[:12]}",
+                    "created_at": now,
+                },
+            },
+            upsert=True,
+        )
+        if result.upserted_id:
+            inserted += 1
+        else:
+            updated += 1
+
+    return {"message": "Blog posts seeded", "inserted": inserted, "updated": updated}
+
 # ==================== MAKE ADMIN (TEMPORARY - FOR SETUP) ====================
 
 @api_router.post("/make-admin")
