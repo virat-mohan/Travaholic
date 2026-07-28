@@ -848,6 +848,11 @@ const VillaDetailPage = () => {
                       <span className="font-medium">Total</span>
                       <span className="font-medium">{pricing ? formatPrice(getFinalTotal()) : "-"}</span>
                     </div>
+                    <div className="flex justify-between mt-2 pt-2 border-t border-border/50 text-sm">
+                      <span className="text-muted-foreground">Security Deposit (payable separately)</span>
+                      <span className="font-medium">₹20,000</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Refundable at checkout</p>
                   </div>
 
                   <a

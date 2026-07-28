@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ArrowRight } from "lucide-react";
+import { Check, ArrowRight, Upload, X } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -13,16 +13,19 @@ import {
 } from "../components/ui/select";
 import { toast } from "sonner";
 import axios from "axios";
-import { API } from "../App";
+import { API, BACKEND_URL } from "../App";
+import { getErrorMessage } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 const ListYourVillaPage = () => {
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     ownerName: "",
     ownerEmail: "",
     ownerPhone: "",
+    ownerInstagram: "",
     villaName: "",
     villaLocation: "",
     bedrooms: "",
@@ -30,7 +33,39 @@ const ListYourVillaPage = () => {
     hasPool: false,
     amenities: [],
     description: "",
+    images: [],
   });
+
+  const MAX_LISTING_IMAGES = 8;
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const room = MAX_LISTING_IMAGES - formData.images.length;
+    if (room <= 0) {
+      toast.error(`You can upload up to ${MAX_LISTING_IMAGES} photos`);
+      return;
+    }
+    setUploading(true);
+    try {
+      for (const file of files.slice(0, room)) {
+        const form = new FormData();
+        form.append("file", file);
+        const response = await axios.post(`${API}/list-villa/upload-image`, form);
+        const fullUrl = `${BACKEND_URL}${response.data.url}`;
+        setFormData((prev) => ({ ...prev, images: [...prev.images, fullUrl] }));
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to upload photo"));
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveImage = (url) => {
+    setFormData((prev) => ({ ...prev, images: prev.images.filter((i) => i !== url) }));
+  };
 
   const amenitiesList = [
     "WiFi",
@@ -70,6 +105,7 @@ const ListYourVillaPage = () => {
         owner_name: formData.ownerName,
         owner_email: formData.ownerEmail,
         owner_phone: formData.ownerPhone,
+        owner_instagram: formData.ownerInstagram || null,
         villa_name: formData.villaName,
         villa_location: formData.villaLocation,
         bedrooms: parseInt(formData.bedrooms),
@@ -77,11 +113,12 @@ const ListYourVillaPage = () => {
         has_pool: formData.hasPool,
         amenities: formData.amenities,
         description: formData.description,
+        images: formData.images,
       });
       toast.success("Application submitted! Our team will contact you soon.");
       setStep(3);
     } catch (error) {
-      toast.error("Failed to submit. Please try again.");
+      toast.error(getErrorMessage(error, "Failed to submit. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -194,6 +231,7 @@ const ListYourVillaPage = () => {
                         ownerName: "",
                         ownerEmail: "",
                         ownerPhone: "",
+                        ownerInstagram: "",
                         villaName: "",
                         villaLocation: "",
                         bedrooms: "",
@@ -201,6 +239,7 @@ const ListYourVillaPage = () => {
                         hasPool: false,
                         amenities: [],
                         description: "",
+                        images: [],
                       });
                     }}
                     variant="outline"
@@ -279,6 +318,16 @@ const ListYourVillaPage = () => {
                           required
                           className="input-luxury"
                           data-testid="owner-phone-input"
+                        />
+
+                        <Input
+                          placeholder="Instagram Handle (optional)"
+                          value={formData.ownerInstagram}
+                          onChange={(e) =>
+                            setFormData({ ...formData, ownerInstagram: e.target.value })
+                          }
+                          className="input-luxury"
+                          data-testid="owner-instagram-input"
                         />
 
                         <Button
@@ -418,6 +467,46 @@ const ListYourVillaPage = () => {
                               </button>
                             ))}
                           </div>
+                        </div>
+
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            Villa Photos (optional, up to {MAX_LISTING_IMAGES})
+                          </p>
+                          <label
+                            className={`flex items-center justify-center gap-2 border border-dashed border-border p-4 cursor-pointer hover:border-accent transition-colors text-sm text-muted-foreground ${
+                              uploading || formData.images.length >= MAX_LISTING_IMAGES ? "opacity-50 pointer-events-none" : ""
+                            }`}
+                          >
+                            <Upload size={16} />
+                            {uploading ? "Uploading..." : "Click to upload photos"}
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={handleImageUpload}
+                              disabled={uploading || formData.images.length >= MAX_LISTING_IMAGES}
+                              className="hidden"
+                              data-testid="villa-photos-input"
+                            />
+                          </label>
+
+                          {formData.images.length > 0 && (
+                            <div className="grid grid-cols-4 gap-3 mt-4">
+                              {formData.images.map((url) => (
+                                <div key={url} className="relative group aspect-square">
+                                  <img src={url} alt="" className="w-full h-full object-cover" />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveImage(url)}
+                                    className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <Textarea

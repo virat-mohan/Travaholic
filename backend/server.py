@@ -523,6 +523,7 @@ class HomeownerListing(BaseModel):
     owner_name: str
     owner_email: EmailStr
     owner_phone: str
+    owner_instagram: Optional[str] = None
     villa_name: str
     villa_location: str
     bedrooms: int
@@ -539,6 +540,7 @@ class HomeownerListingCreate(BaseModel):
     owner_name: str
     owner_email: EmailStr
     owner_phone: str
+    owner_instagram: Optional[str] = None
     villa_name: str
     villa_location: str
     bedrooms: int
@@ -546,6 +548,7 @@ class HomeownerListingCreate(BaseModel):
     has_pool: bool = False
     amenities: List[str] = []
     description: Optional[str] = None
+    images: List[str] = []
 
 class OwnerAgreement(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -837,6 +840,41 @@ async def upload_image(file: UploadFile = File(...), user: User = Depends(requir
         "data": base64.b64encode(compressed).decode(),
         "content_type": "image/jpeg",
         "uploaded_by": user.user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    return {"url": f"/api/images/{image_id}"}
+
+@api_router.post("/list-villa/upload-image")
+async def upload_listing_image(file: UploadFile = File(...)):
+    """Upload a photo for a prospective owner's villa listing (no auth -
+    this is a public form). Same resize/compress pipeline as the admin
+    upload, just tagged differently so these can be told apart from
+    villa-catalog images if needed."""
+    raw = await file.read()
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Image too large (max 10MB)")
+
+    try:
+        img = Image.open(BytesIO(raw))
+        img = img.convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="File is not a valid image")
+
+    max_dimension = 1920
+    if img.width > max_dimension or img.height > max_dimension:
+        img.thumbnail((max_dimension, max_dimension), Image.LANCZOS)
+
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG", quality=85, optimize=True)
+    compressed = buffer.getvalue()
+
+    image_id = f"img_{uuid.uuid4().hex[:16]}"
+    await db.images.insert_one({
+        "image_id": image_id,
+        "data": base64.b64encode(compressed).decode(),
+        "content_type": "image/jpeg",
+        "uploaded_by": "public_listing",
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
@@ -1141,6 +1179,7 @@ def send_whatsapp_booking_confirmation(booking: dict, villa: dict):
         # Assume an Indian number when no country code was entered
         to_number = digits if len(digits) > 10 else f"91{digits}"
         total = booking.get("total_booking_amount", booking.get("total_amount", 0))
+        security = booking.get("security_deposit") or 20000
         message = (
             f"Thank you for your booking at {villa.get('name')}, Travaholic Stays!\n\n"
             f"This is subject to receipt of payment.\n\n"
@@ -1148,6 +1187,7 @@ def send_whatsapp_booking_confirmation(booking: dict, villa: dict):
             f"Check-out: {booking.get('check_out')}\n"
             f"Guests: {booking.get('num_guests')}\n"
             f"Total: Rs. {total:,.0f}\n"
+            f"Security Deposit: Rs. {security:,.0f} (payable separately, refundable at checkout)\n"
             f"Booking ID: {booking.get('booking_id')}\n\n"
             f"Your full proposal - tariff breakdown, bank details for payment, "
             f"amenities and house rules - has been emailed to you."
@@ -1392,7 +1432,7 @@ def generate_booking_confirmation_pdf(
     pricing_data = [
         ['Tariff per night:', f"₹{tariff_per_night:,.0f}"],
         ['Total Booking Amount:', f"₹{total_amount:,.0f} (Inclusive of GST)"],
-        ['Security Deposit:', f"₹{security:,.0f} (Refundable)"],
+        ['Security Deposit:', f"₹{security:,.0f} (Refundable at checkout)"],
     ]
 
     if booking_data.get('addons_total', 0) > 0:
@@ -1418,7 +1458,7 @@ def generate_booking_confirmation_pdf(
     ]))
     elements.append(pricing_table)
     elements.append(Spacer(1, 10))
-    elements.append(Paragraph("* Security deposit is refundable in case of no damage. Please hand it over to the caretaker at the property along with your IDs.", styles['SmallText']))
+    elements.append(Paragraph("* Security deposit of ₹20,000 is payable separately (cash/UPI to the caretaker at check-in) and is fully refundable at checkout, subject to no damage to the property.", styles['SmallText']))
     elements.append(Spacer(1, 15))
     
     # Bank Details
@@ -1736,7 +1776,7 @@ def generate_confirmation_email_html(booking: dict, villa: dict) -> str:
                     </div>
                     <div class="detail-row">
                         <span class="label">Security Deposit</span>
-                        <span class="value">₹{booking.get('security_deposit', 20000):,.0f} (Refundable)</span>
+                        <span class="value">₹{booking.get('security_deposit', 20000):,.0f} (Refundable at checkout)</span>
                     </div>
                 </div>
                 
@@ -1842,7 +1882,7 @@ def generate_booking_received_email(booking: dict, villa: dict) -> str:
                     </div>
                     <div class="detail-row">
                         <span class="label">Security Deposit:</span>
-                        <span class="value">₹{booking.get('security_deposit', 20000):,.0f} (At check-in)</span>
+                        <span class="value">₹{booking.get('security_deposit', 20000):,.0f} (Payable at check-in, refundable at checkout)</span>
                     </div>
                 </div>
                 
@@ -1903,7 +1943,7 @@ Greetings! Your booking has been confirmed. ✅
 👥 *Guests:* {booking['num_guests']} pax
 
 💰 *Total Amount:* ₹{booking.get('total_booking_amount', booking.get('total_amount', 0)):,.0f}
-🔒 *Security Deposit:* ₹{booking.get('security_deposit', 20000):,.0f} (Refundable)
+🔒 *Security Deposit:* ₹{booking.get('security_deposit', 20000):,.0f} (Refundable at checkout)
 
 📋 *Important Reminders:*
 • Please carry valid photo ID (PAN not accepted)
