@@ -27,7 +27,7 @@ const IMAGE_POSITIONS = [0, 1, 2, 3, 5, 6, 7, 8];
 
 const CELL_DURATION = 550; // ms each square takes to reveal
 const REVEAL_SPAN = 900; // ms across which the wave sweeps the collage
-const HOLD_MS = 600; // pause once fully filled, before dissolving to the site
+const HOLD_MS = 3000; // pause once fully filled, before dissolving to the site
 const SESSION_KEY = "travaholic_splash_seen";
 
 const diagonalOf = (i) => Math.floor(i / COLS) + (i % COLS);
