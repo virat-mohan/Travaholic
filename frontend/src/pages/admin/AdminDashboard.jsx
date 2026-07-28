@@ -600,9 +600,23 @@ const VillaForm = ({ villa, onSuccess }) => {
     images: villa?.images || [],
     video_url: villa?.video_url || "",
     bookings_open_from: villa?.bookings_open_from || "",
+    airbnb_ical_url: villa?.airbnb_ical_url || "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [syncingAirbnb, setSyncingAirbnb] = useState(false);
+
+  const syncAirbnbCalendar = async () => {
+    setSyncingAirbnb(true);
+    try {
+      const response = await axios.post(`${API}/admin/villas/${villa.villa_id}/sync-airbnb-calendar`, {}, { headers: getAuthHeaders() });
+      toast.success(response.data.message);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to sync Airbnb calendar"));
+    } finally {
+      setSyncingAirbnb(false);
+    }
+  };
 
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -806,6 +820,46 @@ const VillaForm = ({ villa, onSuccess }) => {
         <Input type="date" value={formData.bookings_open_from} onChange={(e) => setFormData({ ...formData, bookings_open_from: e.target.value })} />
       </div>
 
+      <div className="border border-border rounded-md p-4 space-y-3">
+        <p className="text-sm font-medium">Airbnb Calendar Sync</p>
+        {villa && (
+          <div>
+            <label className="text-xs text-muted-foreground">Travaholic's calendar feed (paste into Airbnb → Sync calendars → Import calendar)</label>
+            <div className="flex gap-2 mt-1">
+              <Input readOnly value={`${BACKEND_URL}/api/villas/${villa.villa_id}/calendar.ics`} className="text-xs" />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${BACKEND_URL}/api/villas/${villa.villa_id}/calendar.ics`);
+                  toast.success("Copied!");
+                }}
+              >
+                Copy
+              </Button>
+            </div>
+          </div>
+        )}
+        <div>
+          <label className="text-xs text-muted-foreground">Airbnb's export calendar link for this listing (from the same Airbnb settings page)</label>
+          <Input
+            value={formData.airbnb_ical_url}
+            onChange={(e) => setFormData({ ...formData, airbnb_ical_url: e.target.value })}
+            placeholder="https://www.airbnb.com/calendar/ical/....ics"
+            className="mt-1"
+          />
+        </div>
+        {villa && (
+          <Button type="button" variant="outline" size="sm" onClick={syncAirbnbCalendar} disabled={syncingAirbnb || !formData.airbnb_ical_url}>
+            {syncingAirbnb ? "Syncing..." : "Sync Now"}
+          </Button>
+        )}
+        {!villa && (
+          <p className="text-xs text-muted-foreground">Save this villa first, then come back here to get its calendar feed URL and sync from Airbnb.</p>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="text-sm font-medium">Security Deposit (₹)</label>
@@ -985,6 +1039,7 @@ const AdminBookings = () => {
       num_guests: booking.num_guests || 1,
       total_booking_amount: booking.total_booking_amount || booking.total_amount || 0,
       security_deposit: booking.security_deposit || 0,
+      commission_percent: booking.commission_percent ?? "",
     });
     setShowEditModal(true);
   };
@@ -992,6 +1047,8 @@ const AdminBookings = () => {
   const saveEditedBooking = async () => {
     try {
       const { booking_id, ...payload } = editFormData;
+      if (payload.commission_percent === "") delete payload.commission_percent;
+      else payload.commission_percent = parseFloat(payload.commission_percent);
       await axios.put(`${API}/bookings/${booking_id}`, payload, { headers: getAuthHeaders() });
       toast.success("Booking updated");
       setShowEditModal(false);
@@ -1359,6 +1416,11 @@ const AdminBookings = () => {
                   <label className="text-sm font-medium">Security Deposit (₹)</label>
                   <Input type="number" value={editFormData.security_deposit} onChange={(e) => setEditFormData({ ...editFormData, security_deposit: parseFloat(e.target.value) || 0 })} className="mt-1" />
                 </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Owner Commission (%)</label>
+                <p className="text-xs text-muted-foreground mb-1">Overrides this booking's commission - owner payout recalculates automatically. Leave empty to keep the villa's default.</p>
+                <Input type="number" min="0" max="100" step="0.1" placeholder="Villa default" value={editFormData.commission_percent} onChange={(e) => setEditFormData({ ...editFormData, commission_percent: e.target.value })} className="mt-1" />
               </div>
             </div>
           )}

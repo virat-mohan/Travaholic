@@ -144,6 +144,7 @@ class Villa(BaseModel):
     thumbnail: Optional[str] = None
     video_url: Optional[str] = None
     bookings_open_from: Optional[str] = None  # YYYY-MM-DD - no check-ins accepted before this date
+    airbnb_ical_url: Optional[str] = None  # Airbnb's private "export calendar" link for this listing
     base_price: float  # Per night weekday price
     weekend_price: Optional[float] = None
     seasonal_pricing: Optional[Dict[str, float]] = None  # {"peak": 50000, "off": 30000}
@@ -185,6 +186,7 @@ class VillaCreate(BaseModel):
     thumbnail: Optional[str] = None
     video_url: Optional[str] = None
     bookings_open_from: Optional[str] = None
+    airbnb_ical_url: Optional[str] = None
     base_price: float
     weekend_price: Optional[float] = None
     seasonal_pricing: Optional[Dict[str, float]] = None
@@ -1027,6 +1029,121 @@ async def unblock_dates(block_id: str, user: User = Depends(require_owner_or_adm
     
     await db.blocked_dates.delete_one({"block_id": block_id})
     return {"message": "Dates unblocked successfully"}
+
+# ==================== ICAL SYNC (AIRBNB) ====================
+#
+# Real two-way, real-time sync with Airbnb isn't available to individual
+# hosts without becoming an Airbnb-certified channel manager - this
+# implements the standard workaround every small property manager uses:
+#   - Export: /villas/{id}/calendar.ics publishes Travaholic's booked/
+#     blocked dates as a feed. Paste that URL into Airbnb's listing
+#     calendar under "Sync calendars" -> "Import calendar" so Airbnb
+#     blocks those dates too.
+#   - Import: an admin pastes the villa's Airbnb "export calendar" link
+#     (from that same Airbnb settings page) into airbnb_ical_url, then
+#     triggers /admin/villas/{id}/sync-airbnb-calendar (manually, or on
+#     a schedule via Render Cron Jobs hitting that endpoint) to pull
+#     Airbnb's bookings in as blocked_dates so Travaholic won't double-book.
+
+def _generate_ical_feed(villa_id: str, villa_name: str, blocked_dates: list) -> str:
+    now_stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Travaholic Stays//Villa Calendar//EN",
+        "CALSCALE:GREGORIAN",
+    ]
+    for block in blocked_dates:
+        start = block["start_date"].replace("-", "")
+        # iCal DTEND is exclusive - bump one day past our inclusive end_date
+        end_dt = datetime.strptime(block["end_date"], "%Y-%m-%d") + timedelta(days=1)
+        end = end_dt.strftime("%Y%m%d")
+        lines += [
+            "BEGIN:VEVENT",
+            f"UID:{block['block_id']}@travaholicstays.com",
+            f"DTSTAMP:{now_stamp}",
+            f"DTSTART;VALUE=DATE:{start}",
+            f"DTEND;VALUE=DATE:{end}",
+            f"SUMMARY:Booked - {villa_name} (Travaholic)",
+            "END:VEVENT",
+        ]
+    lines.append("END:VCALENDAR")
+    return "\r\n".join(lines)
+
+@api_router.get("/villas/{villa_id}/calendar.ics")
+async def get_villa_ical_feed(villa_id: str):
+    """Public iCal feed of this villa's booked/blocked dates - paste this
+    URL into Airbnb's 'Import calendar' setting to keep Airbnb blocked too."""
+    villa = await db.villas.find_one({"villa_id": villa_id}, {"_id": 0, "name": 1})
+    if not villa:
+        raise HTTPException(status_code=404, detail="Villa not found")
+    blocked = await db.blocked_dates.find({"villa_id": villa_id}, {"_id": 0}).to_list(1000)
+    ics = _generate_ical_feed(villa_id, villa["name"], blocked)
+    return Response(
+        content=ics,
+        media_type="text/calendar",
+        headers={"Content-Disposition": f'inline; filename="{villa_id}.ics"'}
+    )
+
+def _parse_ical_events(ics_text: str) -> List[Dict[str, str]]:
+    """Minimal VEVENT extractor - pulls UID/DTSTART/DTEND out of raw iCal
+    text with regex rather than pulling in a full icalendar dependency.
+    Handles both DATE (YYYYMMDD) and DATE-TIME (YYYYMMDDTHHMMSSZ) forms."""
+    events = []
+    for block in re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", ics_text, re.DOTALL):
+        uid_m = re.search(r"UID:(.+)", block)
+        start_m = re.search(r"DTSTART[^:]*:(\d{8})", block)
+        end_m = re.search(r"DTEND[^:]*:(\d{8})", block)
+        if not (uid_m and start_m and end_m):
+            continue
+        start_date = f"{start_m.group(1)[:4]}-{start_m.group(1)[4:6]}-{start_m.group(1)[6:8]}"
+        end_raw = end_m.group(1)
+        end_dt = datetime.strptime(end_raw, "%Y%m%d") - timedelta(days=1)  # DTEND is exclusive
+        events.append({
+            "uid": uid_m.group(1).strip(),
+            "start_date": start_date,
+            "end_date": end_dt.strftime("%Y-%m-%d"),
+        })
+    return events
+
+@api_router.post("/admin/villas/{villa_id}/sync-airbnb-calendar")
+async def sync_airbnb_calendar(villa_id: str, user: User = Depends(require_admin)):
+    """Fetch this villa's Airbnb export-calendar link and mirror its
+    booked dates into blocked_dates (reason=airbnb_sync) so Travaholic
+    won't accept bookings that overlap an Airbnb reservation. Replaces
+    the previous airbnb_sync blocks wholesale each run, so cancellations
+    on Airbnb's side correctly clear here too."""
+    villa = await db.villas.find_one({"villa_id": villa_id}, {"_id": 0})
+    if not villa:
+        raise HTTPException(status_code=404, detail="Villa not found")
+    ical_url = villa.get("airbnb_ical_url")
+    if not ical_url:
+        raise HTTPException(status_code=400, detail="No Airbnb iCal URL configured for this villa")
+
+    try:
+        req = urllib.request.Request(ical_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            ics_text = resp.read().decode("utf-8", errors="ignore")
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not fetch Airbnb calendar: {e}")
+
+    events = _parse_ical_events(ics_text)
+
+    await db.blocked_dates.delete_many({"villa_id": villa_id, "reason": "airbnb_sync"})
+    if events:
+        docs = [{
+            "block_id": f"block_{uuid.uuid4().hex[:12]}",
+            "villa_id": villa_id,
+            "start_date": e["start_date"],
+            "end_date": e["end_date"],
+            "reason": "airbnb_sync",
+            "booking_id": None,
+            "created_by": user.user_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        } for e in events]
+        await db.blocked_dates.insert_many(docs)
+
+    return {"message": f"Synced {len(events)} blocked date range(s) from Airbnb", "synced_count": len(events)}
 
 @api_router.post("/villas/{villa_id}/pricing-override")
 async def create_pricing_override(villa_id: str, data: Dict[str, Any], user: User = Depends(require_admin)):
@@ -2167,7 +2284,19 @@ async def get_booking(booking_id: str, user: User = Depends(require_owner_or_adm
 
 @api_router.put("/bookings/{booking_id}")
 async def update_booking(booking_id: str, data: Dict[str, Any], user: User = Depends(require_admin)):
-    """Update booking (admin only)"""
+    """Update booking (admin only). Setting commission_percent recomputes
+    commission_amount and owner_payout off the booking's subtotal, so an
+    admin can override the commission on a single booking (e.g. a
+    one-off deal) without having to hand-calculate the payout."""
+    if "commission_percent" in data and "commission_amount" not in data:
+        existing = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+        if not existing:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        subtotal = data.get("subtotal", existing.get("subtotal", 0))
+        commission_amount = subtotal * (data["commission_percent"] / 100)
+        data["commission_amount"] = commission_amount
+        data["owner_payout"] = subtotal - commission_amount
+
     data["updated_at"] = datetime.now(timezone.utc).isoformat()
     result = await db.bookings.update_one({"booking_id": booking_id}, {"$set": data})
     if result.matched_count == 0:
