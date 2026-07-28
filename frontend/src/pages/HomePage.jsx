@@ -336,7 +336,7 @@ const HomePage = () => {
               <div className="space-y-4">
                 <div className="aspect-[3/4] overflow-hidden group">
                   <img
-                    src="https://images.unsplash.com/photo-1767284478133-033c43deaaa9?w=800&q=80"
+                    src="/villas/eagle-nest/Villa%20entrace.JPG"
                     alt="Luxury Mountain Retreat"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
@@ -354,13 +354,6 @@ const HomePage = () => {
                   <p className="text-sm uppercase tracking-wider">
                     Happy Guests
                   </p>
-                </div>
-                <div className="aspect-[3/4] overflow-hidden group">
-                  <img
-                    src="https://customer-assets.emergentagent.com/job_46fdf40d-d471-4ebc-8342-5064df045175/artifacts/36ebgu9i_Screenshot%202026-01-31%20at%203.55.44%E2%80%AFPM.png"
-                    alt="Travaholic Team"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
                 </div>
               </div>
             </motion.div>
@@ -503,8 +496,8 @@ const HomePage = () => {
       <section className="relative section-spacing overflow-hidden">
         <div className="absolute inset-0">
           <img 
-            src="https://images.unsplash.com/photo-1687394431847-b973e817ffd4?w=1920&q=80" 
-            alt="Luxury vacation" 
+            src="/villas/la-sierra-14/Backside%20Garden.jpg"
+            alt="Luxury vacation"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-accent/90" />
@@ -595,7 +588,7 @@ const HomePage = () => {
               className="aspect-[4/3] overflow-hidden group"
             >
               <img
-                src="https://images.unsplash.com/photo-1759405198466-d7f97ef8b4a7?w=800&q=80"
+                src="/villas/la-sierra-15/Pool%20Area.jpg"
                 alt="List your luxury villa"
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
