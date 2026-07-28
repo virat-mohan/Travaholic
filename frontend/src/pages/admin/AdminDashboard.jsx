@@ -11,8 +11,9 @@ import { useAuth, API, BACKEND_URL } from "../../App";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose 
+import { Checkbox } from "../../components/ui/checkbox";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose
 } from "../../components/ui/dialog";
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
@@ -1889,25 +1890,33 @@ const AdminFinancials = () => {
 };
 
 // Admin Private Offers
+const EMPTY_OFFER_FORM = {
+  villa_id: "",
+  custom_villa_name: "",
+  custom_villa_location: "",
+  custom_bedrooms: "",
+  amenities: [],
+  guest_name: "",
+  guest_email: "",
+  guest_phone: "",
+  check_in: "",
+  check_out: "",
+  num_guests: 2,
+  custom_per_night: 0,
+  discount_percent: 0,
+  security_deposit: null,
+  notes: "",
+  expiry_hours: 48
+};
+
 const AdminPrivateOffers = () => {
   const [offers, setOffers] = useState([]);
   const [villas, setVillas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [formData, setFormData] = useState({
-    villa_id: "",
-    guest_name: "",
-    guest_email: "",
-    guest_phone: "",
-    check_in: "",
-    check_out: "",
-    num_guests: 2,
-    custom_per_night: 0,
-    discount_percent: 0,
-    security_deposit: null,
-    notes: "",
-    expiry_hours: 48
-  });
+  const [useCustomVilla, setUseCustomVilla] = useState(false);
+  const [editingOfferId, setEditingOfferId] = useState(null);
+  const [formData, setFormData] = useState(EMPTY_OFFER_FORM);
 
   useEffect(() => {
     fetchData();
@@ -1928,23 +1937,83 @@ const AdminPrivateOffers = () => {
     }
   };
 
-  const handleCreateOffer = async () => {
-    if (!formData.villa_id || !formData.guest_name || !formData.check_in || !formData.check_out) {
+  const openCreateDialog = () => {
+    setEditingOfferId(null);
+    setUseCustomVilla(false);
+    setFormData(EMPTY_OFFER_FORM);
+    setShowCreate(true);
+  };
+
+  const openEditDialog = (offer) => {
+    setEditingOfferId(offer.offer_id);
+    setUseCustomVilla(!offer.villa_id);
+    setFormData({
+      villa_id: offer.villa_id || "",
+      custom_villa_name: offer.villa_id ? "" : (offer.villa_name || ""),
+      custom_villa_location: offer.villa_id ? "" : (offer.villa_location || ""),
+      custom_bedrooms: offer.villa_id ? "" : (offer.bedrooms || ""),
+      amenities: offer.amenities || [],
+      guest_name: offer.guest_name || "",
+      guest_email: offer.guest_email || "",
+      guest_phone: offer.guest_phone || "",
+      check_in: offer.check_in || "",
+      check_out: offer.check_out || "",
+      num_guests: offer.num_guests || 2,
+      custom_per_night: offer.num_nights ? Math.round(offer.base_amount / offer.num_nights) : 0,
+      discount_percent: offer.discount_percent || 0,
+      security_deposit: offer.security_deposit ?? null,
+      notes: offer.notes || "",
+      expiry_hours: 48
+    });
+    setShowCreate(true);
+  };
+
+  const handleVillaSelect = (villaId) => {
+    const villa = villas.find(v => v.villa_id === villaId);
+    setFormData({
+      ...formData,
+      villa_id: villaId,
+      // Pre-set villas auto-select their own amenities - admin can still adjust
+      amenities: villa?.amenities || [],
+    });
+  };
+
+  const toggleAmenity = (amenity) => {
+    setFormData((prev) => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter((a) => a !== amenity)
+        : [...prev.amenities, amenity],
+    }));
+  };
+
+  const handleSubmitOffer = async () => {
+    const villaOk = useCustomVilla ? formData.custom_villa_name : formData.villa_id;
+    if (!villaOk || !formData.guest_name || !formData.check_in || !formData.check_out) {
       toast.error("Please fill required fields");
       return;
     }
+    const payload = {
+      ...formData,
+      villa_id: useCustomVilla ? null : formData.villa_id,
+      custom_bedrooms: formData.custom_bedrooms ? parseInt(formData.custom_bedrooms) : null,
+    };
     try {
-      const response = await axios.post(`${API}/admin/private-offers`, formData, { headers: getAuthHeaders() });
-      toast.success("Private offer created!");
+      if (editingOfferId) {
+        await axios.put(`${API}/admin/private-offers/${editingOfferId}`, payload, { headers: getAuthHeaders() });
+        toast.success("Private offer updated!");
+      } else {
+        const response = await axios.post(`${API}/admin/private-offers`, payload, { headers: getAuthHeaders() });
+        toast.success("Private offer created!");
+        if (response.data.payment_link) {
+          navigator.clipboard.writeText(response.data.payment_link);
+          toast.success("Payment link copied to clipboard!");
+        }
+      }
       setShowCreate(false);
       fetchData();
-      // Show the payment link
-      if (response.data.payment_link) {
-        navigator.clipboard.writeText(response.data.payment_link);
-        toast.success("Payment link copied to clipboard!");
-      }
     } catch (error) {
-      toast.error(getErrorMessage(error, "Failed to create offer"));
+      toast.error(getErrorMessage(error, "Failed to save offer"));
     }
   };
 
@@ -1965,29 +2034,83 @@ const AdminPrivateOffers = () => {
           <h1 className="font-heading text-3xl">Private Offers</h1>
           <p className="text-muted-foreground mt-1">Create negotiated pricing with time-limited payment links</p>
         </div>
-        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setEditingOfferId(null); } }}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2" onClick={openCreateDialog}>
               <Plus size={16} />
               Create Offer
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Private Offer</DialogTitle>
+              <DialogTitle>{editingOfferId ? "Edit Private Offer" : "Create Private Offer"}</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-1">Villa *</label>
-                <Select value={formData.villa_id} onValueChange={(v) => setFormData({...formData, villa_id: v})}>
-                  <SelectTrigger><SelectValue placeholder="Select villa" /></SelectTrigger>
-                  <SelectContent>
-                    {villas.map(v => (
-                      <SelectItem key={v.villa_id} value={v.villa_id}>{v.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="col-span-2 flex items-center gap-2 -mb-2">
+                <Checkbox
+                  id="use-custom-villa"
+                  checked={useCustomVilla}
+                  onCheckedChange={(checked) => {
+                    setUseCustomVilla(!!checked);
+                    setFormData({ ...formData, villa_id: "", amenities: checked ? [] : formData.amenities });
+                  }}
+                />
+                <label htmlFor="use-custom-villa" className="text-sm">
+                  Villa not listed on the website (other property the company represents)
+                </label>
               </div>
+
+              {useCustomVilla ? (
+                <>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium mb-1">Villa Name *</label>
+                    <Input value={formData.custom_villa_name} onChange={(e) => setFormData({...formData, custom_villa_name: e.target.value})} placeholder="e.g. Casa Del Sol" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Location</label>
+                    <Input value={formData.custom_villa_location} onChange={(e) => setFormData({...formData, custom_villa_location: e.target.value})} placeholder="e.g. Candolim, Goa" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Bedrooms</label>
+                    <Input type="number" min="1" value={formData.custom_bedrooms} onChange={(e) => setFormData({...formData, custom_bedrooms: e.target.value})} />
+                  </div>
+                </>
+              ) : (
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">Villa *</label>
+                  <Select value={formData.villa_id} onValueChange={handleVillaSelect}>
+                    <SelectTrigger><SelectValue placeholder="Select villa" /></SelectTrigger>
+                    <SelectContent>
+                      {villas.map(v => (
+                        <SelectItem key={v.villa_id} value={v.villa_id}>{v.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-2">
+                  Amenities {!useCustomVilla && formData.villa_id && <span className="text-xs text-muted-foreground font-normal">(auto-selected from villa - adjust if needed)</span>}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {Object.values(AMENITY_GROUPS).flat().map((amenity) => (
+                    <button
+                      key={amenity}
+                      type="button"
+                      onClick={() => toggleAmenity(amenity)}
+                      className={`px-3 py-1 text-sm border transition-colors ${
+                        formData.amenities.includes(amenity)
+                          ? "bg-accent text-accent-foreground border-accent"
+                          : "border-border hover:border-accent"
+                      }`}
+                    >
+                      {amenity}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1">Guest Name *</label>
                 <Input value={formData.guest_name} onChange={(e) => setFormData({...formData, guest_name: e.target.value})} />
@@ -2035,7 +2158,7 @@ const AdminPrivateOffers = () => {
             </div>
             <DialogFooter>
               <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-              <Button onClick={handleCreateOffer}>Create & Get Link</Button>
+              <Button onClick={handleSubmitOffer}>{editingOfferId ? "Save Changes" : "Create & Get Link"}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -2064,6 +2187,9 @@ const AdminPrivateOffers = () => {
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="font-medium">{offer.villa_name}</h3>
+                    {!offer.villa_id && (
+                      <span className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800">off-catalog</span>
+                    )}
                     <span className={`px-2 py-0.5 text-xs rounded ${getStatusBadge(offer.status)}`}>
                       {offer.status}
                     </span>
@@ -2076,15 +2202,25 @@ const AdminPrivateOffers = () => {
                   <p className="text-xs text-muted-foreground">Expires: {new Date(offer.expires_at).toLocaleString()}</p>
                 </div>
               </div>
-              {offer.payment_link && offer.status === "pending" && (
-                <div className="mt-4 pt-4 border-t flex items-center gap-2">
-                  <Input value={offer.payment_link} readOnly className="text-sm" />
-                  <Button size="sm" variant="outline" onClick={() => {
-                    navigator.clipboard.writeText(offer.payment_link);
-                    toast.success("Copied!");
-                  }}>Copy</Button>
-                </div>
-              )}
+              <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => window.open(`${BACKEND_URL}/api/offer/${offer.offer_id}/pdf`, "_blank")}>
+                  View PDF
+                </Button>
+                {offer.status === "pending" && (
+                  <Button size="sm" variant="outline" onClick={() => openEditDialog(offer)}>
+                    Edit
+                  </Button>
+                )}
+                {offer.payment_link && offer.status === "pending" && (
+                  <>
+                    <Input value={offer.payment_link} readOnly className="text-sm flex-1 min-w-[180px]" />
+                    <Button size="sm" variant="outline" onClick={() => {
+                      navigator.clipboard.writeText(offer.payment_link);
+                      toast.success("Copied!");
+                    }}>Copy</Button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>

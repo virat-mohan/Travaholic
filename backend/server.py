@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import re
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
@@ -18,8 +19,10 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, PageBreak, HRFlowable
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 import urllib.request
 import urllib.parse
 import hmac
@@ -30,6 +33,34 @@ from PIL import Image
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# PDF fonts - ReportLab's built-in Helvetica has no Rupee glyph (renders as a
+# missing-glyph box), so bundle DejaVu Sans (has full Unicode coverage) and
+# register it under names used by every PDF generator in this file.
+FONTS_DIR = ROOT_DIR / "fonts"
+try:
+    pdfmetrics.registerFont(TTFont("DejaVuSans", str(FONTS_DIR / "DejaVuSans.ttf")))
+    pdfmetrics.registerFont(TTFont("DejaVuSans-Bold", str(FONTS_DIR / "DejaVuSans-Bold.ttf")))
+    PDF_FONT = "DejaVuSans"
+    PDF_FONT_BOLD = "DejaVuSans-Bold"
+except Exception:
+    logging.warning("DejaVu Sans fonts not found - falling back to Helvetica (Rupee symbol will not render)")
+    PDF_FONT = "Helvetica"
+    PDF_FONT_BOLD = "Helvetica-Bold"
+
+# Brand palette (matches frontend/src/index.css --accent / --foreground / --background)
+PDF_INK = colors.HexColor("#1A1A1A")
+PDF_GOLD = colors.HexColor("#C9A876")
+PDF_GOLD_DARK = colors.HexColor("#A8875C")
+PDF_MUTED = colors.HexColor("#6B6B6B")
+PDF_CREAM = colors.HexColor("#F9F8F6")
+PDF_LOGO_PATH = ROOT_DIR / "assets" / "travaholic-logo.png"
+
+def pdf_filename(guest_name: str) -> str:
+    """'Travaholic Booking Confirmation_<Guest Name>.pdf' - strips characters
+    that break filenames/Content-Disposition headers, keeps spaces."""
+    safe_name = re.sub(r'[\\/:*?"<>|\r\n]', '', guest_name or "Guest").strip() or "Guest"
+    return f"Travaholic Booking Confirmation_{safe_name}.pdf"
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -214,8 +245,11 @@ class PrivateOffer(BaseModel):
     """Time-limited private offer for negotiated bookings"""
     model_config = ConfigDict(extra="ignore")
     offer_id: str = Field(default_factory=lambda: f"offer_{uuid.uuid4().hex[:12]}")
-    villa_id: str
+    villa_id: Optional[str] = None  # None for an off-catalog villa the company represents
     villa_name: str
+    villa_location: Optional[str] = None
+    bedrooms: Optional[int] = None
+    amenities: List[str] = []
     # Guest details
     guest_name: str
     guest_email: str
@@ -249,7 +283,11 @@ class PrivateOffer(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class PrivateOfferCreate(BaseModel):
-    villa_id: str
+    villa_id: Optional[str] = None  # omit + set custom_villa_name for an off-catalog villa
+    custom_villa_name: Optional[str] = None
+    custom_villa_location: Optional[str] = None
+    custom_bedrooms: Optional[int] = None
+    amenities: List[str] = []  # catalog villa: defaults to its own list if left empty; custom villa: picked manually
     guest_name: str
     guest_email: str
     guest_phone: str
@@ -1279,7 +1317,7 @@ async def create_booking(booking_data: BookingCreate):
                 "subject": f"Your Booking Proposal - {villa['name']} | Travaholic Stays",
                 "html": generate_booking_received_email(doc, villa),
                 "attachments": [{
-                    "filename": f"Travaholic_Booking_Proposal_{booking.booking_id}.pdf",
+                    "filename": pdf_filename(booking_data.guest_name),
                     "content": list(proposal_pdf.getvalue()),
                 }],
             })
@@ -1319,7 +1357,7 @@ async def get_booking_proposal_pdf(booking_id: str):
         content=pdf_buffer.getvalue(),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"inline; filename=booking_proposal_{booking_id}.pdf"
+            "Content-Disposition": f'inline; filename="{pdf_filename(booking.get("guest_name"))}"'
         }
     )
 
@@ -1331,93 +1369,96 @@ def generate_booking_confirmation_pdf(
     document_title: str = "BOOKING CONFIRMATION",
     intro_text: str = "Greetings from Travaholic Stays! We look forward to hosting you in Goa.",
 ) -> BytesIO:
-    """Generate a professional booking confirmation / proposal PDF.
-
-    Used both for the admin-triggered post-payment confirmation and for the
-    booking proposal sent/viewable at the time a guest submits a booking
-    request - same layout (tariff, bank details, amenities, house rules),
-    different heading/intro so it reads correctly at each stage.
-    """
+    """Generate a professional booking confirmation / proposal / private
+    offer PDF - brand colors and fonts matching the website, logo in the
+    header, laid out to run exactly 2 pages (page 1: stay + pricing + bank
+    details, page 2: policies + house rules + amenities)."""
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=50, leftMargin=50, topMargin=50, bottomMargin=50)
-    
-    # Colors
-    teal = colors.Color(0.2, 0.5, 0.5)
-    dark_teal = colors.Color(0.1, 0.3, 0.35)
-    grey = colors.Color(0.4, 0.4, 0.4)
-    light_grey = colors.Color(0.95, 0.95, 0.95)
-    
-    # Styles
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name='TitleStyle', fontName='Helvetica-Bold', fontSize=20, textColor=dark_teal, alignment=TA_CENTER, spaceAfter=20))
-    styles.add(ParagraphStyle(name='SubtitleStyle', fontName='Helvetica', fontSize=12, textColor=grey, alignment=TA_CENTER, spaceAfter=30))
-    styles.add(ParagraphStyle(name='SectionHeader', fontName='Helvetica-Bold', fontSize=14, textColor=teal, spaceBefore=20, spaceAfter=10))
-    styles.add(ParagraphStyle(name='BodyTextStyle', fontName='Helvetica', fontSize=10, textColor=grey, spaceAfter=6, leading=14))
-    styles.add(ParagraphStyle(name='BoldText', fontName='Helvetica-Bold', fontSize=10, textColor=colors.black, spaceAfter=6))
-    styles.add(ParagraphStyle(name='SmallText', fontName='Helvetica', fontSize=9, textColor=grey, spaceAfter=4))
-    styles.add(ParagraphStyle(name='Footer', fontName='Helvetica', fontSize=8, textColor=grey, alignment=TA_CENTER))
-    
-    elements = []
-    
-    # Logo and Header
-    elements.append(Paragraph("TRAVAHOLIC STAYS", styles['TitleStyle']))
-    elements.append(Paragraph("Luxury Villa Rentals in Goa", styles['SubtitleStyle']))
-    elements.append(Spacer(1, 10))
-    
-    # Confirmation / Proposal Header
-    elements.append(Paragraph(document_title, styles['SectionHeader']))
-    elements.append(Paragraph(f"Date: {datetime.now().strftime('%d %B %Y')}", styles['BodyTextStyle']))
-    elements.append(Paragraph(f"Booking ID: {booking_data.get('booking_id', 'N/A')}", styles['BodyTextStyle']))
-    elements.append(Spacer(1, 10))
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=45, leftMargin=45, topMargin=40, bottomMargin=36)
 
-    # Greeting
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name='BrandTitle', fontName=PDF_FONT_BOLD, fontSize=17, textColor=PDF_INK, alignment=TA_RIGHT, leading=19))
+    styles.add(ParagraphStyle(name='BrandTagline', fontName=PDF_FONT, fontSize=8, textColor=PDF_MUTED, alignment=TA_RIGHT))
+    styles.add(ParagraphStyle(name='DocTitle', fontName=PDF_FONT_BOLD, fontSize=13, textColor=PDF_GOLD_DARK))
+    styles.add(ParagraphStyle(name='MetaText', fontName=PDF_FONT, fontSize=8.5, textColor=PDF_MUTED, alignment=TA_RIGHT, leading=12))
+    styles.add(ParagraphStyle(name='SectionHeader', fontName=PDF_FONT_BOLD, fontSize=10.5, textColor=PDF_INK, spaceBefore=10, spaceAfter=5))
+    styles.add(ParagraphStyle(name='BodyTextStyle', fontName=PDF_FONT, fontSize=9, textColor=PDF_INK, spaceAfter=4, leading=12.5))
+    styles.add(ParagraphStyle(name='BoldText', fontName=PDF_FONT_BOLD, fontSize=9.5, textColor=PDF_INK, spaceAfter=4))
+    styles.add(ParagraphStyle(name='SmallText', fontName=PDF_FONT, fontSize=7.5, textColor=PDF_MUTED, spaceAfter=3, leading=10.5))
+    styles.add(ParagraphStyle(name='Footer', fontName=PDF_FONT, fontSize=7.5, textColor=PDF_MUTED, alignment=TA_CENTER))
+    styles.add(ParagraphStyle(name='TableLabel', fontName=PDF_FONT_BOLD, fontSize=8.5, textColor=PDF_MUTED))
+    styles.add(ParagraphStyle(name='TableValue', fontName=PDF_FONT, fontSize=9, textColor=PDF_INK))
+
+    elements = []
+
+    # ---- Header: logo + wordmark/tagline ----
+    logo_cell = ""
+    if PDF_LOGO_PATH.exists():
+        try:
+            logo_cell = RLImage(str(PDF_LOGO_PATH), width=32, height=32)
+        except Exception:
+            logo_cell = ""
+    header_text = [
+        Paragraph("TRAVAHOLIC STAYS", styles['BrandTitle']),
+        Paragraph("Ultra-Luxury Villas in Goa &amp; Beyond", styles['BrandTagline']),
+    ]
+    header_table = Table([[logo_cell, header_text]], colWidths=[40, 425])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 8))
+    elements.append(HRFlowable(width="100%", thickness=1.2, color=PDF_GOLD, spaceAfter=10))
+
+    # ---- Title + date/reference ----
+    title_row = Table(
+        [[Paragraph(document_title, styles['DocTitle']),
+          Paragraph(f"Date: {datetime.now().strftime('%d %b %Y')}<br/>Reference: {booking_data.get('booking_id', 'N/A')}", styles['MetaText'])]],
+        colWidths=[280, 185]
+    )
+    title_row.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+    elements.append(title_row)
+    elements.append(Spacer(1, 6))
+
     elements.append(Paragraph(f"Dear {booking_data['guest_name']},", styles['BoldText']))
     elements.append(Paragraph(intro_text, styles['BodyTextStyle']))
-    elements.append(Spacer(1, 15))
-    
-    # Villa Details Section
-    elements.append(Paragraph("VILLA DETAILS", styles['SectionHeader']))
-    villa_data = [
-        ['Villa:', villa.get('name', 'N/A')],
-        ['Location:', f"{villa.get('location', '')}, {villa.get('region', 'Goa')}"],
-        ['Bedrooms:', f"{villa.get('bedrooms', 3)} BHK"],
-    ]
-    villa_table = Table(villa_data, colWidths=[100, 380])
-    villa_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TEXTCOLOR', (0, 0), (0, -1), teal),
-        ('TEXTCOLOR', (1, 0), (1, -1), grey),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-    ]))
-    elements.append(villa_table)
-    elements.append(Spacer(1, 15))
-    
-    # Booking Dates
-    elements.append(Paragraph("BOOKING DETAILS", styles['SectionHeader']))
-    booking_details = [
-        ['Check-in:', f"{booking_data['check_in']} (2:00 PM)"],
-        ['Check-out:', f"{booking_data['check_out']} (11:00 AM)"],
-        ['Number of Nights:', str(booking_data.get('total_nights', booking_data.get('num_nights', 'N/A')))],
-        ['Number of Guests:', f"{booking_data['num_guests']} pax"],
-    ]
-    booking_table = Table(booking_details, colWidths=[120, 360])
-    booking_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TEXTCOLOR', (0, 0), (0, -1), teal),
-        ('TEXTCOLOR', (1, 0), (1, -1), grey),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(booking_table)
-    elements.append(Spacer(1, 15))
-    
-    # Pricing Section
-    elements.append(Paragraph("PRICING BREAKDOWN", styles['SectionHeader']))
+    elements.append(Spacer(1, 6))
+
+    # ---- Stay details: villa + booking info side by side ----
+    elements.append(Paragraph("STAY DETAILS", styles['SectionHeader']))
     num_nights_val = booking_data.get('total_nights') or booking_data.get('num_nights') or 0
+    villa_rows = [
+        ("Villa", villa.get('name', 'N/A')),
+        ("Location", f"{villa.get('location', '')}, {villa.get('region', 'Goa')}"),
+        ("Bedrooms", f"{villa.get('bedrooms', 3)} BHK"),
+    ]
+    booking_rows = [
+        ("Check-in", f"{booking_data['check_in']}  -  2:00 PM"),
+        ("Check-out", f"{booking_data['check_out']}  -  11:00 AM"),
+        ("Nights", str(num_nights_val)),
+        ("Guests", f"{booking_data['num_guests']} pax"),
+    ]
+    max_rows = max(len(villa_rows), len(booking_rows))
+    villa_rows += [("", "")] * (max_rows - len(villa_rows))
+    booking_rows += [("", "")] * (max_rows - len(booking_rows))
+    stay_data = [
+        [Paragraph(vl, styles['TableLabel']), Paragraph(vv, styles['TableValue']),
+         Paragraph(bl, styles['TableLabel']), Paragraph(bv, styles['TableValue'])]
+        for (vl, vv), (bl, bv) in zip(villa_rows, booking_rows)
+    ]
+    stay_table = Table(stay_data, colWidths=[62, 172, 65, 171])
+    stay_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 0), (-1, -1), 1),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    elements.append(stay_table)
+    elements.append(Spacer(1, 6))
+
+    # ---- Pricing ----
+    elements.append(Paragraph("PRICING BREAKDOWN", styles['SectionHeader']))
     tariff_per_night = booking_data.get('tariff_per_night')
     if tariff_per_night is None:
         if booking_data.get('base_amount') and num_nights_val:
@@ -1429,101 +1470,100 @@ def generate_booking_confirmation_pdf(
     if security is None:
         security = villa.get('security_deposit', 20000)
 
-    pricing_data = [
-        ['Tariff per night:', f"₹{tariff_per_night:,.0f}"],
-        ['Total Booking Amount:', f"₹{total_amount:,.0f} (Inclusive of GST)"],
-        ['Security Deposit:', f"₹{security:,.0f} (Refundable at checkout)"],
+    pricing_rows = [
+        ("Tariff per night", f"₹{tariff_per_night:,.0f}"),
+        ("Total Booking Amount", f"₹{total_amount:,.0f}  (incl. GST)"),
+        ("Security Deposit", f"₹{security:,.0f}  (refundable at checkout)"),
     ]
-
     if booking_data.get('addons_total', 0) > 0:
-        pricing_data.insert(1, ['Add-ons:', f"₹{booking_data['addons_total']:,.0f}"])
-
+        pricing_rows.insert(1, ("Add-ons", f"₹{booking_data['addons_total']:,.0f}"))
     if booking_data.get('extra_pax_charge', 0) > 0:
-        pricing_data.insert(1, ['Extra Pax Charge:', f"₹{booking_data['extra_pax_charge']:,.0f}"])
-
+        pricing_rows.insert(1, ("Extra Pax Charge", f"₹{booking_data['extra_pax_charge']:,.0f}"))
     if booking_data.get('advance_amount', 0) > 0:
-        pricing_data.append(['Advance Paid:', f"₹{booking_data['advance_amount']:,.0f}"])
+        pricing_rows.append(("Advance Paid", f"₹{booking_data['advance_amount']:,.0f}"))
         balance = booking_data.get('balance_amount', total_amount - booking_data['advance_amount'])
-        pricing_data.append(['Balance Due:', f"₹{balance:,.0f}"])
-    
-    pricing_table = Table(pricing_data, colWidths=[150, 330])
+        pricing_rows.append(("Balance Due", f"₹{balance:,.0f}"))
+
+    pricing_data = [[Paragraph(l, styles['TableLabel']), Paragraph(v, styles['TableValue'])] for l, v in pricing_rows]
+    pricing_table = Table(pricing_data, colWidths=[220, 250])
     pricing_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TEXTCOLOR', (0, 0), (0, -1), teal),
-        ('TEXTCOLOR', (1, 0), (1, -1), grey),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('BACKGROUND', (0, -1), (-1, -1), light_grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor("#E5E0D8")),
+        ('BACKGROUND', (0, -1), (-1, -1), PDF_CREAM),
+        ('BOX', (0, 0), (-1, -1), 0.75, PDF_GOLD),
     ]))
     elements.append(pricing_table)
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph("* Security deposit of ₹20,000 is payable separately (cash/UPI to the caretaker at check-in) and is fully refundable at checkout, subject to no damage to the property.", styles['SmallText']))
-    elements.append(Spacer(1, 15))
-    
-    # Bank Details
+    elements.append(Spacer(1, 4))
+    elements.append(Paragraph("Security deposit is payable separately (cash/UPI to the caretaker at check-in) and is fully refundable at checkout, subject to no damage to the property.", styles['SmallText']))
+    elements.append(Spacer(1, 8))
+
+    # ---- Bank details ----
     elements.append(Paragraph("BANK DETAILS FOR PAYMENT", styles['SectionHeader']))
     bank_data = [
-        ['Bank:', 'Standard Chartered Bank'],
-        ['Account Name:', 'TRAVAHOLIC'],
-        ['Account No:', '52105900326'],
-        ['IFSC:', 'SCBL0036033'],
-        ['Branch:', 'GK-1, Delhi'],
+        [Paragraph("Bank:", styles['TableLabel']), Paragraph("Standard Chartered Bank", styles['TableValue']),
+         Paragraph("Account No.:", styles['TableLabel']), Paragraph("52105900326", styles['TableValue'])],
+        [Paragraph("Account Name:", styles['TableLabel']), Paragraph("TRAVAHOLIC", styles['TableValue']),
+         Paragraph("IFSC:", styles['TableLabel']), Paragraph("SCBL0036033", styles['TableValue'])],
+        [Paragraph("Branch:", styles['TableLabel']), Paragraph("GK-1, Delhi", styles['TableValue']), "", ""],
     ]
-    bank_table = Table(bank_data, colWidths=[120, 360])
+    bank_table = Table(bank_data, colWidths=[75, 165, 65, 165])
     bank_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TEXTCOLOR', (0, 0), (0, -1), teal),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('BACKGROUND', (0, 0), (-1, -1), light_grey),
-        ('BOX', (0, 0), (-1, -1), 1, teal),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('BACKGROUND', (0, 0), (-1, -1), PDF_CREAM),
+        ('BOX', (0, 0), (-1, -1), 0.75, PDF_GOLD),
     ]))
     elements.append(bank_table)
-    elements.append(Spacer(1, 20))
-    
-    # Cancellation Policy
+
+    # ---- Page 2: policies, house rules, amenities ----
+    elements.append(PageBreak())
+
     elements.append(Paragraph("CANCELLATION POLICY", styles['SectionHeader']))
-    elements.append(Paragraph("• <b>100% refund</b> - If cancellation is made 30 days or more before check-in", styles['BodyTextStyle']))
-    elements.append(Paragraph("• <b>50% refund</b> - If cancellation is made between 15 to 30 days before check-in", styles['BodyTextStyle']))
-    elements.append(Paragraph("• <b>No refund</b> - If cancellation is made within 15 days of check-in", styles['BodyTextStyle']))
-    elements.append(Spacer(1, 15))
-    
-    # House Rules
+    elements.append(Paragraph(
+        "<b>100% refund</b> - cancelled 30+ days before check-in&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "<b>50% refund</b> - cancelled 15-30 days before check-in&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "<b>No refund</b> - cancelled within 15 days of check-in", styles['BodyTextStyle']))
+    elements.append(Spacer(1, 6))
+
     elements.append(Paragraph("HOUSE RULES", styles['SectionHeader']))
-    elements.append(Paragraph("• <b>No Drugs:</b> Strictly prohibited on the premises", styles['BodyTextStyle']))
-    elements.append(Paragraph("• <b>No Smoking Inside:</b> Smoking allowed only on balconies and outdoor areas. ₹10,000 cleaning fee per room if smoking inside.", styles['BodyTextStyle']))
-    elements.append(Paragraph("• <b>Guest Registration:</b> Provide accurate guest details. Strict 'no visitor' policy.", styles['BodyTextStyle']))
-    elements.append(Paragraph("• <b>Peaceful Community:</b> Loud music and parties not allowed beyond 10 PM.", styles['BodyTextStyle']))
-    elements.append(Paragraph(f"• <b>Extra Guests:</b> Base rate is for 6 pax. ₹2,000/person for additional guests.", styles['BodyTextStyle']))
-    elements.append(Paragraph("• <b>Check-in:</b> 2:00 PM | <b>Check-out:</b> 11:00 AM (Early/late subject to availability)", styles['BodyTextStyle']))
-    elements.append(Spacer(1, 15))
-    
-    # ID Requirements
+    house_rules = [
+        "<b>No Drugs</b> - strictly prohibited on the premises",
+        "<b>No Smoking Indoors</b> - balconies/outdoor areas only; ₹10,000 cleaning fee otherwise",
+        "<b>Guest Registration</b> - accurate guest details required; strict no-visitor policy",
+        "<b>Peaceful Community</b> - no loud music or parties past 10 PM",
+        "<b>Extra Guests</b> - base rate covers 6 pax; ₹2,000/person beyond that",
+        "<b>Check-in / Check-out</b> - 2:00 PM / 11:00 AM (early/late subject to availability)",
+    ]
+    for rule in house_rules:
+        elements.append(Paragraph(f"•&nbsp; {rule}", styles['BodyTextStyle']))
+    elements.append(Spacer(1, 6))
+
     elements.append(Paragraph("ID REQUIREMENTS", styles['SectionHeader']))
-    elements.append(Paragraph("As per government regulations, all guests must carry valid photo ID and address proof at check-in. <b>PAN cards are not accepted.</b> Without valid documents, check-in cannot proceed and booking will be considered 'no show' (no refund).", styles['BodyTextStyle']))
-    elements.append(Spacer(1, 15))
-    
-    # Villa Features
-    elements.append(Paragraph("VILLA FEATURES & INCLUSIONS", styles['SectionHeader']))
+    elements.append(Paragraph(
+        "Valid photo ID and address proof are required for all guests at check-in. "
+        "<b>PAN cards are not accepted.</b> Check-in cannot proceed without valid documents "
+        "(treated as a no-show, non-refundable).", styles['BodyTextStyle']))
+    elements.append(Spacer(1, 6))
+
+    elements.append(Paragraph("VILLA FEATURES &amp; INCLUSIONS", styles['SectionHeader']))
     features = villa.get('amenities', [])
-    if features:
-        features_text = " • ".join(features[:12])
-        elements.append(Paragraph(f"• {features_text}", styles['BodyTextStyle']))
-    else:
-        elements.append(Paragraph("• Private Pool • Housekeeping • WiFi • Air Conditioning • Smart TV • Full Kitchen • Parking", styles['BodyTextStyle']))
-    elements.append(Spacer(1, 10))
-    elements.append(Paragraph("<b>Additional Services (on request):</b> Private Chef, Spa Session, BBQ Night, Decoration, Airport Transfers", styles['BodyTextStyle']))
-    elements.append(Spacer(1, 30))
-    
-    # Footer
-    elements.append(Paragraph("Warm Regards,", styles['BodyTextStyle']))
-    elements.append(Paragraph("<b>Team Travaholic</b>", styles['BoldText']))
+    features_text = "&nbsp;&nbsp;•&nbsp;&nbsp;".join(features[:14]) if features else \
+        "Private Pool&nbsp;&nbsp;•&nbsp;&nbsp;Housekeeping&nbsp;&nbsp;•&nbsp;&nbsp;WiFi&nbsp;&nbsp;•&nbsp;&nbsp;Air Conditioning&nbsp;&nbsp;•&nbsp;&nbsp;Smart TV&nbsp;&nbsp;•&nbsp;&nbsp;Full Kitchen&nbsp;&nbsp;•&nbsp;&nbsp;Parking"
+    elements.append(Paragraph(features_text, styles['BodyTextStyle']))
+    elements.append(Spacer(1, 4))
+    elements.append(Paragraph("<b>Additional services on request:</b> Private Chef, Spa Session, BBQ Night, Decoration, Airport Transfers", styles['BodyTextStyle']))
     elements.append(Spacer(1, 20))
-    elements.append(Paragraph("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", styles['Footer']))
-    elements.append(Paragraph("Travaholic Stays | +91 99588 71283 | www.travaholicstays.com | @travaholicstays", styles['Footer']))
-    
+
+    # ---- Footer ----
+    elements.append(HRFlowable(width="100%", thickness=0.75, color=PDF_GOLD, spaceAfter=8))
+    elements.append(Paragraph("Warm regards, Team Travaholic", styles['BoldText']))
+    elements.append(Paragraph("Travaholic Stays&nbsp;&nbsp;|&nbsp;&nbsp;+91 99588 71283&nbsp;&nbsp;|&nbsp;&nbsp;www.travaholicstays.com&nbsp;&nbsp;|&nbsp;&nbsp;@travaholicstays", styles['Footer']))
+
     doc.build(elements)
     buffer.seek(0)
     return buffer
@@ -1693,7 +1733,7 @@ async def get_booking_confirmation_pdf(booking_id: str, user: User = Depends(req
         content=pdf_buffer.getvalue(),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f"attachment; filename=booking_confirmation_{booking_id}.pdf"
+            "Content-Disposition": f'attachment; filename="{pdf_filename(booking.get("guest_name"))}"'
         }
     )
 
@@ -3020,103 +3060,196 @@ async def make_current_user_owner(user: User = Depends(require_auth)):
 
 # ==================== PRIVATE OFFERS (NEGOTIATED PRICING) ====================
 
-@api_router.post("/admin/private-offers")
-async def create_private_offer(offer_data: PrivateOfferCreate, user: User = Depends(require_admin)):
-    """Create a private offer with custom negotiated pricing"""
-    villa = await db.villas.find_one({"villa_id": offer_data.villa_id}, {"_id": 0})
-    if not villa:
-        raise HTTPException(status_code=404, detail="Villa not found")
-    
-    # Calculate dates
+def _resolve_offer_villa(offer_data: PrivateOfferCreate, villa_doc: Optional[dict]) -> dict:
+    """Resolve villa fields for a private offer - from the catalog villa doc
+    if villa_id was given, or from the custom_* fields for an off-catalog
+    property the company also represents."""
+    if offer_data.villa_id:
+        if not villa_doc:
+            raise HTTPException(status_code=404, detail="Villa not found")
+        return {
+            "villa_name": villa_doc["name"],
+            "villa_location": f"{villa_doc.get('location', '')}, {villa_doc.get('region', 'Goa')}",
+            "bedrooms": villa_doc.get("bedrooms"),
+            "amenities": offer_data.amenities or villa_doc.get("amenities", []),
+            "commission_percent": villa_doc.get("commission_percent", 30.0),
+            "default_security_deposit": villa_doc.get("security_deposit", 20000),
+        }
+    if not offer_data.custom_villa_name:
+        raise HTTPException(status_code=400, detail="custom_villa_name is required when no villa_id is given")
+    return {
+        "villa_name": offer_data.custom_villa_name,
+        "villa_location": offer_data.custom_villa_location or "",
+        "bedrooms": offer_data.custom_bedrooms,
+        "amenities": offer_data.amenities,
+        "commission_percent": 30.0,
+        "default_security_deposit": 20000,
+    }
+
+def _price_offer(offer_data: PrivateOfferCreate, resolved: dict) -> dict:
+    """Shared pricing math for creating and editing a private offer."""
     check_in = datetime.strptime(offer_data.check_in, "%Y-%m-%d")
     check_out = datetime.strptime(offer_data.check_out, "%Y-%m-%d")
     num_nights = (check_out - check_in).days
-    
     if num_nights < 1:
         raise HTTPException(status_code=400, detail="Invalid date range")
-    
-    # Calculate pricing with custom rate
+
     base_amount = offer_data.custom_per_night * num_nights
-    
-    # Process add-ons
+
     addons_total = 0
     for addon in offer_data.addons:
         addon_total = addon.get("price", 0) * addon.get("quantity", 1)
         if addon.get("is_per_day"):
             addon_total *= num_nights
         addons_total += addon_total
-    
+
     subtotal = base_amount + addons_total
-    
-    # Apply discount
+
     discount_amount = 0
     if offer_data.discount_percent > 0:
         discount_amount = (subtotal * offer_data.discount_percent) / 100
         subtotal -= discount_amount
-    
-    # GST calculation
+
     gst_percent = 18.0
     gst_amount = round(subtotal * (gst_percent / 100), 2)
-    
-    security_deposit = offer_data.security_deposit if offer_data.security_deposit is not None else villa.get("security_deposit", 0)
+
+    security_deposit = offer_data.security_deposit if offer_data.security_deposit is not None else resolved["default_security_deposit"]
     total_amount = subtotal + gst_amount + security_deposit
-    
-    # Commission calculations
-    commission_percent = villa.get("commission_percent", 30.0)
+
+    commission_percent = resolved["commission_percent"]
     commission_amount = (subtotal * commission_percent) / 100
     owner_payout = subtotal - commission_amount
-    
-    # Set expiry
+
+    return {
+        "num_nights": num_nights,
+        "base_amount": base_amount,
+        "addons_total": addons_total,
+        "discount_amount": discount_amount,
+        "subtotal": subtotal,
+        "gst_amount": gst_amount,
+        "security_deposit": security_deposit,
+        "total_amount": total_amount,
+        "commission_percent": commission_percent,
+        "commission_amount": commission_amount,
+        "owner_payout": owner_payout,
+    }
+
+@api_router.post("/admin/private-offers")
+async def create_private_offer(offer_data: PrivateOfferCreate, request: Request, user: User = Depends(require_admin)):
+    """Create a private offer with custom negotiated pricing - for a
+    catalog villa (villa_id) or an off-catalog property the company also
+    represents (custom_villa_name)."""
+    villa_doc = None
+    if offer_data.villa_id:
+        villa_doc = await db.villas.find_one({"villa_id": offer_data.villa_id}, {"_id": 0})
+    resolved = _resolve_offer_villa(offer_data, villa_doc)
+    pricing = _price_offer(offer_data, resolved)
+
     expires_at = datetime.now(timezone.utc) + timedelta(hours=offer_data.expiry_hours)
-    
-    # Create offer
+
     offer = PrivateOffer(
         villa_id=offer_data.villa_id,
-        villa_name=villa["name"],
+        villa_name=resolved["villa_name"],
+        villa_location=resolved["villa_location"],
+        bedrooms=resolved["bedrooms"],
+        amenities=resolved["amenities"],
         guest_name=offer_data.guest_name,
         guest_email=offer_data.guest_email,
         guest_phone=offer_data.guest_phone,
         check_in=offer_data.check_in,
         check_out=offer_data.check_out,
         num_guests=offer_data.num_guests,
-        num_nights=num_nights,
-        base_amount=base_amount,
-        addons_total=addons_total,
+        num_nights=pricing["num_nights"],
+        base_amount=pricing["base_amount"],
+        addons_total=pricing["addons_total"],
         discount_percent=offer_data.discount_percent,
-        discount_amount=discount_amount,
-        subtotal=subtotal,
-        gst_amount=gst_amount,
-        security_deposit=security_deposit,
-        total_amount=total_amount,
-        commission_percent=commission_percent,
-        commission_amount=commission_amount,
-        owner_payout=owner_payout,
+        discount_amount=pricing["discount_amount"],
+        subtotal=pricing["subtotal"],
+        gst_amount=pricing["gst_amount"],
+        security_deposit=pricing["security_deposit"],
+        total_amount=pricing["total_amount"],
+        commission_percent=pricing["commission_percent"],
+        commission_amount=pricing["commission_amount"],
+        owner_payout=pricing["owner_payout"],
         expires_at=expires_at,
         notes=offer_data.notes,
         created_by=user.user_id
     )
-    
+
     doc = offer.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     doc["expires_at"] = doc["expires_at"].isoformat()
     await db.private_offers.insert_one(doc)
-    
-    # Generate payment link (placeholder - will use Razorpay when configured)
-    base_url = os.environ.get("FRONTEND_URL", "https://travaholicstays.com")
+
+    # Payment link points back at whichever frontend origin the admin is
+    # actually using (falls back to FRONTEND_URL, then a placeholder) -
+    # hardcoding a domain here previously produced dead links whenever that
+    # domain wasn't the real deployed site.
+    base_url = os.environ.get("FRONTEND_URL") or request.headers.get("origin") or "https://travaholicstays.com"
     payment_link = f"{base_url}/offer/{offer.offer_id}"
-    
+
     await db.private_offers.update_one(
         {"offer_id": offer.offer_id},
         {"$set": {"payment_link": payment_link}}
     )
-    
+
     return {
         "offer_id": offer.offer_id,
         "payment_link": payment_link,
         "expires_at": expires_at.isoformat(),
-        "total_amount": total_amount,
+        "total_amount": pricing["total_amount"],
         "message": "Private offer created successfully"
     }
+
+@api_router.put("/admin/private-offers/{offer_id}")
+async def update_private_offer(offer_id: str, offer_data: PrivateOfferCreate, user: User = Depends(require_admin)):
+    """Edit a pending private offer's terms - re-runs the same pricing math
+    as creation. Only pending offers can be edited; once a guest has paid or
+    the offer has expired/been cancelled, terms are locked."""
+    existing = await db.private_offers.find_one({"offer_id": offer_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    if existing["status"] != "pending":
+        raise HTTPException(status_code=400, detail=f"Cannot edit an offer that is already {existing['status']}")
+
+    villa_doc = None
+    if offer_data.villa_id:
+        villa_doc = await db.villas.find_one({"villa_id": offer_data.villa_id}, {"_id": 0})
+    resolved = _resolve_offer_villa(offer_data, villa_doc)
+    pricing = _price_offer(offer_data, resolved)
+
+    update_data = {
+        "villa_id": offer_data.villa_id,
+        "villa_name": resolved["villa_name"],
+        "villa_location": resolved["villa_location"],
+        "bedrooms": resolved["bedrooms"],
+        "amenities": resolved["amenities"],
+        "guest_name": offer_data.guest_name,
+        "guest_email": offer_data.guest_email,
+        "guest_phone": offer_data.guest_phone,
+        "check_in": offer_data.check_in,
+        "check_out": offer_data.check_out,
+        "num_guests": offer_data.num_guests,
+        "num_nights": pricing["num_nights"],
+        "base_amount": pricing["base_amount"],
+        "addons_total": pricing["addons_total"],
+        "discount_percent": offer_data.discount_percent,
+        "discount_amount": pricing["discount_amount"],
+        "subtotal": pricing["subtotal"],
+        "gst_amount": pricing["gst_amount"],
+        "security_deposit": pricing["security_deposit"],
+        "total_amount": pricing["total_amount"],
+        "commission_percent": pricing["commission_percent"],
+        "commission_amount": pricing["commission_amount"],
+        "owner_payout": pricing["owner_payout"],
+        "notes": offer_data.notes,
+    }
+    if offer_data.expiry_hours:
+        update_data["expires_at"] = (datetime.now(timezone.utc) + timedelta(hours=offer_data.expiry_hours)).isoformat()
+
+    await db.private_offers.update_one({"offer_id": offer_id}, {"$set": update_data})
+    updated = await db.private_offers.find_one({"offer_id": offer_id}, {"_id": 0})
+    return updated
 
 @api_router.get("/admin/private-offers")
 async def list_private_offers(user: User = Depends(require_admin)):
@@ -3130,19 +3263,65 @@ async def get_private_offer(offer_id: str):
     offer = await db.private_offers.find_one({"offer_id": offer_id}, {"_id": 0})
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
-    
+
     # Check if expired
     expires_at = datetime.fromisoformat(offer["expires_at"].replace("Z", "+00:00"))
     if expires_at < datetime.now(timezone.utc):
         return {"offer": offer, "is_expired": True, "message": "This offer has expired"}
-    
+
     if offer["status"] != "pending":
         return {"offer": offer, "is_expired": False, "message": f"This offer is {offer['status']}"}
-    
-    # Get villa details
-    villa = await db.villas.find_one({"villa_id": offer["villa_id"]}, {"_id": 0, "name": 1, "images": 1, "location": 1})
-    
+
+    # Get villa details (catalog villa only - a custom/off-catalog offer has no villa_id)
+    villa = None
+    if offer.get("villa_id"):
+        villa = await db.villas.find_one({"villa_id": offer["villa_id"]}, {"_id": 0, "name": 1, "images": 1, "location": 1})
+
     return {"offer": offer, "villa": villa, "is_expired": False}
+
+@api_router.get("/offer/{offer_id}/pdf")
+async def get_private_offer_pdf(offer_id: str):
+    """Publicly viewable private offer PDF - same proposal document as a
+    regular booking (tariff, bank details, amenities, house rules), built
+    from the offer's own terms whether it's a catalog or custom villa."""
+    offer = await db.private_offers.find_one({"offer_id": offer_id}, {"_id": 0})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+
+    villa_for_pdf = {
+        "name": offer.get("villa_name"),
+        "location": offer.get("villa_location", ""),
+        "region": "",
+        "bedrooms": offer.get("bedrooms") or 3,
+        "amenities": offer.get("amenities", []),
+        "security_deposit": offer.get("security_deposit"),
+    }
+    booking_like = {
+        "booking_id": offer["offer_id"],
+        "guest_name": offer["guest_name"],
+        "check_in": offer["check_in"],
+        "check_out": offer["check_out"],
+        "num_guests": offer["num_guests"],
+        "num_nights": offer["num_nights"],
+        "tariff_per_night": offer["base_amount"] / offer["num_nights"] if offer["num_nights"] else 0,
+        "total_amount": offer["total_amount"],
+        "security_deposit": offer.get("security_deposit"),
+        "addons_total": offer.get("addons_total", 0),
+    }
+
+    pdf_buffer = generate_booking_confirmation_pdf(
+        booking_like, villa_for_pdf,
+        document_title="PRIVATE OFFER",
+        intro_text="Thank you for your interest in Travaholic Stays! Please find below your private offer, including the tariff breakdown, bank details for payment, villa amenities and house rules."
+    )
+
+    return Response(
+        content=pdf_buffer.getvalue(),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{pdf_filename(offer.get("guest_name"))}"'
+        }
+    )
 
 @api_router.post("/offer/{offer_id}/accept")
 async def accept_private_offer(offer_id: str, payment_data: Dict[str, Any]):

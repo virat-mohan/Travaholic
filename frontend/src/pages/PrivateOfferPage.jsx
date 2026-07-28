@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Calendar, Users, MapPin, Clock, CheckCircle, AlertCircle, CreditCard } from "lucide-react";
+import { Calendar, Users, MapPin, Clock, CheckCircle, AlertCircle, CreditCard, FileText } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { motion } from "framer-motion";
 import axios from "axios";
-import { API } from "../App";
+import { API, BACKEND_URL } from "../App";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -419,6 +419,33 @@ const PrivateOfferPage = () => {
                 Secure payment powered by Razorpay
               </p>
             </div>
+
+            {/* Bank Details - for guests who prefer a direct transfer over Razorpay */}
+            <div className="bg-card border border-border p-6 text-sm">
+              <h2 className="font-heading text-lg mb-3">Bank Details for Payment</h2>
+              <div className="space-y-2">
+                <p><span className="text-muted-foreground">Bank:</span> Standard Chartered Bank</p>
+                <p><span className="text-muted-foreground">Account Name:</span> TRAVAHOLIC</p>
+                <p><span className="text-muted-foreground">Account No.:</span> 52105900326</p>
+                <p><span className="text-muted-foreground">IFSC:</span> SCBL0036033</p>
+                <p><span className="text-muted-foreground">Branch:</span> GK-1, Delhi</p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Prefer a direct transfer? Pay via the details above and share the confirmation on WhatsApp - our team will confirm your booking manually.
+              </p>
+            </div>
+
+            <a
+              href={`${BACKEND_URL}/api/offer/${offerId}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <Button variant="outline" className="w-full gap-2">
+                <FileText size={16} />
+                View / Download Offer (PDF)
+              </Button>
+            </a>
 
             {/* Offer Validity */}
             <div className="bg-accent/10 border border-accent/30 p-4 text-sm">
