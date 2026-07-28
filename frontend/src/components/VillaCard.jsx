@@ -36,7 +36,7 @@ const VillaCard = ({ villa, index = 0, showCaption = false }) => {
   };
 
   // Get up to 5 images for the carousel
-  const images = villa.images?.slice(0, 5) || [villa.thumbnail || "https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800"];
+  const images = villa.images?.slice(0, 5) || [villa.thumbnail || "/villas/la-sierra-12/Pool area.jpeg"];
   const currentImage = images[currentImageIndex] || images[0];
   const imageCaption = showCaption ? getImageCaption(currentImage) : "";
 

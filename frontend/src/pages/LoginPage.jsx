@@ -111,7 +111,7 @@ const LoginPage = () => {
       {/* Left - Image */}
       <div className="hidden lg:block lg:w-1/2 relative">
         <img
-          src="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80"
+          src="/villas/la-sierra-12/Pool area.jpeg"
           alt="Luxury Villa"
           className="w-full h-full object-cover"
         />
