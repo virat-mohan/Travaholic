@@ -772,6 +772,8 @@ async def get_villas(
     has_pool: Optional[bool] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
+    check_in: Optional[str] = None,
+    check_out: Optional[str] = None,
     limit: int = 50,
     skip: int = 0
 ):
@@ -779,7 +781,24 @@ async def get_villas(
     query = {"$or": [{"is_active": True}, {"is_active": {"$exists": False}}]}
     # Exclude off-market villas from public listing
     query["$and"] = [{"$or": [{"is_off_market": False}, {"is_off_market": {"$exists": False}}]}]
-    
+
+    if check_in and check_out:
+        # Villas whose "accepting bookings from" date is still in the future
+        # relative to the requested check-in are excluded entirely.
+        query["$and"].append({"$or": [
+            {"bookings_open_from": {"$exists": False}},
+            {"bookings_open_from": None},
+            {"bookings_open_from": {"$lte": check_in}},
+        ]})
+        # Any villa with a blocked/booked range overlapping the requested
+        # dates is unavailable for those dates - exclude by villa_id.
+        unavailable_villa_ids = await db.blocked_dates.distinct("villa_id", {
+            "start_date": {"$lte": check_out},
+            "end_date": {"$gte": check_in},
+        })
+        if unavailable_villa_ids:
+            query["villa_id"] = {"$nin": unavailable_villa_ids}
+
     if location:
         query["location"] = {"$regex": location, "$options": "i"}
     if region:
@@ -1213,6 +1232,20 @@ async def calculate_price(data: Dict[str, Any]):
     pricing = calculate_booking_price(villa, data["check_in"], data["check_out"], addons, overrides, event_pricing)
     return pricing
 
+def villa_maps_link(villa: dict) -> Optional[str]:
+    """Best available Google Maps link for a villa - prefers a
+    previously-saved map_link (the exact link an admin pasted in, often
+    more precise than a lat/lng-derived one), then falls back to
+    coordinates, then a plain address/location text search."""
+    if villa.get("map_link"):
+        return villa["map_link"]
+    if villa.get("latitude") and villa.get("longitude"):
+        return f"https://www.google.com/maps?q={villa['latitude']},{villa['longitude']}"
+    address = villa.get("address") or ", ".join(p for p in [villa.get("location", ""), villa.get("region", "")] if p)
+    if address:
+        return f"https://www.google.com/maps?q={urllib.parse.quote(address)}"
+    return None
+
 def send_whatsapp_booking_confirmation(booking: dict, villa: dict):
     """Best-effort WhatsApp confirmation via Twilio. No-ops silently if
     Twilio isn't configured (see TWILIO_* env vars above) - same
@@ -1228,6 +1261,7 @@ def send_whatsapp_booking_confirmation(booking: dict, villa: dict):
         to_number = digits if len(digits) > 10 else f"91{digits}"
         total = booking.get("total_booking_amount", booking.get("total_amount", 0))
         security = booking.get("security_deposit") or 20000
+        maps_link = villa_maps_link(villa)
         message = (
             f"Thank you for your booking at {villa.get('name')}, Travaholic Stays!\n\n"
             f"This is subject to receipt of payment.\n\n"
@@ -1237,7 +1271,8 @@ def send_whatsapp_booking_confirmation(booking: dict, villa: dict):
             f"Total: Rs. {total:,.0f}\n"
             f"Security Deposit: Rs. {security:,.0f} (payable separately, refundable at checkout)\n"
             f"Booking ID: {booking.get('booking_id')}\n\n"
-            f"Your full proposal - tariff breakdown, bank details for payment, "
+            + (f"Location: {maps_link}\n\n" if maps_link else "")
+            + f"Your full proposal - tariff breakdown, bank details for payment, "
             f"amenities and house rules - has been emailed to you."
         )
         twilio_client.messages.create(
@@ -1852,8 +1887,9 @@ def generate_confirmation_email_html(
                         <span class="label">Location</span>
                         <span class="value">{villa.get('location', '')}, {villa.get('region', 'Goa')}</span>
                     </div>
+                    {f'<div class="detail-row"><span class="label">Map</span><span class="value"><a href="{villa_maps_link(villa)}">View on Google Maps</a></span></div>' if villa_maps_link(villa) else ''}
                 </div>
-                
+
                 <div class="section">
                     <h2>BOOKING DETAILS</h2>
                     <div class="detail-row">
@@ -1962,6 +1998,7 @@ def generate_booking_received_email(booking: dict, villa: dict) -> str:
                         <span class="label">Location:</span>
                         <span class="value">{villa.get('location', '')}, {villa.get('region', 'Goa')}</span>
                     </div>
+                    {f'<div class="detail-row"><span class="label">Map:</span><span class="value"><a href="{villa_maps_link(villa)}">View on Google Maps</a></span></div>' if villa_maps_link(villa) else ''}
                     <div class="detail-row">
                         <span class="label">Check-in:</span>
                         <span class="value">{booking['check_in']} (2:00 PM)</span>

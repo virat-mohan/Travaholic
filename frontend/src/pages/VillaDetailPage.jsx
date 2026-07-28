@@ -507,6 +507,21 @@ const VillaDetailPage = () => {
               </div>
             </div>
 
+            {/* Concierge USP */}
+            <div className="py-8 border-t border-border">
+              <div className="bg-accent/10 border-l-4 border-accent p-6">
+                <h3 className="font-heading text-xl mb-3">Your Personal Concierge</h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  Experience the art of effortless travel with your dedicated concierge.
+                  From curated dining reservations at Goa's finest restaurants to bespoke
+                  experiences, adventure activities, and hidden local gems — we craft every
+                  moment of your journey. Each group is welcomed into a private WhatsApp
+                  circle with their personal concierge, ensuring seamless support and
+                  thoughtful recommendations throughout your stay.
+                </p>
+              </div>
+            </div>
+
             {/* House Rules & Policies */}
             <div className="py-8 border-t border-border" data-testid="house-rules-section">
               <h2 className="font-heading text-2xl mb-6">House Rules & Policies</h2>

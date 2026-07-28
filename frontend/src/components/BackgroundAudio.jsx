@@ -8,6 +8,7 @@ const BackgroundAudio = () => {
   const audioRef = useRef(null);
 
   const audioUrl = "/travaholic-background.mp3";
+  const VOLUME = 0.25; // ambient background level, not full blast
 
   useEffect(() => {
     // Sound is on by default, so try to autoplay unmuted right away. Every
@@ -16,12 +17,14 @@ const BackgroundAudio = () => {
     // first-interaction fallback below (unmuted, unlike before) covers
     // that case instead of silently staying muted forever.
     if (audioRef.current) {
+      audioRef.current.volume = VOLUME;
       audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
 
     const handleFirstInteraction = () => {
       if (audioRef.current) {
         audioRef.current.muted = false;
+        audioRef.current.volume = VOLUME;
         audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
       }
       document.removeEventListener('click', handleFirstInteraction);
@@ -42,6 +45,7 @@ const BackgroundAudio = () => {
     if (audioRef.current) {
       if (isMuted) {
         audioRef.current.muted = false;
+        audioRef.current.volume = VOLUME;
         audioRef.current.play().then(() => {
           setIsPlaying(true);
         }).catch(console.error);

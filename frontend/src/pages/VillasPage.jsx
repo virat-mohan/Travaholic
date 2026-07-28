@@ -34,6 +34,8 @@ const VillasPage = () => {
     minGuests: searchParams.get("minGuests") || "",
     hasPool: searchParams.get("hasPool") === "true",
     priceRange: [0, 100000],
+    checkIn: searchParams.get("checkIn") || "",
+    checkOut: searchParams.get("checkOut") || "",
   });
 
   useEffect(() => {
@@ -67,6 +69,10 @@ const VillasPage = () => {
         params.append("min_price", filters.priceRange[0]);
       if (filters.priceRange[1] < 100000)
         params.append("max_price", filters.priceRange[1]);
+      if (filters.checkIn && filters.checkOut) {
+        params.append("check_in", filters.checkIn);
+        params.append("check_out", filters.checkOut);
+      }
 
       const response = await axios.get(`${API}/villas?${params.toString()}`);
       setVillas(response.data.villas);
@@ -85,6 +91,8 @@ const VillasPage = () => {
       minGuests: "",
       hasPool: false,
       priceRange: [0, 100000],
+      checkIn: "",
+      checkOut: "",
     });
     setSearchParams({});
   };
@@ -103,7 +111,9 @@ const VillasPage = () => {
     filters.minGuests ||
     filters.hasPool ||
     filters.priceRange[0] > 0 ||
-    filters.priceRange[1] < 100000;
+    filters.priceRange[1] < 100000 ||
+    filters.checkIn ||
+    filters.checkOut;
 
   return (
     <div className="pt-24 min-h-screen bg-background" data-testid="villas-page">
@@ -153,7 +163,36 @@ const VillasPage = () => {
             className="border-y border-border bg-card"
           >
             <div className="container-luxury py-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+                {/* Dates */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">
+                    Check-in
+                  </label>
+                  <Input
+                    type="date"
+                    value={filters.checkIn}
+                    onChange={(e) =>
+                      setFilters({ ...filters, checkIn: e.target.value })
+                    }
+                    data-testid="checkin-filter"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">
+                    Check-out
+                  </label>
+                  <Input
+                    type="date"
+                    value={filters.checkOut}
+                    min={filters.checkIn || undefined}
+                    onChange={(e) =>
+                      setFilters({ ...filters, checkOut: e.target.value })
+                    }
+                    data-testid="checkout-filter"
+                  />
+                </div>
+
                 {/* Location */}
                 <div>
                   <label className="text-sm text-muted-foreground mb-2 block">
