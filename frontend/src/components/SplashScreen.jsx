@@ -136,7 +136,7 @@ const SplashScreen = ({ onComplete }) => {
             reads clearly on mobile */}
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <img
-            src="/Travaholic_color_logo-removebg-preview.png"
+            src="/Travaholic_color_logo_splash.png"
             alt="Travaholic"
             className="w-[52%] max-w-[300px] h-auto object-contain bg-transparent drop-shadow-[0_0_24px_rgba(0,0,0,0.6)]"
           />
