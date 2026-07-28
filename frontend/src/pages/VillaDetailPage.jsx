@@ -331,26 +331,42 @@ const VillaDetailPage = () => {
 
       {/* Image Gallery */}
       <section className="container-luxury">
-        {/* Video Section - if villa has video */}
-        {villa.video_url && (
-          <div className="mb-6">
-            <div className="relative aspect-video overflow-hidden bg-black">
-              <video
-                controls
-                playsInline
-                className="w-full h-full object-contain"
-                poster={villa.images?.[0] || villa.thumbnail}
-              >
-                <source src={villa.video_url} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
+        {/* Video Section - if villa has video. A Google Drive "share" link
+            points at a viewer page, not a raw video file, so it can't be
+            used as a <video> source - it needs Drive's separate embeddable
+            preview URL in an <iframe> instead. */}
+        {villa.video_url && (() => {
+          const driveMatch = villa.video_url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([a-zA-Z0-9_-]+)/);
+          return (
+            <div className="mb-6">
+              <div className="relative aspect-video overflow-hidden bg-black">
+                {driveMatch ? (
+                  <iframe
+                    src={`https://drive.google.com/file/d/${driveMatch[1]}/preview`}
+                    className="w-full h-full border-0"
+                    allow="autoplay"
+                    allowFullScreen
+                    title={`${villa.name} video tour`}
+                  />
+                ) : (
+                  <video
+                    controls
+                    playsInline
+                    className="w-full h-full object-contain"
+                    poster={villa.images?.[0] || villa.thumbnail}
+                  >
+                    <source src={villa.video_url} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                )}
+              </div>
+              <div className="bg-accent/10 px-4 py-3 border-x border-b border-accent/30">
+                <p className="text-foreground font-medium">Villa Tour Video</p>
+                <p className="text-muted-foreground text-sm">Take a virtual walkthrough of {villa.name}</p>
+              </div>
             </div>
-            <div className="bg-accent/10 px-4 py-3 border-x border-b border-accent/30">
-              <p className="text-foreground font-medium">Villa Tour Video</p>
-              <p className="text-muted-foreground text-sm">Take a virtual walkthrough of {villa.name}</p>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Main Image */}
