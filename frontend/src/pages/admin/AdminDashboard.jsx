@@ -593,7 +593,7 @@ const VillaForm = ({ villa, onSuccess }) => {
     base_price: villa?.base_price || 25000,
     weekend_price: villa?.weekend_price || 30000,
     minimum_nights: villa?.minimum_nights || 2,
-    security_deposit: villa?.security_deposit || 10000,
+    security_deposit: villa?.security_deposit || 20000,
     commission_percent: villa?.commission_percent || 30,
     amenities: villa?.amenities || [],
     thumbnail: villa?.thumbnail || "",
