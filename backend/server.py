@@ -1630,6 +1630,9 @@ def generate_booking_confirmation_pdf(
     elements.append(stay_table)
     if villa.get('address'):
         elements.append(Paragraph(f"<b>Address:</b> {villa['address']}", styles['SmallText']))
+    maps_link = villa_maps_link(villa)
+    if maps_link:
+        elements.append(Paragraph(f'<b>Location:</b> <link href="{maps_link}" color="#A8875C"><u>View on Google Maps</u></link>', styles['SmallText']))
     elements.append(Spacer(1, 6))
 
     # ---- Villa features (right after stay details, ahead of pricing) ----
