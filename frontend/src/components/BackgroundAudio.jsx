@@ -3,21 +3,26 @@ import { Volume2, VolumeX } from "lucide-react";
 import { motion } from "framer-motion";
 
 const BackgroundAudio = () => {
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
 
   const audioUrl = "/travaholic-background.mp3";
 
   useEffect(() => {
-    // Try to play on first user interaction
+    // Sound is on by default, so try to autoplay unmuted right away. Every
+    // major browser blocks unmuted autoplay without a prior user gesture,
+    // so this will usually be rejected on a first-ever visit - the
+    // first-interaction fallback below (unmuted, unlike before) covers
+    // that case instead of silently staying muted forever.
+    if (audioRef.current) {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    }
+
     const handleFirstInteraction = () => {
-      if (audioRef.current && !isPlaying) {
-        audioRef.current.play().then(() => {
-          setIsPlaying(true);
-        }).catch(() => {
-          // Autoplay blocked, user needs to click
-        });
+      if (audioRef.current) {
+        audioRef.current.muted = false;
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
       }
       document.removeEventListener('click', handleFirstInteraction);
       document.removeEventListener('touchstart', handleFirstInteraction);
@@ -30,7 +35,8 @@ const BackgroundAudio = () => {
       document.removeEventListener('click', handleFirstInteraction);
       document.removeEventListener('touchstart', handleFirstInteraction);
     };
-  }, [isPlaying]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleMute = () => {
     if (audioRef.current) {

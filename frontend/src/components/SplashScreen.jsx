@@ -47,8 +47,10 @@ const MAX_DIAGONAL = Math.max(...REVEAL_DELAYS);
 const cellDelay = (i) => (REVEAL_DELAYS[i] / MAX_DIAGONAL) * REVEAL_SPAN;
 
 const TOTAL_BOARD_MS = REVEAL_SPAN + CELL_DURATION;
+const MAX_LOAD_WAIT_MS = 6000; // safety cap - never trap a visitor on a black screen
 
 const SplashScreen = ({ onComplete }) => {
+  const [imagesReady, setImagesReady] = useState(false);
   const [filled, setFilled] = useState(false);
   const [visible, setVisible] = useState(true);
   const finishedRef = useRef(false);
@@ -61,7 +63,43 @@ const SplashScreen = ({ onComplete }) => {
     setTimeout(onComplete, 700);
   };
 
+  // Preload every grid photo before starting the reveal - on a real network
+  // (as opposed to local dev) these can take longer than the animation
+  // itself to arrive, so the wave must wait for them rather than run on a
+  // fixed clock. A safety timeout still lets the site through if a photo
+  // is slow or fails outright.
   useEffect(() => {
+    let loadedCount = 0;
+    let settled = false;
+    const markReady = () => {
+      if (settled) return;
+      settled = true;
+      setImagesReady(true);
+    };
+
+    const images = GRID_IMAGES.map((src) => {
+      const img = new Image();
+      img.onload = img.onerror = () => {
+        loadedCount += 1;
+        if (loadedCount >= GRID_IMAGES.length) markReady();
+      };
+      img.src = src;
+      return img;
+    });
+
+    const safetyTimer = setTimeout(markReady, MAX_LOAD_WAIT_MS);
+
+    return () => {
+      clearTimeout(safetyTimer);
+      images.forEach((img) => {
+        img.onload = null;
+        img.onerror = null;
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!imagesReady) return;
     const raf = requestAnimationFrame(() => setFilled(true));
     const finishTimer = setTimeout(finish, TOTAL_BOARD_MS + HOLD_MS);
     return () => {
@@ -69,7 +107,7 @@ const SplashScreen = ({ onComplete }) => {
       clearTimeout(finishTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [imagesReady]);
 
   return (
     <motion.div
