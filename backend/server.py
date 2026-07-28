@@ -54,7 +54,7 @@ PDF_GOLD = colors.HexColor("#C9A876")
 PDF_GOLD_DARK = colors.HexColor("#A8875C")
 PDF_MUTED = colors.HexColor("#6B6B6B")
 PDF_CREAM = colors.HexColor("#F9F8F6")
-PDF_LOGO_PATH = ROOT_DIR / "assets" / "travaholic-logo.png"
+PDF_LOGO_PATH = ROOT_DIR / "assets" / "travaholic-logo-color.png"
 
 def pdf_filename(guest_name: str) -> str:
     """'Travaholic Booking Confirmation_<Guest Name>.pdf' - strips characters
@@ -1403,14 +1403,14 @@ def generate_booking_confirmation_pdf(
     logo_cell = ""
     if PDF_LOGO_PATH.exists():
         try:
-            logo_cell = RLImage(str(PDF_LOGO_PATH), width=62, height=62)
+            logo_cell = RLImage(str(PDF_LOGO_PATH), width=78, height=78)
         except Exception:
             logo_cell = ""
     header_text = [
         Paragraph("TRAVAHOLIC STAYS", styles['BrandTitle']),
         Paragraph("Ultra-Luxury Villas in Goa &amp; Beyond", styles['BrandTagline']),
     ]
-    header_table = Table([[logo_cell, header_text]], colWidths=[70, 395])
+    header_table = Table([[logo_cell, header_text]], colWidths=[82, 383])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -1464,6 +1464,18 @@ def generate_booking_confirmation_pdf(
         ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
     ]))
     elements.append(stay_table)
+    if villa.get('address'):
+        elements.append(Paragraph(f"<b>Address:</b> {villa['address']}", styles['SmallText']))
+    elements.append(Spacer(1, 6))
+
+    # ---- Villa features (right after stay details, ahead of pricing) ----
+    elements.append(Paragraph("VILLA FEATURES &amp; INCLUSIONS", styles['SectionHeader']))
+    features = villa.get('amenities', [])
+    features_text = "&nbsp;&nbsp;•&nbsp;&nbsp;".join(features[:14]) if features else \
+        "Private Pool&nbsp;&nbsp;•&nbsp;&nbsp;Housekeeping&nbsp;&nbsp;•&nbsp;&nbsp;WiFi&nbsp;&nbsp;•&nbsp;&nbsp;Air Conditioning&nbsp;&nbsp;•&nbsp;&nbsp;Smart TV&nbsp;&nbsp;•&nbsp;&nbsp;Full Kitchen&nbsp;&nbsp;•&nbsp;&nbsp;Parking"
+    elements.append(Paragraph(features_text, styles['BodyTextStyle']))
+    elements.append(Spacer(1, 4))
+    elements.append(Paragraph("<b>Additional services on request:</b> Private Chef, Spa Session, BBQ Night, Decoration, Airport Transfers", styles['BodyTextStyle']))
     elements.append(Spacer(1, 6))
 
     # ---- Pricing ----
@@ -1529,15 +1541,8 @@ def generate_booking_confirmation_pdf(
     ]))
     elements.append(bank_table)
 
-    # ---- Page 2: policies, house rules, amenities ----
+    # ---- Page 2: house rules, ID requirements, cancellation policy ----
     elements.append(PageBreak())
-
-    elements.append(Paragraph("CANCELLATION POLICY", styles['SectionHeader']))
-    elements.append(Paragraph(
-        "<b>100% refund</b> - cancelled 30+ days before check-in&nbsp;&nbsp;|&nbsp;&nbsp;"
-        "<b>50% refund</b> - cancelled 15-30 days before check-in&nbsp;&nbsp;|&nbsp;&nbsp;"
-        "<b>No refund</b> - cancelled within 15 days of check-in", styles['BodyTextStyle']))
-    elements.append(Spacer(1, 6))
 
     elements.append(Paragraph("HOUSE RULES", styles['SectionHeader']))
     house_rules = [
@@ -1559,13 +1564,11 @@ def generate_booking_confirmation_pdf(
         "(treated as a no-show, non-refundable).", styles['BodyTextStyle']))
     elements.append(Spacer(1, 6))
 
-    elements.append(Paragraph("VILLA FEATURES &amp; INCLUSIONS", styles['SectionHeader']))
-    features = villa.get('amenities', [])
-    features_text = "&nbsp;&nbsp;•&nbsp;&nbsp;".join(features[:14]) if features else \
-        "Private Pool&nbsp;&nbsp;•&nbsp;&nbsp;Housekeeping&nbsp;&nbsp;•&nbsp;&nbsp;WiFi&nbsp;&nbsp;•&nbsp;&nbsp;Air Conditioning&nbsp;&nbsp;•&nbsp;&nbsp;Smart TV&nbsp;&nbsp;•&nbsp;&nbsp;Full Kitchen&nbsp;&nbsp;•&nbsp;&nbsp;Parking"
-    elements.append(Paragraph(features_text, styles['BodyTextStyle']))
-    elements.append(Spacer(1, 4))
-    elements.append(Paragraph("<b>Additional services on request:</b> Private Chef, Spa Session, BBQ Night, Decoration, Airport Transfers", styles['BodyTextStyle']))
+    elements.append(Paragraph("CANCELLATION POLICY", styles['SectionHeader']))
+    elements.append(Paragraph(
+        "<b>100% refund</b> - cancelled 30+ days before check-in&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "<b>50% refund</b> - cancelled 15-30 days before check-in&nbsp;&nbsp;|&nbsp;&nbsp;"
+        "<b>No refund</b> - cancelled within 15 days of check-in", styles['BodyTextStyle']))
     elements.append(Spacer(1, 20))
 
     # ---- Footer ----
