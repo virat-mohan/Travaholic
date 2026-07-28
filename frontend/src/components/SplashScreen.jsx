@@ -35,7 +35,6 @@ const MAX_DIAGONAL = Math.max(...IMAGE_POSITIONS.map(diagonalOf));
 const cellDelay = (gridPosition) => (diagonalOf(gridPosition) / MAX_DIAGONAL) * REVEAL_SPAN;
 
 const TOTAL_BOARD_MS = REVEAL_SPAN + CELL_DURATION;
-const MAX_LOAD_WAIT_MS = 4000; // safety cap - never trap a visitor on a black screen
 
 const SplashScreen = ({ onComplete }) => {
   const [imagesReady, setImagesReady] = useState(false);
@@ -51,31 +50,24 @@ const SplashScreen = ({ onComplete }) => {
     setTimeout(onComplete, 700);
   };
 
-  // Preload the (small) set of grid photos before starting the reveal -
-  // only 8 images now, so this settles quickly even on a real network.
+  // Preload every grid photo before starting the reveal, and never move on
+  // to the site until all of them have actually settled (loaded or
+  // errored) - no arbitrary timeout that could let the site through with
+  // photos still missing.
   useEffect(() => {
     let loadedCount = 0;
-    let settled = false;
-    const markReady = () => {
-      if (settled) return;
-      settled = true;
-      setImagesReady(true);
-    };
 
     const images = GRID_IMAGES.map((src) => {
       const img = new Image();
       img.onload = img.onerror = () => {
         loadedCount += 1;
-        if (loadedCount >= GRID_IMAGES.length) markReady();
+        if (loadedCount >= GRID_IMAGES.length) setImagesReady(true);
       };
       img.src = src;
       return img;
     });
 
-    const safetyTimer = setTimeout(markReady, MAX_LOAD_WAIT_MS);
-
     return () => {
-      clearTimeout(safetyTimer);
       images.forEach((img) => {
         img.onload = null;
         img.onerror = null;
@@ -121,7 +113,7 @@ const SplashScreen = ({ onComplete }) => {
                 <img
                   src="/Travaholic_color_logo-removebg-preview.png"
                   alt="Travaholic"
-                  className="w-[65%] h-auto object-contain"
+                  className="w-[65%] h-auto object-contain bg-transparent"
                 />
               </div>
             );
@@ -153,7 +145,7 @@ const SplashScreen = ({ onComplete }) => {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.5 }}
-        className="mt-6 text-xs md:text-sm italic uppercase tracking-[0.3em] text-white/70 text-center px-6"
+        className="mt-6 font-accent text-sm md:text-base uppercase tracking-[0.3em] text-white/70 text-center px-6"
       >
         Ultra-Luxury Villas in Goa &amp; Beyond
       </motion.p>

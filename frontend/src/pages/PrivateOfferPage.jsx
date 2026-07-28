@@ -330,6 +330,45 @@ const PrivateOfferPage = () => {
               </div>
             </div>
 
+            {/* Villa Features */}
+            {offer.amenities?.length > 0 && (
+              <div className="bg-card border border-border p-6">
+                <h2 className="font-heading text-xl mb-4">Villa Features</h2>
+                <div className="grid grid-cols-2 gap-2">
+                  {offer.amenities.map((amenity) => (
+                    <div key={amenity} className="flex items-center gap-2 text-sm">
+                      <CheckCircle className="w-4 h-4 text-accent flex-shrink-0" />
+                      {amenity}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Location */}
+            {(villa?.address || offer.villa_location) && (
+              <div className="bg-card border border-border p-6">
+                <h2 className="font-heading text-xl mb-4">Location</h2>
+                <p className="text-sm text-muted-foreground mb-4 flex items-start gap-2">
+                  <MapPin size={16} className="text-accent flex-shrink-0 mt-0.5" />
+                  {villa?.address || offer.villa_location}
+                </p>
+                <div className="aspect-[16/9] overflow-hidden">
+                  <iframe
+                    title="Villa location"
+                    className="w-full h-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    src={
+                      villa?.latitude && villa?.longitude
+                        ? `https://www.google.com/maps?q=${villa.latitude},${villa.longitude}&output=embed`
+                        : `https://www.google.com/maps?q=${encodeURIComponent(villa?.address || offer.villa_location)}&output=embed`
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Guest Info */}
             <div className="bg-card border border-border p-6">
               <h2 className="font-heading text-xl mb-4">Guest Information</h2>

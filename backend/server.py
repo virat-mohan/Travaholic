@@ -1146,7 +1146,7 @@ def calculate_booking_price(villa: Dict, check_in: str, check_out: str, addons: 
     gst_amount = round(subtotal * (gst_percent / 100), 2)
     subtotal_with_gst = subtotal + gst_amount
     
-    security_deposit = villa.get("security_deposit", 0)
+    security_deposit = villa.get("security_deposit") or 20000
     total_amount = subtotal_with_gst + security_deposit
     
     commission_percent = villa.get("commission_percent", 30.0)
@@ -1395,14 +1395,14 @@ def generate_booking_confirmation_pdf(
     logo_cell = ""
     if PDF_LOGO_PATH.exists():
         try:
-            logo_cell = RLImage(str(PDF_LOGO_PATH), width=32, height=32)
+            logo_cell = RLImage(str(PDF_LOGO_PATH), width=62, height=62)
         except Exception:
             logo_cell = ""
     header_text = [
         Paragraph("TRAVAHOLIC STAYS", styles['BrandTitle']),
         Paragraph("Ultra-Luxury Villas in Goa &amp; Beyond", styles['BrandTagline']),
     ]
-    header_table = Table([[logo_cell, header_text]], colWidths=[40, 425])
+    header_table = Table([[logo_cell, header_text]], colWidths=[70, 395])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -1429,9 +1429,10 @@ def generate_booking_confirmation_pdf(
     # ---- Stay details: villa + booking info side by side ----
     elements.append(Paragraph("STAY DETAILS", styles['SectionHeader']))
     num_nights_val = booking_data.get('total_nights') or booking_data.get('num_nights') or 0
+    location_parts = [p for p in [villa.get('location', ''), villa.get('region', 'Goa')] if p]
     villa_rows = [
         ("Villa", villa.get('name', 'N/A')),
-        ("Location", f"{villa.get('location', '')}, {villa.get('region', 'Goa')}"),
+        ("Location", ", ".join(location_parts) or "N/A"),
         ("Bedrooms", f"{villa.get('bedrooms', 3)} BHK"),
     ]
     booking_rows = [
@@ -3073,7 +3074,7 @@ def _resolve_offer_villa(offer_data: PrivateOfferCreate, villa_doc: Optional[dic
             "bedrooms": villa_doc.get("bedrooms"),
             "amenities": offer_data.amenities or villa_doc.get("amenities", []),
             "commission_percent": villa_doc.get("commission_percent", 30.0),
-            "default_security_deposit": villa_doc.get("security_deposit", 20000),
+            "default_security_deposit": villa_doc.get("security_deposit") or 20000,
         }
     if not offer_data.custom_villa_name:
         raise HTTPException(status_code=400, detail="custom_villa_name is required when no villa_id is given")
@@ -3275,7 +3276,7 @@ async def get_private_offer(offer_id: str):
     # Get villa details (catalog villa only - a custom/off-catalog offer has no villa_id)
     villa = None
     if offer.get("villa_id"):
-        villa = await db.villas.find_one({"villa_id": offer["villa_id"]}, {"_id": 0, "name": 1, "images": 1, "location": 1})
+        villa = await db.villas.find_one({"villa_id": offer["villa_id"]}, {"_id": 0, "name": 1, "images": 1, "location": 1, "address": 1, "latitude": 1, "longitude": 1})
 
     return {"offer": offer, "villa": villa, "is_expired": False}
 
