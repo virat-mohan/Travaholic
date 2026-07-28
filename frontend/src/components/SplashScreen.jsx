@@ -10,15 +10,19 @@ const COLS = 3;
 const ROWS = 3;
 const CENTER_INDEX = 4;
 
+// Small, pre-compressed copies (~70-90KB each vs. multi-MB camera
+// originals) - the splash preloads all 8 upfront and won't proceed until
+// they're done, so keeping these light is what makes it feel fast.
+// Source images + regeneration: see frontend/public/splash-thumbs.
 const GRID_IMAGES = [
-  "/villas/la-sierra-11/Villa facade.jpg",
-  "/villas/la-sierra-12/Pool area.jpeg",
-  "/villas/dream-villa/Pool side.jpg",
-  "/villas/la-selva-6/Villa facade.jpeg",
-  "/villas/la-morena-4/Pool view.jpg",
-  "/villas/villa-serene/Pool area.jpeg",
-  "/villas/clouds-nest/Cottage view.jpg",
-  "/villas/eagle-nest/garden view 2.JPG",
+  "/splash-thumbs/la-sierra-11.jpg",
+  "/splash-thumbs/la-sierra-12.jpg",
+  "/splash-thumbs/dream-villa.jpg",
+  "/splash-thumbs/la-selva-6.jpg",
+  "/splash-thumbs/la-morena-4.jpg",
+  "/splash-thumbs/villa-serene.jpg",
+  "/splash-thumbs/clouds-nest.jpg",
+  "/splash-thumbs/eagle-nest.jpg",
 ];
 
 // The 9 grid positions minus the center, in reading order - GRID_IMAGES[i]
