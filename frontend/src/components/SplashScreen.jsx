@@ -95,9 +95,13 @@ const SplashScreen = ({ onComplete }) => {
       data-testid="splash-screen"
       style={{ pointerEvents: visible ? "auto" : "none" }}
     >
-      {/* 3x3 collage - 8 real photos around the logo, nothing else on screen */}
+      {/* 3x3 collage - 8 real photos around the logo, nothing else on screen.
+          The logo is deliberately sized larger than a single grid cell and
+          overlaid on top (not placed inside the center cell) so the
+          "TRAVAHOLIC" wordmark inside it stays legible on small screens
+          instead of shrinking down to the size of one collage tile. */}
       <div
-        className="grid gap-[3px] w-[92vmin] h-[92vmin] max-w-[680px] max-h-[680px]"
+        className="relative grid gap-[3px] w-[92vmin] h-[92vmin] max-w-[680px] max-h-[680px]"
         style={{
           gridTemplateColumns: `repeat(${COLS}, 1fr)`,
           gridTemplateRows: `repeat(${ROWS}, 1fr)`,
@@ -105,18 +109,7 @@ const SplashScreen = ({ onComplete }) => {
       >
         {Array.from({ length: COLS * ROWS }, (_, position) => {
           if (position === CENTER_INDEX) {
-            return (
-              <div
-                key="center"
-                className="flex flex-col items-center justify-center bg-black px-2"
-              >
-                <img
-                  src="/Travaholic_color_logo-removebg-preview.png"
-                  alt="Travaholic"
-                  className="w-[65%] h-auto object-contain bg-transparent"
-                />
-              </div>
-            );
+            return <div key="center" className="bg-black" />;
           }
 
           const imgIndex = IMAGE_POSITIONS.indexOf(position);
@@ -138,6 +131,16 @@ const SplashScreen = ({ onComplete }) => {
             </div>
           );
         })}
+
+        {/* Logo, overlaid larger than a single collage tile so the wordmark
+            reads clearly on mobile */}
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <img
+            src="/Travaholic_color_logo-removebg-preview.png"
+            alt="Travaholic"
+            className="w-[52%] max-w-[300px] h-auto object-contain bg-transparent drop-shadow-[0_0_24px_rgba(0,0,0,0.6)]"
+          />
+        </div>
       </div>
 
       {/* Tagline */}

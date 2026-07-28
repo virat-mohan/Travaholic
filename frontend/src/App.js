@@ -301,9 +301,20 @@ const DashboardRedirect = () => {
   return null;
 };
 
-function App() {
+// The splash is the homepage's opening sequence, not a global overlay - it
+// must only ever appear when someone actually lands on "/". Without this
+// route check it was rendering on top of whatever page loaded first in a
+// session (e.g. a villa page opened directly from the admin dashboard),
+// making that page look like it had redirected to the homepage.
+const SplashGate = () => {
+  const location = useLocation();
   const [showSplash, setShowSplash] = useState(() => shouldShowSplash());
 
+  if (!showSplash || location.pathname !== "/") return null;
+  return <SplashScreen onComplete={() => setShowSplash(false)} />;
+};
+
+function App() {
   return (
     <HelmetProvider>
       <BrowserRouter>
@@ -312,7 +323,7 @@ function App() {
             <ScrollToTop />
             <AppRouter />
             <Toaster position="top-right" richColors />
-            {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+            <SplashGate />
           </div>
         </AuthProvider>
       </BrowserRouter>

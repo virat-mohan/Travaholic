@@ -542,7 +542,7 @@ const VillaDetailPage = () => {
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-accent mt-1">•</span>
-                    <span><strong>Occupancy & Charges:</strong> Base rates are for up to 6 guests. An additional charge of ₹2,000 per person applies for extra guests.</span>
+                    <span><strong>Occupancy & Charges:</strong> Base rates are for up to {villa.bedrooms * 2} guests ({villa.bedrooms} bedrooms x 2). An additional charge of ₹2,000 per person applies for extra guests.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-accent mt-1">•</span>
