@@ -637,6 +637,31 @@ const VillaForm = ({ villa, onSuccess }) => {
     }));
   };
 
+  // The label shown under each photo is just its filename, decoded from
+  // the URL - editing it renames that last path segment (directory/host
+  // untouched). Only meaningful for statically-hosted villa photos; images
+  // uploaded through this form get an opaque /api/images/{id} URL with no
+  // real filename to rename.
+  const labelFromUrl = (url) => {
+    try {
+      const path = new URL(url, window.location.origin).pathname;
+      return decodeURIComponent(path.split("/").pop() || "");
+    } catch {
+      return url;
+    }
+  };
+
+  const handleRelabelImage = (url, newLabel) => {
+    const trimmed = newLabel.trim();
+    if (!trimmed || trimmed === labelFromUrl(url)) return;
+    const newUrl = url.replace(/[^/]+$/, encodeURIComponent(trimmed));
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.map((i) => (i === url ? newUrl : i)),
+      thumbnail: prev.thumbnail === url ? newUrl : prev.thumbnail,
+    }));
+  };
+
   const handleSetThumbnail = (url) => {
     setFormData((prev) => ({ ...prev, thumbnail: url }));
   };
@@ -848,10 +873,18 @@ const VillaForm = ({ villa, onSuccess }) => {
                 <button
                   type="button"
                   onClick={() => handleRemoveImage(url)}
-                  className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Remove photo"
+                  className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 hover:bg-destructive transition-colors"
                 >
                   <X size={10} />
                 </button>
+                <input
+                  type="text"
+                  defaultValue={labelFromUrl(url)}
+                  onBlur={(e) => handleRelabelImage(url, e.target.value)}
+                  title="Filename shown in the image URL - edit to rename"
+                  className="mt-1 w-full text-[10px] text-muted-foreground bg-transparent border-none px-0 truncate focus:outline-none focus:ring-1 focus:ring-accent rounded"
+                />
               </div>
             ))}
           </div>
