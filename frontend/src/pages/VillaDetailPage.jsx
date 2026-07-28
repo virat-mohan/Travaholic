@@ -660,7 +660,11 @@ const VillaDetailPage = () => {
                               setCheckOut(addDays(date, villa.minimum_nights || 1));
                             }
                           }}
-                          disabled={(date) => isBefore(date, new Date()) || isDateBlocked(date)}
+                          disabled={(date) =>
+                            isBefore(date, new Date()) ||
+                            (villa.bookings_open_from && isBefore(date, new Date(villa.bookings_open_from))) ||
+                            isDateBlocked(date)
+                          }
                         />
                       </PopoverContent>
                     </Popover>
@@ -766,6 +770,11 @@ const VillaDetailPage = () => {
                   <p className="text-xs text-muted-foreground text-center mt-4">
                     Minimum {villa.minimum_nights} night{villa.minimum_nights > 1 ? "s" : ""} stay
                   </p>
+                  {villa.bookings_open_from && isBefore(new Date(), new Date(villa.bookings_open_from)) && (
+                    <p className="text-xs text-muted-foreground text-center mt-1">
+                      Bookings open from {format(new Date(villa.bookings_open_from), "MMM dd, yyyy")}
+                    </p>
+                  )}
                 </>
               ) : (
                 <div className="text-center mb-6">

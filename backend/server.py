@@ -143,6 +143,7 @@ class Villa(BaseModel):
     images: List[str] = []
     thumbnail: Optional[str] = None
     video_url: Optional[str] = None
+    bookings_open_from: Optional[str] = None  # YYYY-MM-DD - no check-ins accepted before this date
     base_price: float  # Per night weekday price
     weekend_price: Optional[float] = None
     seasonal_pricing: Optional[Dict[str, float]] = None  # {"peak": 50000, "off": 30000}
@@ -183,6 +184,7 @@ class VillaCreate(BaseModel):
     images: List[str] = []
     thumbnail: Optional[str] = None
     video_url: Optional[str] = None
+    bookings_open_from: Optional[str] = None
     base_price: float
     weekend_price: Optional[float] = None
     seasonal_pricing: Optional[Dict[str, float]] = None
@@ -1253,7 +1255,17 @@ async def create_booking(booking_data: BookingCreate):
     villa = await db.villas.find_one({"villa_id": booking_data.villa_id}, {"_id": 0})
     if not villa:
         raise HTTPException(status_code=404, detail="Villa not found")
-    
+
+    # Villas can have a date before which they aren't taking bookings yet
+    # (e.g. a newly-listed villa not ready for guests until renovations
+    # finish) - YYYY-MM-DD strings compare correctly as plain strings.
+    bookings_open_from = villa.get("bookings_open_from")
+    if bookings_open_from and booking_data.check_in < bookings_open_from:
+        raise HTTPException(
+            status_code=400,
+            detail=f"This villa is only accepting bookings from {bookings_open_from} onwards"
+        )
+
     # Check availability
     blocked = await db.blocked_dates.find_one({
         "villa_id": booking_data.villa_id,
@@ -1263,7 +1275,7 @@ async def create_booking(booking_data: BookingCreate):
     })
     if blocked:
         raise HTTPException(status_code=400, detail="Dates not available")
-    
+
     # Get pricing overrides
     overrides = await db.pricing_overrides.find({"villa_id": booking_data.villa_id}, {"_id": 0}).to_list(1000)
     

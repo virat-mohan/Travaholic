@@ -599,6 +599,7 @@ const VillaForm = ({ villa, onSuccess }) => {
     thumbnail: villa?.thumbnail || "",
     images: villa?.images || [],
     video_url: villa?.video_url || "",
+    bookings_open_from: villa?.bookings_open_from || "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -795,6 +796,14 @@ const VillaForm = ({ villa, onSuccess }) => {
           <label className="text-sm font-medium">Min Nights</label>
           <Input type="number" value={formData.minimum_nights} onChange={(e) => setFormData({ ...formData, minimum_nights: parseInt(e.target.value) })} />
         </div>
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Bookings Open From</label>
+        <p className="text-xs text-muted-foreground mb-2">
+          Guests can't select a check-in date before this. Leave empty to accept bookings from any date.
+        </p>
+        <Input type="date" value={formData.bookings_open_from} onChange={(e) => setFormData({ ...formData, bookings_open_from: e.target.value })} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
