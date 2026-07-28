@@ -103,9 +103,9 @@ const SplashScreen = ({ onComplete }) => {
       data-testid="splash-screen"
       style={{ pointerEvents: visible ? "auto" : "none" }}
     >
-      {/* 3x3 collage - 8 real photos around the wordmark, nothing else on screen */}
+      {/* 3x3 collage - 8 real photos around the logo, nothing else on screen */}
       <div
-        className="grid gap-[3px] w-[70vmin] h-[70vmin] max-w-[560px] max-h-[560px]"
+        className="grid gap-[3px] w-[92vmin] h-[92vmin] max-w-[680px] max-h-[680px]"
         style={{
           gridTemplateColumns: `repeat(${COLS}, 1fr)`,
           gridTemplateRows: `repeat(${ROWS}, 1fr)`,
@@ -121,11 +121,8 @@ const SplashScreen = ({ onComplete }) => {
                 <img
                   src="/Travaholic_color_logo-removebg-preview.png"
                   alt="Travaholic"
-                  className="w-[55%] h-auto object-contain mb-2"
+                  className="w-[65%] h-auto object-contain"
                 />
-                <p className="font-heading text-sm md:text-lg text-white uppercase tracking-[0.25em] text-center">
-                  Travaholic
-                </p>
               </div>
             );
           }
@@ -156,7 +153,7 @@ const SplashScreen = ({ onComplete }) => {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.5 }}
-        className="mt-6 text-xs md:text-sm uppercase tracking-[0.3em] text-white/70 text-center px-6"
+        className="mt-6 text-xs md:text-sm italic uppercase tracking-[0.3em] text-white/70 text-center px-6"
       >
         Ultra-Luxury Villas in Goa &amp; Beyond
       </motion.p>
