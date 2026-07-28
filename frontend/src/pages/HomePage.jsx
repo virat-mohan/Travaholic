@@ -198,6 +198,55 @@ const HomePage = () => {
         </motion.div>
       </section>
 
+      {/* Explore by Location */}
+      <section className="section-spacing bg-background" data-testid="destinations-section">
+        <div className="container-luxury">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="mb-12"
+          >
+            <p className="caption-text mb-4">Where to Stay</p>
+            <h2 className="font-heading text-4xl md:text-5xl">Explore by Destination</h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {destinations.map((dest, index) => (
+              <motion.div
+                key={dest.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                viewport={{ once: true }}
+              >
+                <Link
+                  to={`/villas?${dest.filterType}=${encodeURIComponent(dest.filterValue)}`}
+                  className="group relative block aspect-[4/5] overflow-hidden"
+                  data-testid={`destination-card-${dest.name.toLowerCase().replace(/\s+/g, "-")}`}
+                >
+                  <img
+                    src={dest.image}
+                    alt={dest.name}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <h3 className="font-heading text-2xl text-white mb-1">{dest.name}</h3>
+                    <p className="text-white/80 text-sm">{dest.tagline}</p>
+                    <span className="inline-flex items-center gap-2 text-white text-xs uppercase tracking-wider mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      View Villas
+                      <ArrowRight size={14} />
+                    </span>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Featured Villas */}
       <section className="section-spacing bg-background" data-testid="featured-villas-section">
         <div className="container-luxury">
@@ -285,55 +334,6 @@ const HomePage = () => {
               </div>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Explore by Location */}
-      <section className="section-spacing bg-background" data-testid="destinations-section">
-        <div className="container-luxury">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="mb-12"
-          >
-            <p className="caption-text mb-4">Where to Stay</p>
-            <h2 className="font-heading text-4xl md:text-5xl">Explore by Destination</h2>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {destinations.map((dest, index) => (
-              <motion.div
-                key={dest.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-              >
-                <Link
-                  to={`/villas?${dest.filterType}=${encodeURIComponent(dest.filterValue)}`}
-                  className="group relative block aspect-[4/5] overflow-hidden"
-                  data-testid={`destination-card-${dest.name.toLowerCase().replace(/\s+/g, "-")}`}
-                >
-                  <img
-                    src={dest.image}
-                    alt={dest.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <h3 className="font-heading text-2xl text-white mb-1">{dest.name}</h3>
-                    <p className="text-white/80 text-sm">{dest.tagline}</p>
-                    <span className="inline-flex items-center gap-2 text-white text-xs uppercase tracking-wider mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      View Villas
-                      <ArrowRight size={14} />
-                    </span>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
         </div>
       </section>
 
