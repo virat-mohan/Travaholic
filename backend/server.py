@@ -56,6 +56,18 @@ PDF_MUTED = colors.HexColor("#6B6B6B")
 PDF_CREAM = colors.HexColor("#F9F8F6")
 PDF_LOGO_PATH = ROOT_DIR / "assets" / "travaholic-logo-color.png"
 
+# Emails need a publicly reachable image URL (can't embed a local file the
+# way the PDF does) - point at the live site's copy of the same colorful
+# logo used everywhere else.
+EMAIL_LOGO_URL = f"{os.environ.get('FRONTEND_URL', 'https://travaholicstays.com')}/Travaholic_color_logo-removebg-preview.png"
+# Same brand palette as the PDF (#C9A876 gold / #1A1A1A ink / #F9F8F6 cream)
+# instead of the unrelated teal these email templates used before.
+EMAIL_GOLD = "#C9A876"
+EMAIL_GOLD_DARK = "#A8875C"
+EMAIL_INK = "#1A1A1A"
+EMAIL_CREAM = "#F9F8F6"
+EMAIL_MUTED = "#6B6B6B"
+
 def pdf_filename(guest_name: str) -> str:
     """'Travaholic Booking Confirmation_<Guest Name>.pdf' - strips characters
     that break filenames/Content-Disposition headers, keeps spaces."""
@@ -133,6 +145,7 @@ class Villa(BaseModel):
     location: str  # Anjuna, Vagator, Morjim, etc.
     region: str = "Goa"  # Goa, Mussoorie, Himachal Pradesh
     address: Optional[str] = None
+    map_link: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     max_guests: int
@@ -175,6 +188,7 @@ class VillaCreate(BaseModel):
     location: str
     region: str = "Goa"
     address: Optional[str] = None
+    map_link: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     max_guests: int
@@ -848,6 +862,13 @@ async def create_villa(villa_data: VillaCreate, user: User = Depends(require_adm
     """Create a new villa (admin only)"""
     villa = Villa(**villa_data.model_dump())
     doc = villa.model_dump()
+    # A pasted Google Maps link (not a maps.app.goo.gl short link) usually
+    # has the precise pin coordinates in it - auto-fill latitude/longitude
+    # from it so admins only have to paste one thing.
+    if doc.get("map_link") and not (doc.get("latitude") and doc.get("longitude")):
+        lat, lng = _extract_latlng_from_map_link(doc["map_link"])
+        if lat and lng:
+            doc["latitude"], doc["longitude"] = lat, lng
     doc["created_at"] = doc["created_at"].isoformat()
     doc["updated_at"] = doc["updated_at"].isoformat()
     await db.villas.insert_one(doc)
@@ -856,6 +877,10 @@ async def create_villa(villa_data: VillaCreate, user: User = Depends(require_adm
 @api_router.put("/villas/{villa_id}")
 async def update_villa(villa_id: str, villa_data: Dict[str, Any], user: User = Depends(require_admin)):
     """Update a villa (admin only)"""
+    if villa_data.get("map_link") and not (villa_data.get("latitude") and villa_data.get("longitude")):
+        lat, lng = _extract_latlng_from_map_link(villa_data["map_link"])
+        if lat and lng:
+            villa_data["latitude"], villa_data["longitude"] = lat, lng
     villa_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     result = await db.villas.update_one({"villa_id": villa_id}, {"$set": villa_data})
     if result.matched_count == 0:
@@ -1379,16 +1404,19 @@ def send_whatsapp_booking_confirmation(booking: dict, villa: dict):
         total = booking.get("total_booking_amount", booking.get("total_amount", 0))
         security = booking.get("security_deposit") or 20000
         maps_link = villa_maps_link(villa)
+        address = villa.get("address") or ", ".join(p for p in [villa.get("location", ""), villa.get("region", "")] if p)
         message = (
             f"Thank you for your booking at {villa.get('name')}, Travaholic Stays!\n\n"
             f"This is subject to receipt of payment.\n\n"
-            f"Check-in: {booking.get('check_in')}\n"
+            f"Villa: {villa.get('name')}\n"
+            + (f"Address: {address}\n" if address else "")
+            + f"Check-in: {booking.get('check_in')}\n"
             f"Check-out: {booking.get('check_out')}\n"
             f"Guests: {booking.get('num_guests')}\n"
             f"Total: Rs. {total:,.0f}\n"
             f"Security Deposit: Rs. {security:,.0f} (payable separately, refundable at checkout)\n"
             f"Booking ID: {booking.get('booking_id')}\n\n"
-            + (f"Location: {maps_link}\n\n" if maps_link else "")
+            + (f"Map: {maps_link}\n\n" if maps_link else "")
             + f"Your full proposal - tariff breakdown, bank details for payment, "
             f"amenities and house rules - has been emailed to you."
         )
@@ -1944,7 +1972,7 @@ def generate_confirmation_email_html(
         if payment_type == "advance":
             balance = booking.get('balance_amount', 0)
             receipt_html = f"""
-                <div class="section" style="border-left-color:#C9A876;">
+                <div class="section" style="border-left-color:{EMAIL_GOLD};">
                     <h2>PAYMENT RECEIPT</h2>
                     <div class="detail-row">
                         <span class="label">Advance Received</span>
@@ -1958,7 +1986,7 @@ def generate_confirmation_email_html(
             """
         else:
             receipt_html = f"""
-                <div class="section" style="border-left-color:#C9A876;">
+                <div class="section" style="border-left-color:{EMAIL_GOLD};">
                     <h2>PAYMENT RECEIPT</h2>
                     <div class="detail-row">
                         <span class="label">Full Payment Received</span>
@@ -1971,26 +1999,29 @@ def generate_confirmation_email_html(
     <html>
     <head>
         <style>
-            body {{ font-family: 'Helvetica', Arial, sans-serif; color: #333; line-height: 1.6; }}
+            body {{ font-family: 'Helvetica', Arial, sans-serif; color: {EMAIL_INK}; line-height: 1.6; }}
             .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-            .header {{ background: linear-gradient(135deg, #2d6a6a 0%, #1a4a4a 100%); color: white; padding: 30px; text-align: center; }}
-            .header h1 {{ margin: 0; font-size: 24px; }}
-            .content {{ padding: 30px; background: #f9f9f9; }}
-            .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid #2d6a6a; }}
-            .section h2 {{ color: #2d6a6a; font-size: 16px; margin-top: 0; }}
+            .header {{ background: #ffffff; color: {EMAIL_INK}; padding: 30px; text-align: center; border-bottom: 3px solid {EMAIL_GOLD}; }}
+            .header img {{ width: 64px; height: 64px; margin-bottom: 10px; }}
+            .header h1 {{ margin: 0; font-size: 22px; letter-spacing: 1px; }}
+            .header p {{ color: {EMAIL_GOLD_DARK}; }}
+            .content {{ padding: 30px; background: {EMAIL_CREAM}; }}
+            .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid {EMAIL_GOLD}; }}
+            .section h2 {{ color: {EMAIL_GOLD_DARK}; font-size: 16px; margin-top: 0; }}
             .detail-row {{ display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }}
-            .label {{ color: #666; }}
-            .value {{ font-weight: bold; color: #333; }}
-            .total {{ background: #2d6a6a; color: white; padding: 15px; text-align: right; font-size: 18px; }}
-            .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
-            .cta {{ background: #2d6a6a; color: white; padding: 12px 24px; text-decoration: none; display: inline-block; margin: 10px 0; }}
+            .label {{ color: {EMAIL_MUTED}; }}
+            .value {{ font-weight: bold; color: {EMAIL_INK}; }}
+            .total {{ background: {EMAIL_INK}; color: white; padding: 15px; text-align: right; font-size: 18px; }}
+            .footer {{ text-align: center; padding: 20px; color: {EMAIL_MUTED}; font-size: 12px; }}
+            .cta {{ background: {EMAIL_GOLD_DARK}; color: white; padding: 12px 24px; text-decoration: none; display: inline-block; margin: 10px 0; }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
+                <img src="{EMAIL_LOGO_URL}" alt="Travaholic Stays" />
                 <h1>TRAVAHOLIC STAYS</h1>
-                <p style="margin: 5px 0 0 0; opacity: 0.9;">{"Payment Received" if payment_type else "Booking Confirmed"}</p>
+                <p style="margin: 5px 0 0 0;">{"Payment Received" if payment_type else "Booking Confirmed"}</p>
             </div>
 
             <div class="content">
@@ -2081,29 +2112,32 @@ def generate_booking_received_email(booking: dict, villa: dict) -> str:
     <html>
     <head>
         <style>
-            body {{ font-family: 'Helvetica', Arial, sans-serif; color: #333; line-height: 1.6; }}
+            body {{ font-family: 'Helvetica', Arial, sans-serif; color: {EMAIL_INK}; line-height: 1.6; }}
             .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-            .header {{ background: linear-gradient(135deg, #2d6a6a 0%, #1a4a4a 100%); color: white; padding: 30px; text-align: center; }}
-            .header h1 {{ margin: 0; font-size: 24px; }}
-            .content {{ padding: 30px; background: #f9f9f9; }}
-            .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid #2d6a6a; }}
-            .section h2 {{ color: #2d6a6a; font-size: 16px; margin-top: 0; }}
+            .header {{ background: #ffffff; color: {EMAIL_INK}; padding: 30px; text-align: center; border-bottom: 3px solid {EMAIL_GOLD}; }}
+            .header img {{ width: 64px; height: 64px; margin-bottom: 10px; }}
+            .header h1 {{ margin: 0; font-size: 22px; letter-spacing: 1px; }}
+            .header p {{ color: {EMAIL_GOLD_DARK}; }}
+            .content {{ padding: 30px; background: {EMAIL_CREAM}; }}
+            .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid {EMAIL_GOLD}; }}
+            .section h2 {{ color: {EMAIL_GOLD_DARK}; font-size: 16px; margin-top: 0; }}
             .detail-row {{ padding: 8px 0; border-bottom: 1px solid #eee; }}
-            .label {{ color: #666; display: inline-block; width: 45%; }}
-            .value {{ font-weight: bold; color: #333; }}
-            .bank-details {{ background: #f0f7f7; padding: 15px; border: 1px solid #2d6a6a; margin: 20px 0; }}
-            .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
-            .cta {{ background: #2d6a6a; color: white; padding: 12px 24px; text-decoration: none; display: inline-block; margin: 10px 0; }}
-            .highlight {{ background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0; }}
+            .label {{ color: {EMAIL_MUTED}; display: inline-block; width: 45%; }}
+            .value {{ font-weight: bold; color: {EMAIL_INK}; }}
+            .bank-details {{ background: {EMAIL_CREAM}; padding: 15px; border: 1px solid {EMAIL_GOLD}; margin: 20px 0; }}
+            .footer {{ text-align: center; padding: 20px; color: {EMAIL_MUTED}; font-size: 12px; }}
+            .cta {{ background: {EMAIL_GOLD_DARK}; color: white; padding: 12px 24px; text-decoration: none; display: inline-block; margin: 10px 0; }}
+            .highlight {{ background: #FBF3E3; padding: 15px; border-left: 4px solid {EMAIL_GOLD}; margin: 15px 0; }}
         </style>
     </head>
     <body>
         <div class="container">
             <div class="header">
+                <img src="{EMAIL_LOGO_URL}" alt="Travaholic Stays" />
                 <h1>TRAVAHOLIC STAYS</h1>
-                <p style="margin: 5px 0 0 0; opacity: 0.9;">Booking Request Received</p>
+                <p style="margin: 5px 0 0 0;">Booking Request Received</p>
             </div>
-            
+
             <div class="content">
                 <p>Dear <strong>{booking['guest_name']}</strong>,</p>
                 <p>Thank you for your booking request! We have received your inquiry and our team will confirm your booking once payment is received.</p>
@@ -2145,7 +2179,7 @@ def generate_booking_received_email(booking: dict, villa: dict) -> str:
                     </div>
                     <div class="detail-row" style="font-size: 18px; padding-top: 15px;">
                         <span class="label"><strong>Total Amount:</strong></span>
-                        <span class="value" style="color: #2d6a6a;">₹{total:,.0f}</span>
+                        <span class="value" style="color: {EMAIL_GOLD_DARK};">₹{total:,.0f}</span>
                     </div>
                     <div class="detail-row">
                         <span class="label">Security Deposit:</span>
@@ -2154,7 +2188,7 @@ def generate_booking_received_email(booking: dict, villa: dict) -> str:
                 </div>
                 
                 <div class="bank-details">
-                    <h3 style="margin-top: 0; color: #2d6a6a;">Bank Details for Payment</h3>
+                    <h3 style="margin-top: 0; color: {EMAIL_GOLD_DARK};">Bank Details for Payment</h3>
                     <p style="margin: 5px 0;"><strong>Bank:</strong> Standard Chartered Bank</p>
                     <p style="margin: 5px 0;"><strong>Account Name:</strong> TRAVAHOLIC</p>
                     <p style="margin: 5px 0;"><strong>Account No:</strong> 52105900326</p>

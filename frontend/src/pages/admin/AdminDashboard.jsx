@@ -587,6 +587,8 @@ const VillaForm = ({ villa, onSuccess }) => {
     short_description: villa?.short_description || "",
     location: villa?.location || "",
     region: villa?.region || "Goa",
+    address: villa?.address || "",
+    map_link: villa?.map_link || "",
     max_guests: villa?.max_guests || 6,
     bedrooms: villa?.bedrooms || 3,
     bathrooms: villa?.bathrooms || 3,
@@ -761,6 +763,26 @@ const VillaForm = ({ villa, onSuccess }) => {
               <SelectItem value="Himachal Pradesh">Himachal Pradesh</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-sm font-medium">Full Address</label>
+          <Input
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            placeholder="e.g., SY. No, 377/1, Anjuna, Goa 403509"
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">Google Maps Link</label>
+          <p className="text-xs text-muted-foreground mb-1">Paste a full Google Maps URL (not a maps.app.goo.gl short link) - the pin coordinates are pulled from it automatically.</p>
+          <Input
+            value={formData.map_link}
+            onChange={(e) => setFormData({ ...formData, map_link: e.target.value })}
+            placeholder="https://www.google.com/maps/place/..."
+          />
         </div>
       </div>
 
