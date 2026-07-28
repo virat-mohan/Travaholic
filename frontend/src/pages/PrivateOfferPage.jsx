@@ -362,6 +362,8 @@ const PrivateOfferPage = () => {
                     src={
                       villa?.latitude && villa?.longitude
                         ? `https://www.google.com/maps?q=${villa.latitude},${villa.longitude}&output=embed`
+                        : offer.latitude && offer.longitude
+                        ? `https://www.google.com/maps?q=${offer.latitude},${offer.longitude}&output=embed`
                         : `https://www.google.com/maps?q=${encodeURIComponent(villa?.address || offer.villa_location)}&output=embed`
                     }
                   />

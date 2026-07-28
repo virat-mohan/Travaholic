@@ -571,7 +571,7 @@ const AdminVillas = () => {
 // actually used across the real villa portfolio so nothing gets missed or
 // entered inconsistently (e.g. "WiFi" vs "wifi" vs "Wi-Fi").
 const AMENITY_GROUPS = {
-  "Comfort": ["Air Conditioning", "High-Speed WiFi", "Smart TV", "Generator Backup"],
+  "Comfort": ["Air Conditioning", "High-Speed WiFi", "Smart TV", "Sound Dock", "Generator Backup"],
   "Kitchen & Dining": ["Fully Equipped Kitchen", "Microwave & Oven", "Chef Service", "Breakfast Service"],
   "Pool & Outdoors": ["Private Pool", "Heated Pool", "Garden", "Parking"],
   "Service & Staff": ["Daily Housekeeping", "Butler Service", "Concierge Service", "Caretaker", "Travel Desk", "In-villa Spa Service"],
@@ -598,6 +598,7 @@ const VillaForm = ({ villa, onSuccess }) => {
     amenities: villa?.amenities || [],
     thumbnail: villa?.thumbnail || "",
     images: villa?.images || [],
+    video_url: villa?.video_url || "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -889,6 +890,18 @@ const VillaForm = ({ villa, onSuccess }) => {
             ))}
           </div>
         )}
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Video URL</label>
+        <p className="text-xs text-muted-foreground mb-2">
+          Link to a hosted video (YouTube, Vimeo, or a direct video file) - shown on the villa's page.
+        </p>
+        <Input
+          value={formData.video_url}
+          onChange={(e) => setFormData({ ...formData, video_url: e.target.value })}
+          placeholder="https://..."
+        />
       </div>
 
       <DialogFooter>
@@ -1928,6 +1941,8 @@ const EMPTY_OFFER_FORM = {
   custom_villa_name: "",
   custom_villa_location: "",
   custom_bedrooms: "",
+  custom_bathrooms: "",
+  custom_map_link: "",
   amenities: [],
   guest_name: "",
   guest_email: "",
@@ -1985,6 +2000,8 @@ const AdminPrivateOffers = () => {
       custom_villa_name: offer.villa_id ? "" : (offer.villa_name || ""),
       custom_villa_location: offer.villa_id ? "" : (offer.villa_location || ""),
       custom_bedrooms: offer.villa_id ? "" : (offer.bedrooms || ""),
+      custom_bathrooms: offer.villa_id ? "" : (offer.bathrooms || ""),
+      custom_map_link: offer.villa_id ? "" : (offer.map_link || ""),
       amenities: offer.amenities || [],
       guest_name: offer.guest_name || "",
       guest_email: offer.guest_email || "",
@@ -2030,6 +2047,7 @@ const AdminPrivateOffers = () => {
       ...formData,
       villa_id: useCustomVilla ? null : formData.villa_id,
       custom_bedrooms: formData.custom_bedrooms ? parseInt(formData.custom_bedrooms) : null,
+      custom_bathrooms: formData.custom_bathrooms ? parseInt(formData.custom_bathrooms) : null,
     };
     try {
       if (editingOfferId) {
@@ -2047,6 +2065,17 @@ const AdminPrivateOffers = () => {
       fetchData();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to save offer"));
+    }
+  };
+
+  const handleDeleteOffer = async (offer) => {
+    if (!window.confirm(`Delete the private offer for ${offer.guest_name}? This can't be undone.`)) return;
+    try {
+      await axios.delete(`${API}/admin/private-offers/${offer.offer_id}`, { headers: getAuthHeaders() });
+      toast.success("Offer deleted");
+      fetchData();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to delete offer"));
     }
   };
 
@@ -2104,8 +2133,16 @@ const AdminPrivateOffers = () => {
                     <Input value={formData.custom_villa_location} onChange={(e) => setFormData({...formData, custom_villa_location: e.target.value})} placeholder="e.g. Candolim, Goa" />
                   </div>
                   <div>
+                    <label className="block text-sm font-medium mb-1">Google Maps Link</label>
+                    <Input value={formData.custom_map_link} onChange={(e) => setFormData({...formData, custom_map_link: e.target.value})} placeholder="Paste a full Google Maps URL" />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium mb-1">Bedrooms</label>
                     <Input type="number" min="1" value={formData.custom_bedrooms} onChange={(e) => setFormData({...formData, custom_bedrooms: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Bathrooms</label>
+                    <Input type="number" min="1" value={formData.custom_bathrooms} onChange={(e) => setFormData({...formData, custom_bathrooms: e.target.value})} />
                   </div>
                 </>
               ) : (
@@ -2244,6 +2281,9 @@ const AdminPrivateOffers = () => {
                     Edit
                   </Button>
                 )}
+                <Button size="sm" variant="outline" className="text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => handleDeleteOffer(offer)}>
+                  Delete
+                </Button>
                 {offer.payment_link && offer.status === "pending" && (
                   <>
                     <Input value={offer.payment_link} readOnly className="text-sm flex-1 min-w-[180px]" />

@@ -142,6 +142,7 @@ class Villa(BaseModel):
     amenities: List[str] = []
     images: List[str] = []
     thumbnail: Optional[str] = None
+    video_url: Optional[str] = None
     base_price: float  # Per night weekday price
     weekend_price: Optional[float] = None
     seasonal_pricing: Optional[Dict[str, float]] = None  # {"peak": 50000, "off": 30000}
@@ -181,6 +182,7 @@ class VillaCreate(BaseModel):
     amenities: List[str] = []
     images: List[str] = []
     thumbnail: Optional[str] = None
+    video_url: Optional[str] = None
     base_price: float
     weekend_price: Optional[float] = None
     seasonal_pricing: Optional[Dict[str, float]] = None
@@ -249,6 +251,10 @@ class PrivateOffer(BaseModel):
     villa_name: str
     villa_location: Optional[str] = None
     bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    map_link: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     amenities: List[str] = []
     # Guest details
     guest_name: str
@@ -287,6 +293,8 @@ class PrivateOfferCreate(BaseModel):
     custom_villa_name: Optional[str] = None
     custom_villa_location: Optional[str] = None
     custom_bedrooms: Optional[int] = None
+    custom_bathrooms: Optional[int] = None
+    custom_map_link: Optional[str] = None
     amenities: List[str] = []  # catalog villa: defaults to its own list if left empty; custom villa: picked manually
     guest_name: str
     guest_email: str
@@ -2913,6 +2921,22 @@ async def make_current_user_owner(user: User = Depends(require_auth)):
 
 # ==================== PRIVATE OFFERS (NEGOTIATED PRICING) ====================
 
+def _extract_latlng_from_map_link(map_link: Optional[str]) -> tuple:
+    """Pull a lat/lng pair out of a full (non-shortened) Google Maps URL.
+    Prefers the precise pin coordinates in a "place" URL's data segment
+    (!3d{lat}!4d{lng}) over the coarser viewport-center coordinates
+    (@lat,lng,zoom) when both are present. Short links (maps.app.goo.gl/...)
+    don't contain coordinates in the URL itself - those return (None, None)."""
+    if not map_link:
+        return (None, None)
+    place_match = re.search(r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", map_link)
+    if place_match:
+        return (float(place_match.group(1)), float(place_match.group(2)))
+    viewport_match = re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", map_link)
+    if viewport_match:
+        return (float(viewport_match.group(1)), float(viewport_match.group(2)))
+    return (None, None)
+
 def _resolve_offer_villa(offer_data: PrivateOfferCreate, villa_doc: Optional[dict]) -> dict:
     """Resolve villa fields for a private offer - from the catalog villa doc
     if villa_id was given, or from the custom_* fields for an off-catalog
@@ -2924,16 +2948,25 @@ def _resolve_offer_villa(offer_data: PrivateOfferCreate, villa_doc: Optional[dic
             "villa_name": villa_doc["name"],
             "villa_location": f"{villa_doc.get('location', '')}, {villa_doc.get('region', 'Goa')}",
             "bedrooms": villa_doc.get("bedrooms"),
+            "bathrooms": villa_doc.get("bathrooms"),
+            "map_link": villa_doc.get("map_link"),
+            "latitude": villa_doc.get("latitude"),
+            "longitude": villa_doc.get("longitude"),
             "amenities": offer_data.amenities or villa_doc.get("amenities", []),
             "commission_percent": villa_doc.get("commission_percent", 30.0),
             "default_security_deposit": villa_doc.get("security_deposit") or 20000,
         }
     if not offer_data.custom_villa_name:
         raise HTTPException(status_code=400, detail="custom_villa_name is required when no villa_id is given")
+    latitude, longitude = _extract_latlng_from_map_link(offer_data.custom_map_link)
     return {
         "villa_name": offer_data.custom_villa_name,
         "villa_location": offer_data.custom_villa_location or "",
         "bedrooms": offer_data.custom_bedrooms,
+        "bathrooms": offer_data.custom_bathrooms,
+        "map_link": offer_data.custom_map_link,
+        "latitude": latitude,
+        "longitude": longitude,
         "amenities": offer_data.amenities,
         "commission_percent": 30.0,
         "default_security_deposit": 20000,
@@ -3005,6 +3038,10 @@ async def create_private_offer(offer_data: PrivateOfferCreate, request: Request,
         villa_name=resolved["villa_name"],
         villa_location=resolved["villa_location"],
         bedrooms=resolved["bedrooms"],
+        bathrooms=resolved["bathrooms"],
+        map_link=resolved["map_link"],
+        latitude=resolved["latitude"],
+        longitude=resolved["longitude"],
         amenities=resolved["amenities"],
         guest_name=offer_data.guest_name,
         guest_email=offer_data.guest_email,
@@ -3076,6 +3113,10 @@ async def update_private_offer(offer_id: str, offer_data: PrivateOfferCreate, us
         "villa_name": resolved["villa_name"],
         "villa_location": resolved["villa_location"],
         "bedrooms": resolved["bedrooms"],
+        "bathrooms": resolved["bathrooms"],
+        "map_link": resolved["map_link"],
+        "latitude": resolved["latitude"],
+        "longitude": resolved["longitude"],
         "amenities": resolved["amenities"],
         "guest_name": offer_data.guest_name,
         "guest_email": offer_data.guest_email,
@@ -3109,6 +3150,14 @@ async def list_private_offers(user: User = Depends(require_admin)):
     """List all private offers"""
     offers = await db.private_offers.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return {"offers": offers}
+
+@api_router.delete("/admin/private-offers/{offer_id}")
+async def delete_private_offer(offer_id: str, user: User = Depends(require_admin)):
+    """Delete a private offer (admin only)"""
+    result = await db.private_offers.delete_one({"offer_id": offer_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    return {"message": "Offer deleted"}
 
 @api_router.get("/offer/{offer_id}")
 async def get_private_offer(offer_id: str):
