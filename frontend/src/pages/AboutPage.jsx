@@ -40,7 +40,7 @@ const AboutPage = () => {
       <section className="relative h-[60vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="/about-hero.jpg"
+            src="/about-hero.png"
             alt="About Travaholic Stays"
             className="w-full h-full object-cover"
           />
@@ -97,7 +97,7 @@ const AboutPage = () => {
             <div className="relative">
               <div className="aspect-[4/5] overflow-hidden">
                 <img
-                  src="/founder-ishan.jpg"
+                  src="/founder-ishan.png"
                   alt="Ishan Seth - Founder of Travaholic"
                   className="w-full h-full object-cover"
                 />
