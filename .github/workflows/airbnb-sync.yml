@@ -1,0 +1,34 @@
+name: Sync Airbnb Calendars
+
+# Free alternative to a Render Cron Job (which requires a paid plan) -
+# GitHub Actions' scheduled workflows are free for this repo's usage level.
+# Runs backend/scripts/sync_airbnb_calendars.py, which connects directly to
+# MongoDB Atlas and mirrors each villa's Airbnb export-calendar link into
+# blocked_dates. Only villas with an Airbnb iCal URL set (via the villa
+# admin form) are affected.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"  # every 6 hours, UTC
+  workflow_dispatch: {}  # lets you trigger a run manually from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run sync
+        working-directory: backend
+        env:
+          MONGO_URL: ${{ secrets.MONGO_URL }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        run: python scripts/sync_airbnb_calendars.py
