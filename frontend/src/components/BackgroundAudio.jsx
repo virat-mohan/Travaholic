@@ -8,7 +8,7 @@ const BackgroundAudio = () => {
   const audioRef = useRef(null);
 
   const audioUrl = "/travaholic-background.mp3";
-  const VOLUME = 0.1; // ambient background level, not full blast
+  const VOLUME = 0.04; // ambient background level, not full blast
 
   useEffect(() => {
     // Sound is on by default, so try to autoplay unmuted right away. Every
