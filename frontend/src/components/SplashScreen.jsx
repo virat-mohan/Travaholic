@@ -1,53 +1,41 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
-// A cinematic once-per-session intro: a chessboard of real property photos
-// fills in square by square in a diagonal wave, holds as a finished mosaic
-// with the wordmark breathing in over it, then dissolves into the homepage.
-const COLS = 5;
-const ROWS = 4;
+// A cinematic once-per-session intro: a small 3x3 collage centered on
+// screen, with the colorful round logo + wordmark sitting in the middle
+// cell and 8 real property photos revealing around it in a diagonal wave.
+// Nothing fills the rest of the screen - just black - so this stays quick
+// to load and doesn't compete with the branding for attention.
+const COLS = 3;
+const ROWS = 3;
+const CENTER_INDEX = 4;
 
 const GRID_IMAGES = [
   "/villas/la-sierra-11/Villa facade.jpg",
   "/villas/la-sierra-12/Pool area.jpeg",
-  "/villas/dream-villa/Villa facade.jpg",
   "/villas/dream-villa/Pool side.jpg",
   "/villas/la-selva-6/Villa facade.jpeg",
-  "/villas/la-selva-6/Pool side.jpeg",
-  "/villas/la-morena-4/Villa facade.jpg",
   "/villas/la-morena-4/Pool view.jpg",
-  "/villas/villa-serene/Villa facade.jpeg",
   "/villas/villa-serene/Pool area.jpeg",
-  "/villas/la-sierra-15/Pool Area.jpg",
-  "/villas/la-sierra-14/Pool side.jpg",
-  "/villas/la-maroma-2/Exterior Look.jpg",
-  "/villas/la-maroma-2/swimming pool.jpg",
   "/villas/clouds-nest/Cottage view.jpg",
   "/villas/eagle-nest/garden view 2.JPG",
-  "/villas/la-selva-3/External Look.jpg",
-  "/villas/la-selva-3/Swimming Pool 1.B.jpg",
-  "/villas/la-sierra-12/Living Room - Aerial View.jpeg",
-  "/villas/breezedale-mashobra/Living Room 1 (1).jpg",
 ];
 
-const CELL_COUNT = COLS * ROWS;
-const CELL_DURATION = 650; // ms each square takes to reveal
-const REVEAL_SPAN = 1500; // ms across which the wave sweeps the whole board
-const HOLD_MS = 700; // pause once fully filled, before dissolving to the site
+// The 9 grid positions minus the center, in reading order - GRID_IMAGES[i]
+// lands in IMAGE_POSITIONS[i].
+const IMAGE_POSITIONS = [0, 1, 2, 3, 5, 6, 7, 8];
+
+const CELL_DURATION = 550; // ms each square takes to reveal
+const REVEAL_SPAN = 900; // ms across which the wave sweeps the collage
+const HOLD_MS = 600; // pause once fully filled, before dissolving to the site
 const SESSION_KEY = "travaholic_splash_seen";
 
-// Diagonal fill order (top-left to bottom-right wave), with a slight
-// column-based offset so each diagonal doesn't pop in as one flat beat.
-const REVEAL_DELAYS = Array.from({ length: CELL_COUNT }, (_, i) => {
-  const row = Math.floor(i / COLS);
-  const col = i % COLS;
-  return row + col;
-});
-const MAX_DIAGONAL = Math.max(...REVEAL_DELAYS);
-const cellDelay = (i) => (REVEAL_DELAYS[i] / MAX_DIAGONAL) * REVEAL_SPAN;
+const diagonalOf = (i) => Math.floor(i / COLS) + (i % COLS);
+const MAX_DIAGONAL = Math.max(...IMAGE_POSITIONS.map(diagonalOf));
+const cellDelay = (gridPosition) => (diagonalOf(gridPosition) / MAX_DIAGONAL) * REVEAL_SPAN;
 
 const TOTAL_BOARD_MS = REVEAL_SPAN + CELL_DURATION;
-const MAX_LOAD_WAIT_MS = 6000; // safety cap - never trap a visitor on a black screen
+const MAX_LOAD_WAIT_MS = 4000; // safety cap - never trap a visitor on a black screen
 
 const SplashScreen = ({ onComplete }) => {
   const [imagesReady, setImagesReady] = useState(false);
@@ -63,11 +51,8 @@ const SplashScreen = ({ onComplete }) => {
     setTimeout(onComplete, 700);
   };
 
-  // Preload every grid photo before starting the reveal - on a real network
-  // (as opposed to local dev) these can take longer than the animation
-  // itself to arrive, so the wave must wait for them rather than run on a
-  // fixed clock. A safety timeout still lets the site through if a photo
-  // is slow or fails outright.
+  // Preload the (small) set of grid photos before starting the reveal -
+  // only 8 images now, so this settles quickly even on a real network.
   useEffect(() => {
     let loadedCount = 0;
     let settled = false;
@@ -111,69 +96,70 @@ const SplashScreen = ({ onComplete }) => {
 
   return (
     <motion.div
-      className="fixed inset-0 z-[200] bg-black cursor-pointer overflow-hidden"
+      className="fixed inset-0 z-[200] bg-black cursor-pointer overflow-hidden flex flex-col items-center justify-center"
       animate={{ opacity: visible ? 1 : 0, scale: visible ? 1 : 1.03 }}
       transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
       onClick={finish}
       data-testid="splash-screen"
       style={{ pointerEvents: visible ? "auto" : "none" }}
     >
-      {/* Chessboard grid - every square holds a different real property photo */}
+      {/* 3x3 collage - 8 real photos around the wordmark, nothing else on screen */}
       <div
-        className="absolute inset-0 grid gap-[2px] bg-black"
+        className="grid gap-[3px] w-[70vmin] h-[70vmin] max-w-[560px] max-h-[560px]"
         style={{
           gridTemplateColumns: `repeat(${COLS}, 1fr)`,
           gridTemplateRows: `repeat(${ROWS}, 1fr)`,
         }}
       >
-        {GRID_IMAGES.map((src, i) => (
-          <div key={src} className="relative overflow-hidden bg-neutral-900">
-            <img
-              src={src}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover ease-out"
-              style={{
-                transitionProperty: "opacity, transform",
-                transitionDuration: `${CELL_DURATION}ms`,
-                transitionDelay: `${cellDelay(i)}ms`,
-                opacity: filled ? 1 : 0,
-                transform: filled ? "scale(1)" : "scale(1.2)",
-              }}
-            />
-          </div>
-        ))}
+        {Array.from({ length: COLS * ROWS }, (_, position) => {
+          if (position === CENTER_INDEX) {
+            return (
+              <div
+                key="center"
+                className="flex flex-col items-center justify-center bg-black px-2"
+              >
+                <img
+                  src="/Travaholic_color_logo-removebg-preview.png"
+                  alt="Travaholic"
+                  className="w-[55%] h-auto object-contain mb-2"
+                />
+                <p className="font-heading text-sm md:text-lg text-white uppercase tracking-[0.25em] text-center">
+                  Travaholic
+                </p>
+              </div>
+            );
+          }
+
+          const imgIndex = IMAGE_POSITIONS.indexOf(position);
+          const src = GRID_IMAGES[imgIndex];
+          return (
+            <div key={src} className="relative overflow-hidden bg-neutral-900">
+              <img
+                src={src}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover ease-out"
+                style={{
+                  transitionProperty: "opacity, transform",
+                  transitionDuration: `${CELL_DURATION}ms`,
+                  transitionDelay: `${cellDelay(position)}ms`,
+                  opacity: filled ? 1 : 0,
+                  transform: filled ? "scale(1)" : "scale(1.2)",
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Scrim for wordmark legibility, fades in once the board is nearly full */}
-      <div
-        className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/25 to-black/60 ease-out"
-        style={{
-          transitionProperty: "opacity",
-          transitionDuration: "600ms",
-          transitionDelay: `${REVEAL_SPAN * 0.55}ms`,
-          opacity: filled ? 1 : 0,
-        }}
-      />
-
-      {/* Wordmark + tagline */}
-      <div className="relative z-10 h-full flex flex-col items-center justify-center text-center px-6">
-        <motion.p
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, ease: "easeOut", delay: (REVEAL_SPAN * 0.7) / 1000 }}
-          className="font-heading text-3xl md:text-5xl text-white uppercase tracking-[0.35em]"
-        >
-          Travaholic
-        </motion.p>
-        <motion.p
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: (REVEAL_SPAN * 0.85) / 1000 }}
-          className="mt-4 text-xs md:text-sm uppercase tracking-[0.3em] text-white/70"
-        >
-          Ultra-Luxury Villas in Goa &amp; Beyond
-        </motion.p>
-      </div>
+      {/* Tagline */}
+      <motion.p
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.5 }}
+        className="mt-6 text-xs md:text-sm uppercase tracking-[0.3em] text-white/70 text-center px-6"
+      >
+        Ultra-Luxury Villas in Goa &amp; Beyond
+      </motion.p>
 
       {/* Skip hint */}
       <motion.p
