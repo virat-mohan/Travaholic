@@ -936,6 +936,8 @@ const AdminBookings = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState(null);
 
   useEffect(() => {
     fetchBookings();
@@ -972,6 +974,33 @@ const AdminBookings = () => {
     }
   };
 
+  const openEditModal = (booking) => {
+    setEditFormData({
+      booking_id: booking.booking_id,
+      guest_name: booking.guest_name || "",
+      guest_email: booking.guest_email || "",
+      guest_phone: booking.guest_phone || "",
+      check_in: booking.check_in || "",
+      check_out: booking.check_out || "",
+      num_guests: booking.num_guests || 1,
+      total_booking_amount: booking.total_booking_amount || booking.total_amount || 0,
+      security_deposit: booking.security_deposit || 0,
+    });
+    setShowEditModal(true);
+  };
+
+  const saveEditedBooking = async () => {
+    try {
+      const { booking_id, ...payload } = editFormData;
+      await axios.put(`${API}/bookings/${booking_id}`, payload, { headers: getAuthHeaders() });
+      toast.success("Booking updated");
+      setShowEditModal(false);
+      fetchBookings();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to update booking"));
+    }
+  };
+
   const [paymentModalData, setPaymentModalData] = useState({
     bookingId: null,
     paymentType: 'advance',
@@ -994,7 +1023,7 @@ const AdminBookings = () => {
   const markPaymentReceived = async () => {
     try {
       const { bookingId, paymentType, amount, paymentMode } = paymentModalData;
-      let url = `${API}/admin/bookings/${bookingId}/mark-payment?payment_type=${paymentType}&send_confirmation=${paymentType === 'full'}&payment_mode=${paymentMode}`;
+      let url = `${API}/admin/bookings/${bookingId}/mark-payment?payment_type=${paymentType}&send_confirmation=true&payment_mode=${paymentMode}`;
       if (amount) url += `&amount=${amount}`;
       
       const response = await axios.post(url, {}, { headers: getAuthHeaders() });
@@ -1153,6 +1182,9 @@ const AdminBookings = () => {
                      booking.payment_status || 'Pending Payment'}
                   </span>
                   <div className="flex flex-wrap gap-2 mt-2">
+                    <Button size="sm" variant="ghost" onClick={() => openEditModal(booking)} title="Edit booking">
+                      <Edit size={14} />
+                    </Button>
                     {/* Payment Actions */}
                     {booking.booking_status === 'pending' && !booking.full_payment_received && (
                       <>
@@ -1277,6 +1309,65 @@ const AdminBookings = () => {
             </DialogClose>
             <Button onClick={markPaymentReceived} className="btn-luxury">
               Confirm Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Booking Modal */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Booking</DialogTitle>
+          </DialogHeader>
+          {editFormData && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Guest Name</label>
+                  <Input value={editFormData.guest_name} onChange={(e) => setEditFormData({ ...editFormData, guest_name: e.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Guest Phone</label>
+                  <Input value={editFormData.guest_phone} onChange={(e) => setEditFormData({ ...editFormData, guest_phone: e.target.value })} className="mt-1" />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Guest Email</label>
+                <Input type="email" value={editFormData.guest_email} onChange={(e) => setEditFormData({ ...editFormData, guest_email: e.target.value })} className="mt-1" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Check-in</label>
+                  <Input type="date" value={editFormData.check_in} onChange={(e) => setEditFormData({ ...editFormData, check_in: e.target.value })} className="mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Check-out</label>
+                  <Input type="date" value={editFormData.check_out} onChange={(e) => setEditFormData({ ...editFormData, check_out: e.target.value })} className="mt-1" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Guests</label>
+                  <Input type="number" min="1" value={editFormData.num_guests} onChange={(e) => setEditFormData({ ...editFormData, num_guests: parseInt(e.target.value) || 1 })} className="mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Total Amount (₹)</label>
+                  <Input type="number" value={editFormData.total_booking_amount} onChange={(e) => setEditFormData({ ...editFormData, total_booking_amount: parseFloat(e.target.value) || 0 })} className="mt-1" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Security Deposit (₹)</label>
+                  <Input type="number" value={editFormData.security_deposit} onChange={(e) => setEditFormData({ ...editFormData, security_deposit: parseFloat(e.target.value) || 0 })} className="mt-1" />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button onClick={saveEditedBooking} className="btn-luxury">
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

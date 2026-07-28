@@ -1711,14 +1711,21 @@ async def mark_payment_received(
         update_data["balance_amount"] = 0
     
     await db.bookings.update_one({"booking_id": booking_id}, {"$set": update_data})
-    
-    # Send confirmation if requested
+
+    # Send a payment-receipt email whenever a payment is recorded - advance
+    # or full - not just once at final confirmation.
     confirmation_sent = False
-    if send_confirmation and payment_type == "full":
-        # Get updated booking
+    if send_confirmation and payment_type in ("advance", "full"):
         updated_booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
-        
-        # Try to send email confirmation
+        if payment_type == "advance":
+            received_amount = amount if amount is not None else updated_booking.get("advance_amount", 0)
+            received_mode = payment_mode
+            subject = f"Advance Payment Received - {villa['name']} | Travaholic Stays"
+        else:
+            received_amount = amount if amount is not None else booking.get("balance_amount", booking.get("total_booking_amount", booking.get("total_amount", 0)))
+            received_mode = payment_mode
+            subject = f"Booking Confirmed - {villa['name']} | Travaholic Stays"
+
         try:
             resend_key = os.environ.get("RESEND_API_KEY")
             if resend_key and not resend_key.startswith("re_"):
@@ -1726,8 +1733,11 @@ async def mark_payment_received(
                 resend.Emails.send({
                     "from": "Travaholic Stays <bookings@travaholicstays.com>",
                     "to": [updated_booking["guest_email"]],
-                    "subject": f"Booking Confirmed - {villa['name']} | Travaholic Stays",
-                    "html": generate_confirmation_email_html(updated_booking, villa)
+                    "subject": subject,
+                    "html": generate_confirmation_email_html(
+                        updated_booking, villa,
+                        payment_type=payment_type, payment_amount=received_amount, payment_mode=received_mode,
+                    )
                 })
                 confirmation_sent = True
         except Exception as e:
@@ -1761,10 +1771,46 @@ async def get_booking_confirmation_pdf(booking_id: str, user: User = Depends(req
         }
     )
 
-def generate_confirmation_email_html(booking: dict, villa: dict) -> str:
-    """Generate HTML email for booking confirmation (after payment)"""
+def generate_confirmation_email_html(
+    booking: dict, villa: dict,
+    payment_type: Optional[str] = None,
+    payment_amount: Optional[float] = None,
+    payment_mode: Optional[str] = None,
+) -> str:
+    """Generate HTML email for booking confirmation. When payment_type is
+    "advance" or "full", a payment-received receipt is shown at the top -
+    this same email doubles as the receipt sent whenever a payment is
+    recorded, not just once at final confirmation."""
     gst_amount = booking.get('gst_amount', 0)
     subtotal = booking.get('subtotal', 0)
+    receipt_html = ""
+    if payment_type and payment_amount is not None:
+        mode_label = (payment_mode or "").upper()
+        if payment_type == "advance":
+            balance = booking.get('balance_amount', 0)
+            receipt_html = f"""
+                <div class="section" style="border-left-color:#C9A876;">
+                    <h2>PAYMENT RECEIPT</h2>
+                    <div class="detail-row">
+                        <span class="label">Advance Received</span>
+                        <span class="value">₹{payment_amount:,.0f}{' via ' + mode_label if mode_label else ''}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Balance Due</span>
+                        <span class="value">₹{balance:,.0f}</span>
+                    </div>
+                </div>
+            """
+        else:
+            receipt_html = f"""
+                <div class="section" style="border-left-color:#C9A876;">
+                    <h2>PAYMENT RECEIPT</h2>
+                    <div class="detail-row">
+                        <span class="label">Full Payment Received</span>
+                        <span class="value">₹{payment_amount:,.0f}{' via ' + mode_label if mode_label else ''}</span>
+                    </div>
+                </div>
+            """
     return f"""
     <!DOCTYPE html>
     <html>
@@ -1789,13 +1835,13 @@ def generate_confirmation_email_html(booking: dict, villa: dict) -> str:
         <div class="container">
             <div class="header">
                 <h1>TRAVAHOLIC STAYS</h1>
-                <p style="margin: 5px 0 0 0; opacity: 0.9;">Booking Confirmed</p>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">{"Payment Received" if payment_type else "Booking Confirmed"}</p>
             </div>
-            
+
             <div class="content">
                 <p>Dear <strong>{booking['guest_name']}</strong>,</p>
-                <p>Greetings from Travaholic Stays! Your booking has been confirmed. We look forward to hosting you in Goa.</p>
-                
+                <p>Greetings from Travaholic Stays! {"We've received your payment - thank you." if payment_type else "Your booking has been confirmed."} We look forward to hosting you in Goa.</p>
+                {receipt_html}
                 <div class="section">
                     <h2>VILLA DETAILS</h2>
                     <div class="detail-row">
