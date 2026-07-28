@@ -3,41 +3,23 @@ import { Volume2, VolumeX } from "lucide-react";
 import { motion } from "framer-motion";
 
 const BackgroundAudio = () => {
-  const [isMuted, setIsMuted] = useState(false);
+  // Off by default - the previous version auto-started playback on the
+  // user's very first click or tap ANYWHERE on the page (nav links,
+  // buttons, everything), so music kicked in unexpectedly no matter how
+  // quiet it was set. That surprise, not the volume number, was almost
+  // certainly what kept reading as "too loud." Now it only plays when
+  // someone deliberately clicks this button.
+  const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
 
   const audioUrl = "/travaholic-background.mp3";
-  const VOLUME = 0.015; // ambient background level, not full blast
+  const VOLUME = 0.15; // fine to be a normal ambient level now that it's opt-in
 
   useEffect(() => {
-    // Sound is on by default, so try to autoplay unmuted right away. Every
-    // major browser blocks unmuted autoplay without a prior user gesture,
-    // so this will usually be rejected on a first-ever visit - the
-    // first-interaction fallback below (unmuted, unlike before) covers
-    // that case instead of silently staying muted forever.
     if (audioRef.current) {
       audioRef.current.volume = VOLUME;
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
     }
-
-    const handleFirstInteraction = () => {
-      if (audioRef.current) {
-        audioRef.current.muted = false;
-        audioRef.current.volume = VOLUME;
-        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
-      }
-      document.removeEventListener('click', handleFirstInteraction);
-      document.removeEventListener('touchstart', handleFirstInteraction);
-    };
-
-    document.addEventListener('click', handleFirstInteraction);
-    document.addEventListener('touchstart', handleFirstInteraction);
-
-    return () => {
-      document.removeEventListener('click', handleFirstInteraction);
-      document.removeEventListener('touchstart', handleFirstInteraction);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -51,6 +33,7 @@ const BackgroundAudio = () => {
         }).catch(console.error);
       } else {
         audioRef.current.muted = true;
+        setIsPlaying(false);
       }
       setIsMuted(!isMuted);
     }
