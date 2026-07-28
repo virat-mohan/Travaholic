@@ -27,7 +27,7 @@ const IMAGE_POSITIONS = [0, 1, 2, 3, 5, 6, 7, 8];
 
 const CELL_DURATION = 550; // ms each square takes to reveal
 const REVEAL_SPAN = 900; // ms across which the wave sweeps the collage
-const HOLD_MS = 3000; // pause once fully filled, before dissolving to the site
+const HOLD_MS = 5000; // pause once fully filled, before dissolving to the site
 const SESSION_KEY = "travaholic_splash_seen";
 
 const diagonalOf = (i) => Math.floor(i / COLS) + (i % COLS);
@@ -101,7 +101,7 @@ const SplashScreen = ({ onComplete }) => {
           "TRAVAHOLIC" wordmark inside it stays legible on small screens
           instead of shrinking down to the size of one collage tile. */}
       <div
-        className="relative grid gap-[3px] w-[92vmin] h-[92vmin] max-w-[680px] max-h-[680px]"
+        className="relative grid gap-[3px] w-[95vmin] h-[95vmin] max-w-[760px] max-h-[760px]"
         style={{
           gridTemplateColumns: `repeat(${COLS}, 1fr)`,
           gridTemplateRows: `repeat(${ROWS}, 1fr)`,
