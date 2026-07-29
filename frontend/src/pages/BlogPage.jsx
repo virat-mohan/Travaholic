@@ -61,7 +61,7 @@ const BlogPage = () => {
         <link rel="canonical" href="https://travaholicstays.com/blog" />
       </Helmet>
 
-      <div data-testid="blog-page">
+      <div className="pt-24 min-h-screen bg-background" data-testid="blog-page">
         {/* Hero Section */}
         <section className="bg-foreground text-background py-20">
           <div className="container-luxury text-center">

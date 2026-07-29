@@ -148,7 +148,7 @@ const BlogPostPage = () => {
         </script>
       </Helmet>
 
-      <div data-testid="blog-post-page">
+      <div className="pt-24 min-h-screen bg-background" data-testid="blog-post-page">
         {/* Breadcrumb */}
         <div className="border-b border-border">
           <div className="container-luxury py-4">
