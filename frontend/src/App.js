@@ -37,6 +37,7 @@ const lazyWithReload = (importFn) =>
 
 const HomePage = lazyWithReload(() => import("./pages/HomePage"));
 const VillasPage = lazyWithReload(() => import("./pages/VillasPage"));
+const ServicesPage = lazyWithReload(() => import("./pages/ServicesPage"));
 const VillaDetailPage = lazyWithReload(() => import("./pages/VillaDetailPage"));
 const AboutPage = lazyWithReload(() => import("./pages/AboutPage"));
 const ContactPage = lazyWithReload(() => import("./pages/ContactPage"));
@@ -231,6 +232,14 @@ function AppRouter() {
         element={
           <PublicLayout>
             <VillaDetailPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/services"
+        element={
+          <PublicLayout>
+            <ServicesPage />
           </PublicLayout>
         }
       />
