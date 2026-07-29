@@ -964,11 +964,18 @@ const VillaForm = ({ villa, onSuccess }) => {
                 >
                   <img src={url} alt="" className="w-full h-full object-cover" />
                 </button>
-                {formData.thumbnail === url && (
-                  <div className="absolute top-1 left-1 bg-accent text-accent-foreground rounded-full p-1" title="Opens first on the villa page">
-                    <Star size={10} fill="currentColor" />
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleSetThumbnail(url)}
+                  title={formData.thumbnail === url ? "Opens first on the villa page" : "Set as opening photo"}
+                  className={`absolute top-1 left-1 rounded-full p-1 transition-colors ${
+                    formData.thumbnail === url
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-foreground/60 text-background/80 opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-accent-foreground"
+                  }`}
+                >
+                  <Star size={10} fill={formData.thumbnail === url ? "currentColor" : "none"} />
+                </button>
                 <button
                   type="button"
                   onClick={() => handleRemoveImage(url)}

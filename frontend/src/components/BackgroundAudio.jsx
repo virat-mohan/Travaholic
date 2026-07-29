@@ -46,7 +46,7 @@ const BackgroundAudio = () => {
         src={audioUrl}
         loop
         muted={isMuted}
-        preload="auto"
+        preload="none"
       />
       
       <motion.button

@@ -71,10 +71,11 @@ const VillaDetailPage = () => {
       // photo happened to be uploaded/ordered first.
       const thumbIndex = response.data.images?.indexOf(response.data.thumbnail);
       setSelectedImageIndex(thumbIndex > 0 ? thumbIndex : 0);
-      // Fetch availability
-      const availResponse = await axios.get(`${API}/villas/${response.data.villa_id}/availability`);
-      const blocked = availResponse.data.blocked_dates || [];
-      setBlockedDates(blocked);
+      // Availability only gates the booking date-picker, not the rest of
+      // the page - stop blocking the initial render on it, fetch it after.
+      axios.get(`${API}/villas/${response.data.villa_id}/availability`)
+        .then((availResponse) => setBlockedDates(availResponse.data.blocked_dates || []))
+        .catch((error) => console.error("Error fetching availability:", error));
     } catch (error) {
       console.error("Error fetching villa:", error);
       toast.error("Villa not found");
@@ -426,7 +427,7 @@ const VillaDetailPage = () => {
                 <div className={`aspect-[4/3] overflow-hidden ${
                   index === selectedImageIndex ? "ring-2 ring-accent" : ""
                 }`}>
-                  <img src={img} alt={`${villa.name} ${index + 1}`} className="w-full h-full object-cover" />
+                  <img src={img} alt={`${villa.name} ${index + 1}`} loading="lazy" className="w-full h-full object-cover" />
                 </div>
                 {/* Thumbnail Caption Below */}
                 <p className="text-sm text-muted-foreground mt-2 truncate">

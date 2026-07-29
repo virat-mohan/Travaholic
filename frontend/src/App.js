@@ -1,23 +1,25 @@
-import { useEffect, useState, useRef, createContext, useContext } from "react";
+import { useEffect, useState, useRef, createContext, useContext, Suspense, lazy } from "react";
 import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Link } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import axios from "axios";
 
-// Pages
-import HomePage from "./pages/HomePage";
-import VillasPage from "./pages/VillasPage";
-import VillaDetailPage from "./pages/VillaDetailPage";
-import AboutPage from "./pages/AboutPage";
-import ContactPage from "./pages/ContactPage";
-import ListYourVillaPage from "./pages/ListYourVillaPage";
-import BlogPage from "./pages/BlogPage";
-import LoginPage from "./pages/LoginPage";
-import AcceptInvitePage from "./pages/AcceptInvitePage";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import OwnerDashboard from "./pages/owner/OwnerDashboard";
-import PrivateOfferPage from "./pages/PrivateOfferPage";
-import BlogPostPage from "./pages/BlogPostPage";
+// Pages - lazy-loaded per route so a villa-page visitor's browser never has
+// to download the (much larger) admin/owner dashboard bundles, and vice
+// versa. Was previously one single bundle for every page on the site.
+const HomePage = lazy(() => import("./pages/HomePage"));
+const VillasPage = lazy(() => import("./pages/VillasPage"));
+const VillaDetailPage = lazy(() => import("./pages/VillaDetailPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const ContactPage = lazy(() => import("./pages/ContactPage"));
+const ListYourVillaPage = lazy(() => import("./pages/ListYourVillaPage"));
+const BlogPage = lazy(() => import("./pages/BlogPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const AcceptInvitePage = lazy(() => import("./pages/AcceptInvitePage"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const OwnerDashboard = lazy(() => import("./pages/owner/OwnerDashboard"));
+const PrivateOfferPage = lazy(() => import("./pages/PrivateOfferPage"));
+const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 
 // Components
 import Navbar from "./components/Navbar";
@@ -169,8 +171,15 @@ const ScrollToTop = () => {
 };
 
 // App Router Component
+const RouteLoadingFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+  </div>
+);
+
 function AppRouter() {
   return (
+    <Suspense fallback={<RouteLoadingFallback />}>
     <Routes>
       {/* Public Routes */}
       <Route
@@ -280,6 +289,7 @@ function AppRouter() {
         }
       />
     </Routes>
+    </Suspense>
   );
 }
 
