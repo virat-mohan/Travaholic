@@ -20,5 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping backend health endpoint
+        # Cold starts can take 50s+ per Render's own docs, so give this
+        # plenty of headroom and retry once - and don't fail the workflow
+        # run over an occasional slow cold start, since the ping still
+        # reaches the server and wakes it either way.
         run: |
-          curl -sS -o /dev/null -w "HTTP %{http_code}\n" --max-time 90 "${{ secrets.BACKEND_URL }}/api/health"
+          curl -sS -o /dev/null -w "HTTP %{http_code}\n" --max-time 150 --retry 1 --retry-delay 5 "${{ secrets.BACKEND_URL }}/api/health" || echo "Ping timed out or failed - server was likely cold-starting, should be warm now"
