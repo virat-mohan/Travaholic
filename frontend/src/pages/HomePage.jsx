@@ -421,11 +421,11 @@ const HomePage = () => {
                   alt="Luxury villa pool deck"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute bottom-4 left-4 flex items-center gap-2.5 bg-white/15 backdrop-blur-md border border-white/50 shadow-lg px-3.5 py-2.5">
+                <div className="absolute bottom-3 left-3 right-3 sm:right-auto flex items-center gap-2 sm:gap-2.5 bg-white/15 backdrop-blur-md border border-white/50 shadow-lg px-2.5 sm:px-3.5 py-2 sm:py-2.5 max-w-full">
                   <Home size={16} className="text-white shrink-0" strokeWidth={1.5} />
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-base font-semibold leading-none text-white mb-1 [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">20+</p>
-                    <p className="text-[10px] uppercase tracking-wider text-white/90 whitespace-nowrap [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">
+                    <p className="text-[10px] uppercase tracking-wider text-white/90 [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">
                       Luxury Properties
                     </p>
                   </div>
@@ -437,11 +437,11 @@ const HomePage = () => {
                   alt="Luxury villa pool at twilight"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute bottom-4 left-4 flex items-center gap-2.5 bg-white/15 backdrop-blur-md border border-white/50 shadow-lg px-3.5 py-2.5">
+                <div className="absolute bottom-3 left-3 right-3 sm:right-auto flex items-center gap-2 sm:gap-2.5 bg-white/15 backdrop-blur-md border border-white/50 shadow-lg px-2.5 sm:px-3.5 py-2 sm:py-2.5 max-w-full">
                   <Users size={16} className="text-white shrink-0" strokeWidth={1.5} />
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-base font-semibold leading-none text-white mb-1 [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">25,000+</p>
-                    <p className="text-[10px] uppercase tracking-wider text-white/90 whitespace-nowrap [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">
+                    <p className="text-[10px] uppercase tracking-wider text-white/90 [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">
                       Happy Guests
                     </p>
                   </div>
