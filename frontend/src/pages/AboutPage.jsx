@@ -42,12 +42,12 @@ const AboutPage = () => {
         <meta name="description" content="Learn the Travaholic Stays story - a curated collection of ultra-luxury villas across Goa, Mussoorie, and Himachal Pradesh, backed by 25,000+ happy guests and a dedicated concierge team." />
         <meta property="og:title" content="About Us | Travaholic Stays" />
         <meta property="og:description" content="The Travaholic Stays story - handpicked luxury villas, 25,000+ happy guests, and a dedicated concierge team." />
-        <meta property="og:image" content="https://travaholicstays.com/about-hero.png" />
+        <meta property="og:image" content="https://travaholicstays.com/villas/la-selva-3/External%20Look.jpg" />
         <meta property="og:url" content="https://travaholicstays.com/about" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="About Us | Travaholic Stays" />
         <meta name="twitter:description" content="The Travaholic Stays story - handpicked luxury villas, 25,000+ happy guests, and a dedicated concierge team." />
-        <meta name="twitter:image" content="https://travaholicstays.com/about-hero.png" />
+        <meta name="twitter:image" content="https://travaholicstays.com/villas/la-selva-3/External%20Look.jpg" />
         <link rel="canonical" href="https://travaholicstays.com/about" />
       </Helmet>
 
@@ -55,7 +55,7 @@ const AboutPage = () => {
       <section className="relative h-[60vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="/about-hero.png"
+            src="/villas/la-selva-3/External%20Look.jpg"
             alt="About Travaholic Stays"
             className="w-full h-full object-cover"
           />
@@ -117,7 +117,7 @@ const AboutPage = () => {
                   className="w-full h-full object-cover"
                 />
               </div>
-              <div className="absolute -bottom-8 -left-8 bg-accent text-accent-foreground p-8 w-48">
+              <div className="absolute -bottom-8 -left-8 bg-gradient-to-br from-accent to-[#A8875C] text-accent-foreground p-8 w-48 shadow-2xl">
                 <p className="text-4xl font-heading mb-2">2016</p>
                 <p className="text-sm uppercase tracking-wider">Est.</p>
               </div>

@@ -515,15 +515,16 @@ const VillaDetailPage = () => {
 
             {/* Concierge USP */}
             <div className="py-8 border-t border-border">
-              <div className="relative border border-accent/30 bg-gradient-to-br from-accent/10 via-transparent to-transparent p-8 overflow-hidden">
-                <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-accent/10 blur-3xl" />
+              <div className="relative border border-zinc-300 bg-gradient-to-br from-zinc-200 via-zinc-50 to-zinc-300 p-8 overflow-hidden shadow-xl">
+                <div className="absolute -inset-y-16 -left-1/4 w-1/3 rotate-12 bg-gradient-to-r from-transparent via-white/70 to-transparent pointer-events-none" />
                 <div className="relative flex items-start gap-4">
-                  <div className="w-11 h-11 rounded-full bg-accent/15 flex items-center justify-center shrink-0">
-                    <MessageCircle size={18} className="text-accent" strokeWidth={1.5} />
+                  <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center shrink-0 shadow-md">
+                    <MessageCircle size={20} className="text-accent-foreground" strokeWidth={1.5} />
                   </div>
                   <div>
-                    <h3 className="font-heading text-xl mb-3">Your Personal Concierge</h3>
-                    <p className="text-muted-foreground leading-relaxed">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500 mb-1.5">Signature Service</p>
+                    <h3 className="font-heading text-xl mb-3 text-zinc-900">Your Personal Concierge</h3>
+                    <p className="text-zinc-600 leading-relaxed">
                       Experience the art of effortless travel with your dedicated concierge.
                       From curated dining reservations at Goa's finest restaurants to bespoke
                       experiences, adventure activities, and hidden local gems — we craft every

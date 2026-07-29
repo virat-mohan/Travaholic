@@ -380,15 +380,16 @@ const HomePage = () => {
               </p>
               
               {/* Concierge USP */}
-              <div className="relative border border-accent/30 bg-gradient-to-br from-accent/10 via-transparent to-transparent p-8 mb-8 overflow-hidden">
-                <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-accent/10 blur-3xl" />
+              <div className="relative border border-zinc-300 bg-gradient-to-br from-zinc-200 via-zinc-50 to-zinc-300 p-8 mb-8 overflow-hidden shadow-xl">
+                <div className="absolute -inset-y-16 -left-1/4 w-1/3 rotate-12 bg-gradient-to-r from-transparent via-white/70 to-transparent pointer-events-none" />
                 <div className="relative flex items-start gap-4">
-                  <div className="w-11 h-11 rounded-full bg-accent/15 flex items-center justify-center shrink-0">
-                    <MessageCircle size={18} className="text-accent" strokeWidth={1.5} />
+                  <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center shrink-0 shadow-md">
+                    <MessageCircle size={20} className="text-accent-foreground" strokeWidth={1.5} />
                   </div>
                   <div>
-                    <h3 className="font-heading text-xl mb-3">Your Personal Concierge</h3>
-                    <p className="text-muted-foreground leading-relaxed">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500 mb-1.5">Signature Service</p>
+                    <h3 className="font-heading text-xl mb-3 text-zinc-900">Your Personal Concierge</h3>
+                    <p className="text-zinc-600 leading-relaxed">
                       Experience the art of effortless travel with your dedicated concierge.
                       From curated dining reservations at Goa's finest restaurants to bespoke
                       experiences, adventure activities, and hidden local gems — we craft every
@@ -420,11 +421,11 @@ const HomePage = () => {
                   alt="Luxury villa pool deck"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute bottom-4 left-4 flex items-center gap-2.5 bg-white/95 shadow-md px-3.5 py-2.5">
-                  <Home size={16} className="text-accent shrink-0" strokeWidth={1.5} />
+                <div className="absolute bottom-4 left-4 flex items-center gap-2.5 bg-white/15 backdrop-blur-md border border-white/50 shadow-lg px-3.5 py-2.5">
+                  <Home size={16} className="text-white shrink-0" strokeWidth={1.5} />
                   <div>
-                    <p className="text-base font-semibold leading-none text-foreground mb-1">20+</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                    <p className="text-base font-semibold leading-none text-white mb-1 [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">20+</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/90 whitespace-nowrap [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">
                       Luxury Properties
                     </p>
                   </div>
@@ -436,11 +437,11 @@ const HomePage = () => {
                   alt="Luxury villa pool at twilight"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute bottom-4 left-4 flex items-center gap-2.5 bg-white/95 shadow-md px-3.5 py-2.5">
-                  <Users size={16} className="text-accent shrink-0" strokeWidth={1.5} />
+                <div className="absolute bottom-4 left-4 flex items-center gap-2.5 bg-white/15 backdrop-blur-md border border-white/50 shadow-lg px-3.5 py-2.5">
+                  <Users size={16} className="text-white shrink-0" strokeWidth={1.5} />
                   <div>
-                    <p className="text-base font-semibold leading-none text-foreground mb-1">25,000+</p>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">
+                    <p className="text-base font-semibold leading-none text-white mb-1 [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">25,000+</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/90 whitespace-nowrap [text-shadow:0_1px_3px_rgb(0_0_0_/_0.4)]">
                       Happy Guests
                     </p>
                   </div>
