@@ -74,9 +74,9 @@ const HomePage = () => {
   // by location instead - matches how VillasPage/GET /villas already
   // support both ?region= and ?location=.
   const destinations = [
-    { name: "Goa", filterType: "region", filterValue: "Goa", image: "/villas/la-sierra-12/Pool area.jpeg", tagline: "Beachside luxury villas" },
-    { name: "Mussoorie", filterType: "location", filterValue: "Mussoorie", image: "/villas/clouds-nest/Balcony 1.jpg", tagline: "Mountain retreats in the hills" },
-    { name: "Mashobra", filterType: "location", filterValue: "Mashobra", image: "/villas/breezedale-mashobra/Balcony 1 (1).jpg", tagline: "Secluded hillside escapes" },
+    { name: "Goa", filterType: "region", filterValue: "Goa", image: "/destinations/goa.jpg", tagline: "Beachside luxury villas" },
+    { name: "Mussoorie", filterType: "location", filterValue: "Mussoorie", image: "/destinations/mussoorie.jpg", tagline: "Mountain retreats in the hills" },
+    { name: "Mashobra", filterType: "location", filterValue: "Mashobra", image: "/destinations/mashobra.jpg", tagline: "Secluded hillside escapes" },
   ];
 
   const amenities = [
