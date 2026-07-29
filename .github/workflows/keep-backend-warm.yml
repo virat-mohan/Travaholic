@@ -23,6 +23,12 @@ jobs:
         # Cold starts can take 50s+ per Render's own docs, so give this
         # plenty of headroom and retry once - and don't fail the workflow
         # run over an occasional slow cold start, since the ping still
-        # reaches the server and wakes it either way.
+        # reaches the server and wakes it either way. A browser-like
+        # User-Agent is set since a plain curl UA got 0 bytes back in
+        # 90s despite the same endpoint responding instantly in a real
+        # browser - looked like it was being deprioritized/blocked as
+        # non-browser traffic somewhere in the path.
         run: |
-          curl -sS -o /dev/null -w "HTTP %{http_code}\n" --max-time 150 --retry 1 --retry-delay 5 "${{ secrets.BACKEND_URL }}/api/health" || echo "Ping timed out or failed - server was likely cold-starting, should be warm now"
+          curl -sS -o /dev/null -w "HTTP %{http_code}\n" --max-time 150 --retry 1 --retry-delay 5 \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" \
+            "${{ secrets.BACKEND_URL }}/api/health" || echo "Ping timed out or failed - server was likely cold-starting, should be warm now"

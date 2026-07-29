@@ -7,19 +7,47 @@ import axios from "axios";
 // Pages - lazy-loaded per route so a villa-page visitor's browser never has
 // to download the (much larger) admin/owner dashboard bundles, and vice
 // versa. Was previously one single bundle for every page on the site.
-const HomePage = lazy(() => import("./pages/HomePage"));
-const VillasPage = lazy(() => import("./pages/VillasPage"));
-const VillaDetailPage = lazy(() => import("./pages/VillaDetailPage"));
-const AboutPage = lazy(() => import("./pages/AboutPage"));
-const ContactPage = lazy(() => import("./pages/ContactPage"));
-const ListYourVillaPage = lazy(() => import("./pages/ListYourVillaPage"));
-const BlogPage = lazy(() => import("./pages/BlogPage"));
-const LoginPage = lazy(() => import("./pages/LoginPage"));
-const AcceptInvitePage = lazy(() => import("./pages/AcceptInvitePage"));
-const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
-const OwnerDashboard = lazy(() => import("./pages/owner/OwnerDashboard"));
-const PrivateOfferPage = lazy(() => import("./pages/PrivateOfferPage"));
-const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
+//
+// lazyWithReload wraps each import() so a chunk fetch that's stuck (hung
+// network request, never resolves) or fails (e.g. the browser has an old
+// cached page referencing a chunk file that no longer exists after a new
+// deploy) triggers one automatic full-page reload instead of leaving the
+// user stuck on the loading spinner forever. Only retries once per
+// session, so a genuine persistent error still surfaces instead of
+// reload-looping.
+const RELOAD_FLAG = "travaholic_chunk_reload_attempted";
+
+const withTimeout = (promise, ms) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Chunk load timed out")), ms)),
+  ]);
+
+const lazyWithReload = (importFn) =>
+  lazy(() =>
+    withTimeout(importFn(), 15000).catch((err) => {
+      if (!sessionStorage.getItem(RELOAD_FLAG)) {
+        sessionStorage.setItem(RELOAD_FLAG, "1");
+        window.location.reload();
+        return new Promise(() => {}); // reload is in flight, never resolve
+      }
+      throw err;
+    })
+  );
+
+const HomePage = lazyWithReload(() => import("./pages/HomePage"));
+const VillasPage = lazyWithReload(() => import("./pages/VillasPage"));
+const VillaDetailPage = lazyWithReload(() => import("./pages/VillaDetailPage"));
+const AboutPage = lazyWithReload(() => import("./pages/AboutPage"));
+const ContactPage = lazyWithReload(() => import("./pages/ContactPage"));
+const ListYourVillaPage = lazyWithReload(() => import("./pages/ListYourVillaPage"));
+const BlogPage = lazyWithReload(() => import("./pages/BlogPage"));
+const LoginPage = lazyWithReload(() => import("./pages/LoginPage"));
+const AcceptInvitePage = lazyWithReload(() => import("./pages/AcceptInvitePage"));
+const AdminDashboard = lazyWithReload(() => import("./pages/admin/AdminDashboard"));
+const OwnerDashboard = lazyWithReload(() => import("./pages/owner/OwnerDashboard"));
+const PrivateOfferPage = lazyWithReload(() => import("./pages/PrivateOfferPage"));
+const BlogPostPage = lazyWithReload(() => import("./pages/BlogPostPage"));
 
 // Components
 import Navbar from "./components/Navbar";
