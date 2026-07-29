@@ -1595,14 +1595,14 @@ def generate_booking_confirmation_pdf(
     logo_cell = ""
     if PDF_LOGO_PATH.exists():
         try:
-            logo_cell = RLImage(str(PDF_LOGO_PATH), width=78, height=78)
+            logo_cell = RLImage(str(PDF_LOGO_PATH), width=100, height=100)
         except Exception:
             logo_cell = ""
     header_text = [
         Paragraph("TRAVAHOLIC STAYS", styles['BrandTitle']),
         Paragraph("Ultra-Luxury Villas in Goa &amp; Beyond", styles['BrandTagline']),
     ]
-    header_table = Table([[logo_cell, header_text]], colWidths=[82, 383])
+    header_table = Table([[logo_cell, header_text]], colWidths=[104, 361])
     header_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -2001,10 +2001,10 @@ def generate_confirmation_email_html(
         <style>
             body {{ font-family: 'Helvetica', Arial, sans-serif; color: {EMAIL_INK}; line-height: 1.6; }}
             .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-            .header {{ background: #ffffff; color: {EMAIL_INK}; padding: 30px; text-align: center; border-bottom: 3px solid {EMAIL_GOLD}; }}
-            .header img {{ width: 64px; height: 64px; margin-bottom: 10px; }}
-            .header h1 {{ margin: 0; font-size: 22px; letter-spacing: 1px; }}
-            .header p {{ color: {EMAIL_GOLD_DARK}; }}
+            .header {{ background: {EMAIL_INK}; color: #ffffff; padding: 30px; text-align: center; border-bottom: 3px solid {EMAIL_GOLD}; }}
+            .header img {{ width: 96px; height: 96px; margin-bottom: 10px; }}
+            .header h1 {{ margin: 0; font-size: 22px; letter-spacing: 1px; color: #ffffff; }}
+            .header p {{ color: {EMAIL_GOLD}; }}
             .content {{ padding: 30px; background: {EMAIL_CREAM}; }}
             .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid {EMAIL_GOLD}; }}
             .section h2 {{ color: {EMAIL_GOLD_DARK}; font-size: 16px; margin-top: 0; }}
@@ -2114,10 +2114,10 @@ def generate_booking_received_email(booking: dict, villa: dict) -> str:
         <style>
             body {{ font-family: 'Helvetica', Arial, sans-serif; color: {EMAIL_INK}; line-height: 1.6; }}
             .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-            .header {{ background: #ffffff; color: {EMAIL_INK}; padding: 30px; text-align: center; border-bottom: 3px solid {EMAIL_GOLD}; }}
-            .header img {{ width: 64px; height: 64px; margin-bottom: 10px; }}
-            .header h1 {{ margin: 0; font-size: 22px; letter-spacing: 1px; }}
-            .header p {{ color: {EMAIL_GOLD_DARK}; }}
+            .header {{ background: {EMAIL_INK}; color: #ffffff; padding: 30px; text-align: center; border-bottom: 3px solid {EMAIL_GOLD}; }}
+            .header img {{ width: 96px; height: 96px; margin-bottom: 10px; }}
+            .header h1 {{ margin: 0; font-size: 22px; letter-spacing: 1px; color: #ffffff; }}
+            .header p {{ color: {EMAIL_GOLD}; }}
             .content {{ padding: 30px; background: {EMAIL_CREAM}; }}
             .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid {EMAIL_GOLD}; }}
             .section h2 {{ color: {EMAIL_GOLD_DARK}; font-size: 16px; margin-top: 0; }}
