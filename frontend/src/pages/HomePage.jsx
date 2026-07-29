@@ -5,6 +5,7 @@ import { ArrowRight, MapPin, Star, Phone, Calendar, Users, Home, MessageCircle, 
 import { Button } from "../components/ui/button";
 import VillaCard from "../components/VillaCard";
 import CallbackModal from "../components/CallbackModal";
+import BackgroundAudio from "../components/BackgroundAudio";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { API } from "../App";
@@ -91,6 +92,7 @@ const HomePage = () => {
 
   return (
     <div data-testid="home-page">
+      <BackgroundAudio />
       <Helmet>
         <title>Travaholic Stays | Luxury Villa Rentals in Goa, India</title>
         <meta name="description" content="Experience ultra-luxury villa stays in North Goa & Beyond, India. Handpicked premium villas with private pools, personal concierge, and unforgettable experiences." />

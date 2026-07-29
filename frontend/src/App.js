@@ -174,7 +174,6 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 };
 
 import WhatsAppButton from "./components/WhatsAppButton";
-import BackgroundAudio from "./components/BackgroundAudio";
 
 // Layout wrapper for public pages
 const PublicLayout = ({ children }) => {
@@ -184,7 +183,6 @@ const PublicLayout = ({ children }) => {
       <main>{children}</main>
       <Footer />
       <WhatsAppButton />
-      <BackgroundAudio />
     </>
   );
 };
