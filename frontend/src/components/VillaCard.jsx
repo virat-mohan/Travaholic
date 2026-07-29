@@ -117,11 +117,6 @@ const VillaCard = ({ villa, index = 0, showCaption = false }) => {
             </div>
           )}
           
-          {villa.has_pool && (
-            <span className="absolute top-4 left-4 bg-accent text-accent-foreground px-3 py-1 text-xs uppercase tracking-wider">
-              Private Pool
-            </span>
-          )}
         </div>
         
         {/* Image Caption Below */}
