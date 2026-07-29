@@ -1,0 +1,24 @@
+name: Keep Backend Warm
+
+# Render's free web service instance spins down after 15 minutes with no
+# traffic, then takes ~1 minute to wake back up on the next request - that
+# wake-up delay is what was making the villa page (and everything else)
+# feel slow. This pings the backend's health endpoint every 10 minutes
+# (comfortably under the 15-minute spin-down window) to keep it awake.
+#
+# Cost check: Render's free instance type includes 750 hours/month, and a
+# full month is only ~730 hours, so keeping one service alive 24/7 all
+# month still fits under the cap.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: |
+          curl -sS -o /dev/null -w "HTTP %{http_code}\n" --max-time 90 "${{ secrets.BACKEND_URL }}/api/health"
