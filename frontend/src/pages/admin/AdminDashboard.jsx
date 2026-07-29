@@ -2084,17 +2084,23 @@ const AdminTeam = () => {
                     )}
                   </td>
                   <td className="p-4 text-right">
-                    {a.user_id !== currentUser?.user_id && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleRemove(a)}
-                      >
-                        Remove
-                      </Button>
-                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={a.user_id === currentUser?.user_id || admins.length <= 1}
+                      title={
+                        a.user_id === currentUser?.user_id
+                          ? "You can't remove yourself"
+                          : admins.length <= 1
+                          ? "Can't remove the last admin"
+                          : undefined
+                      }
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      onClick={() => handleRemove(a)}
+                    >
+                      Remove
+                    </Button>
                   </td>
                 </tr>
               ))}
