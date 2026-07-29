@@ -3,23 +3,50 @@ import { Volume2, VolumeX } from "lucide-react";
 import { motion } from "framer-motion";
 
 const BackgroundAudio = () => {
-  // Off by default - the previous version auto-started playback on the
-  // user's very first click or tap ANYWHERE on the page (nav links,
-  // buttons, everything), so music kicked in unexpectedly no matter how
-  // quiet it was set. That surprise, not the volume number, was almost
-  // certainly what kept reading as "too loud." Now it only plays when
-  // someone deliberately clicks this button.
-  const [isMuted, setIsMuted] = useState(true);
+  // On by default, kept at a very low ambient volume so it's felt rather
+  // than noticed. Browsers block truly automatic audible playback without
+  // a user gesture, so this also attempts to start on the visitor's very
+  // first click/tap anywhere on the page if the initial autoplay attempt
+  // was blocked - same as before, but now quiet enough that the surprise
+  // that used to read as "too loud" shouldn't register at all.
+  const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef(null);
+  const startedRef = useRef(false);
 
   const audioUrl = "/travaholic-background.mp3";
-  const VOLUME = 0.15; // fine to be a normal ambient level now that it's opt-in
+  const VOLUME = 0.06;
 
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = VOLUME;
     }
+
+    const tryStart = () => {
+      if (startedRef.current || !audioRef.current) return;
+      audioRef.current.volume = VOLUME;
+      audioRef.current.muted = false;
+      audioRef.current
+        .play()
+        .then(() => {
+          startedRef.current = true;
+          setIsPlaying(true);
+          window.removeEventListener("click", tryStart);
+          window.removeEventListener("touchstart", tryStart);
+        })
+        .catch(() => {
+          // Blocked by the browser's autoplay policy - the click/touch
+          // listeners below will retry on the visitor's first interaction.
+        });
+    };
+
+    tryStart();
+    window.addEventListener("click", tryStart);
+    window.addEventListener("touchstart", tryStart);
+    return () => {
+      window.removeEventListener("click", tryStart);
+      window.removeEventListener("touchstart", tryStart);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
