@@ -141,7 +141,11 @@ const VillasPage = () => {
               Luxury Villas
             </h1>
             <p className="text-muted-foreground mt-4">
-              {total} {total === 1 ? "property" : "properties"} available
+              {loading ? (
+                <span className="inline-block h-4 w-32 bg-muted animate-pulse align-middle" />
+              ) : (
+                `${total} ${total === 1 ? "property" : "properties"} available`
+              )}
             </p>
           </div>
           <div className="flex gap-4">
