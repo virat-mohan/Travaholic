@@ -3075,6 +3075,23 @@ async def list_admin_team(admin: User = Depends(require_admin)):
         a["invite_pending"] = bool(a.get("invite_token"))
     return {"admins": admins}
 
+@api_router.delete("/admin/team/{user_id}")
+async def remove_admin_team_member(user_id: str, admin: User = Depends(require_admin)):
+    """Remove an admin (or revoke a pending invite) from the Team page."""
+    if user_id == admin.user_id:
+        raise HTTPException(status_code=400, detail="You can't remove yourself.")
+
+    target = await db.users.find_one({"user_id": user_id, "role": "admin"})
+    if not target:
+        raise HTTPException(status_code=404, detail="Admin not found")
+
+    admin_count = await db.users.count_documents({"role": "admin"})
+    if admin_count <= 1:
+        raise HTTPException(status_code=400, detail="Can't remove the last remaining admin.")
+
+    await db.users.delete_one({"user_id": user_id})
+    return {"message": "Removed"}
+
 @api_router.post("/admin/invite-admin")
 async def invite_admin(data: InviteAdminRequest, admin: User = Depends(require_admin)):
     """Invite someone by email to become an admin. Returns a one-time invite

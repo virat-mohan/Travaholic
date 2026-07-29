@@ -1953,6 +1953,7 @@ const AdminOwners = () => {
 
 // Admin Team - invite other admins by email
 const AdminTeam = () => {
+  const { user: currentUser } = useAuth();
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inviting, setInviting] = useState(false);
@@ -1999,6 +2000,17 @@ const AdminTeam = () => {
   const copyLink = () => {
     navigator.clipboard.writeText(inviteLink);
     toast.success("Copied to clipboard");
+  };
+
+  const handleRemove = async (a) => {
+    if (!window.confirm(`Remove ${a.name} (${a.email}) from the admin team?`)) return;
+    try {
+      await axios.delete(`${API}/admin/team/${a.user_id}`, { headers: getAuthHeaders() });
+      toast.success("Removed");
+      fetchTeam();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to remove admin"));
+    }
   };
 
   return (
@@ -2056,6 +2068,7 @@ const AdminTeam = () => {
                 <th className="text-left p-4 text-sm font-medium">Name</th>
                 <th className="text-left p-4 text-sm font-medium">Email</th>
                 <th className="text-left p-4 text-sm font-medium">Status</th>
+                <th className="text-left p-4 text-sm font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -2068,6 +2081,19 @@ const AdminTeam = () => {
                       <span className="text-xs uppercase tracking-wider text-accent">Invite Pending</span>
                     ) : (
                       <span className="text-xs uppercase tracking-wider text-green-600">Active</span>
+                    )}
+                  </td>
+                  <td className="p-4 text-right">
+                    {a.user_id !== currentUser?.user_id && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleRemove(a)}
+                      >
+                        Remove
+                      </Button>
                     )}
                   </td>
                 </tr>
