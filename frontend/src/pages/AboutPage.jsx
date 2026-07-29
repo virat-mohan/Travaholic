@@ -117,9 +117,10 @@ const AboutPage = () => {
                   className="w-full h-full object-cover"
                 />
               </div>
-              <div className="absolute -bottom-8 -left-8 bg-gradient-to-br from-accent to-[#A8875C] text-accent-foreground p-8 w-48 shadow-2xl">
-                <p className="text-4xl font-heading mb-2">2016</p>
-                <p className="text-sm uppercase tracking-wider">Est.</p>
+              <div className="absolute -bottom-8 -left-8 border border-zinc-300 bg-gradient-to-br from-zinc-200 via-zinc-50 to-zinc-300 p-8 w-48 shadow-2xl overflow-hidden">
+                <div className="absolute -inset-y-16 -left-1/4 w-1/3 rotate-12 bg-gradient-to-r from-transparent via-white/70 to-transparent pointer-events-none" />
+                <p className="relative text-4xl font-heading mb-2 text-zinc-900">2016</p>
+                <p className="relative text-sm uppercase tracking-wider text-zinc-600">Est.</p>
               </div>
             </div>
           </div>
