@@ -70,7 +70,7 @@ const VillaDetailPage = () => {
       // than always the first image in the array, which was often whatever
       // photo happened to be uploaded/ordered first.
       const thumbIndex = response.data.images?.indexOf(response.data.thumbnail);
-      setSelectedImageIndex(thumbIndex > 0 ? thumbIndex : 0);
+      setSelectedImageIndex(thumbIndex !== undefined && thumbIndex !== -1 ? thumbIndex : 0);
       // Availability only gates the booking date-picker, not the rest of
       // the page - stop blocking the initial render on it, fetch it after.
       axios.get(`${API}/villas/${response.data.villa_id}/availability`)
