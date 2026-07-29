@@ -106,9 +106,6 @@ const HomePage = () => {
               src={heroSlides[currentSlide].image}
               alt={heroSlides[currentSlide].title}
               className="w-full h-full object-cover"
-              initial={{ scale: 1 }}
-              animate={{ scale: 1.05 }}
-              transition={{ duration: 5, ease: "linear" }}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/70" />
           </motion.div>

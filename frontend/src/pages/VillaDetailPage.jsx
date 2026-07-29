@@ -66,6 +66,11 @@ const VillaDetailPage = () => {
     try {
       const response = await axios.get(`${API}/villas/slug/${slug}`);
       setVilla(response.data);
+      // Open on the villa's chosen thumbnail (usually the facade shot) rather
+      // than always the first image in the array, which was often whatever
+      // photo happened to be uploaded/ordered first.
+      const thumbIndex = response.data.images?.indexOf(response.data.thumbnail);
+      setSelectedImageIndex(thumbIndex > 0 ? thumbIndex : 0);
       // Fetch availability
       const availResponse = await axios.get(`${API}/villas/${response.data.villa_id}/availability`);
       const blocked = availResponse.data.blocked_dates || [];

@@ -35,8 +35,15 @@ const VillaCard = ({ villa, index = 0, showCaption = false }) => {
     }).format(price);
   };
 
-  // Get up to 5 images for the carousel
-  const images = villa.images?.slice(0, 5) || [villa.thumbnail || "/villas/la-sierra-12/Pool area.jpeg"];
+  // Get up to 5 images for the carousel, starting with the villa's chosen
+  // thumbnail (usually the facade shot) rather than whatever happened to
+  // be first in the raw array.
+  const orderedImages = villa.images?.length
+    ? villa.thumbnail && villa.images.includes(villa.thumbnail)
+      ? [villa.thumbnail, ...villa.images.filter((i) => i !== villa.thumbnail)]
+      : villa.images
+    : [villa.thumbnail || "/villas/la-sierra-12/Pool area.jpeg"];
+  const images = orderedImages.slice(0, 5);
   const currentImage = images[currentImageIndex] || images[0];
   const imageCaption = showCaption ? getImageCaption(currentImage) : "";
 

@@ -5,7 +5,7 @@ import {
   Settings, LogOut, Menu, X, Plus, ChevronDown, FileText, Building,
   Edit, Trash2, Eye, Check, Phone, Mail, Search, Filter, Download,
   AlertCircle, Clock, CheckCircle, XCircle, RefreshCw, BookOpen, Image, Tag, Ticket, Percent,
-  Upload, Star
+  Upload, Star, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { useAuth, API, BACKEND_URL } from "../../App";
 import { Button } from "../../components/ui/button";
@@ -684,6 +684,19 @@ const VillaForm = ({ villa, onSuccess }) => {
     setFormData((prev) => ({ ...prev, thumbnail: url }));
   };
 
+  // The order photos appear in here drives both the gallery order and
+  // which one opens first on the villa page (whichever is the thumbnail,
+  // wherever it sits in this order).
+  const moveImage = (index, direction) => {
+    const newIndex = index + direction;
+    setFormData((prev) => {
+      if (newIndex < 0 || newIndex >= prev.images.length) return prev;
+      const images = [...prev.images];
+      [images[index], images[newIndex]] = [images[newIndex], images[index]];
+      return { ...prev, images };
+    });
+  };
+
   const toggleAmenity = (amenity) => {
     setFormData((prev) => ({
       ...prev,
@@ -940,7 +953,7 @@ const VillaForm = ({ villa, onSuccess }) => {
 
         {formData.images.length > 0 && (
           <div className="grid grid-cols-4 gap-3 mt-4">
-            {formData.images.map((url) => (
+            {formData.images.map((url, index) => (
               <div key={url} className="relative group">
                 <button
                   type="button"
@@ -952,7 +965,7 @@ const VillaForm = ({ villa, onSuccess }) => {
                   <img src={url} alt="" className="w-full h-full object-cover" />
                 </button>
                 {formData.thumbnail === url && (
-                  <div className="absolute top-1 left-1 bg-accent text-accent-foreground rounded-full p-1">
+                  <div className="absolute top-1 left-1 bg-accent text-accent-foreground rounded-full p-1" title="Opens first on the villa page">
                     <Star size={10} fill="currentColor" />
                   </div>
                 )}
@@ -964,6 +977,26 @@ const VillaForm = ({ villa, onSuccess }) => {
                 >
                   <X size={10} />
                 </button>
+                <div className="absolute bottom-1 left-1 right-1 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={() => moveImage(index, -1)}
+                    disabled={index === 0}
+                    title="Move earlier"
+                    className="bg-foreground/80 text-background rounded-full p-1 disabled:opacity-30 hover:bg-accent"
+                  >
+                    <ChevronLeft size={10} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveImage(index, 1)}
+                    disabled={index === formData.images.length - 1}
+                    title="Move later"
+                    className="bg-foreground/80 text-background rounded-full p-1 disabled:opacity-30 hover:bg-accent"
+                  >
+                    <ChevronRight size={10} />
+                  </button>
+                </div>
                 <input
                   type="text"
                   defaultValue={labelFromUrl(url)}
@@ -975,6 +1008,9 @@ const VillaForm = ({ villa, onSuccess }) => {
             ))}
           </div>
         )}
+        <p className="text-xs text-muted-foreground mt-2">
+          Click the star to set which photo opens first on the villa page. Hover a photo to reveal arrows for reordering the rest of the gallery.
+        </p>
       </div>
 
       <div>
