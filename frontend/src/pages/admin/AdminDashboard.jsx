@@ -62,10 +62,10 @@ const AdminDashboard = () => {
           {/* Logo */}
           <div className="p-6 border-b border-background/10">
             <Link to="/">
-              <img 
-                src="/Travaholic_color_logo-removebg-preview.png" 
+              <img
+                src="/Travaholic_color_logo-removebg-preview.png"
                 alt="Travaholic Stays"
-                className="h-14 w-auto"
+                className="h-24 w-auto"
               />
             </Link>
             <p className="text-xs text-background/60 mt-2">Admin Portal</p>
