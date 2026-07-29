@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
-import { ArrowRight, MapPin, Star, Phone, Calendar, Users, Home, ChevronDown, Waves, UtensilsCrossed, Mountain, Sparkles, Wine, Palmtree, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { ArrowRight, MapPin, Star, Phone, Calendar, Users, Home, MessageCircle, ChevronDown, Waves, UtensilsCrossed, Mountain, Sparkles, Wine, Palmtree, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
 import VillaCard from "../components/VillaCard";
 import CallbackModal from "../components/CallbackModal";
@@ -380,16 +380,24 @@ const HomePage = () => {
               </p>
               
               {/* Concierge USP */}
-              <div className="bg-accent/10 border-l-4 border-accent p-6 mb-8">
-                <h3 className="font-heading text-xl mb-3">Your Personal Concierge</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Experience the art of effortless travel with your dedicated concierge. 
-                  From curated dining reservations at Goa's finest restaurants to bespoke 
-                  experiences, adventure activities, and hidden local gems — we craft every 
-                  moment of your journey. Each group is welcomed into a private WhatsApp 
-                  circle with their personal concierge, ensuring seamless support and 
-                  thoughtful recommendations throughout your stay.
-                </p>
+              <div className="relative border border-accent/30 bg-gradient-to-br from-accent/10 via-transparent to-transparent p-8 mb-8 overflow-hidden">
+                <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-accent/10 blur-3xl" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-11 h-11 rounded-full bg-accent/15 flex items-center justify-center shrink-0">
+                    <MessageCircle size={18} className="text-accent" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-xl mb-3">Your Personal Concierge</h3>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Experience the art of effortless travel with your dedicated concierge.
+                      From curated dining reservations at Goa's finest restaurants to bespoke
+                      experiences, adventure activities, and hidden local gems — we craft every
+                      moment of your journey. Each group is welcomed into a private WhatsApp
+                      circle with their personal concierge, ensuring seamless support and
+                      thoughtful recommendations throughout your stay.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <Link to="/about">
@@ -412,12 +420,11 @@ const HomePage = () => {
                   alt="Luxury villa pool deck"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm px-5 py-3.5 flex items-center gap-3">
-                  <Home size={20} className="text-accent shrink-0" strokeWidth={1.5} />
+                <div className="absolute bottom-4 left-4 flex items-center gap-2.5 bg-white/95 shadow-md px-3.5 py-2.5">
+                  <Home size={16} className="text-accent shrink-0" strokeWidth={1.5} />
                   <div>
-                    <p className="text-xl font-semibold leading-none text-foreground mb-1">20+</p>
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <p className="text-base font-semibold leading-none text-foreground mb-1">20+</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                       Luxury Properties
                     </p>
                   </div>
@@ -429,12 +436,11 @@ const HomePage = () => {
                   alt="Luxury villa pool at twilight"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm px-5 py-3.5 flex items-center gap-3">
-                  <Users size={20} className="text-accent shrink-0" strokeWidth={1.5} />
+                <div className="absolute bottom-4 left-4 flex items-center gap-2.5 bg-white/95 shadow-md px-3.5 py-2.5">
+                  <Users size={16} className="text-accent shrink-0" strokeWidth={1.5} />
                   <div>
-                    <p className="text-xl font-semibold leading-none text-foreground mb-1">25,000+</p>
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <p className="text-base font-semibold leading-none text-foreground mb-1">25,000+</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground whitespace-nowrap">
                       Happy Guests
                     </p>
                   </div>

@@ -515,16 +515,24 @@ const VillaDetailPage = () => {
 
             {/* Concierge USP */}
             <div className="py-8 border-t border-border">
-              <div className="bg-accent/10 border-l-4 border-accent p-6">
-                <h3 className="font-heading text-xl mb-3">Your Personal Concierge</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  Experience the art of effortless travel with your dedicated concierge.
-                  From curated dining reservations at Goa's finest restaurants to bespoke
-                  experiences, adventure activities, and hidden local gems — we craft every
-                  moment of your journey. Each group is welcomed into a private WhatsApp
-                  circle with their personal concierge, ensuring seamless support and
-                  thoughtful recommendations throughout your stay.
-                </p>
+              <div className="relative border border-accent/30 bg-gradient-to-br from-accent/10 via-transparent to-transparent p-8 overflow-hidden">
+                <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-accent/10 blur-3xl" />
+                <div className="relative flex items-start gap-4">
+                  <div className="w-11 h-11 rounded-full bg-accent/15 flex items-center justify-center shrink-0">
+                    <MessageCircle size={18} className="text-accent" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-xl mb-3">Your Personal Concierge</h3>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Experience the art of effortless travel with your dedicated concierge.
+                      From curated dining reservations at Goa's finest restaurants to bespoke
+                      experiences, adventure activities, and hidden local gems — we craft every
+                      moment of your journey. Each group is welcomed into a private WhatsApp
+                      circle with their personal concierge, ensuring seamless support and
+                      thoughtful recommendations throughout your stay.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
