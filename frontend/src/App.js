@@ -49,6 +49,8 @@ const AdminDashboard = lazyWithReload(() => import("./pages/admin/AdminDashboard
 const OwnerDashboard = lazyWithReload(() => import("./pages/owner/OwnerDashboard"));
 const PrivateOfferPage = lazyWithReload(() => import("./pages/PrivateOfferPage"));
 const BlogPostPage = lazyWithReload(() => import("./pages/BlogPostPage"));
+const PrivacyPolicyPage = lazyWithReload(() => import("./pages/PrivacyPolicyPage"));
+const TermsOfServicePage = lazyWithReload(() => import("./pages/TermsOfServicePage"));
 
 // Components
 import Navbar from "./components/Navbar";
@@ -283,6 +285,22 @@ function AppRouter() {
       />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/accept-invite/:token" element={<AcceptInvitePage />} />
+      <Route
+        path="/privacy"
+        element={
+          <PublicLayout>
+            <PrivacyPolicyPage />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/terms"
+        element={
+          <PublicLayout>
+            <TermsOfServicePage />
+          </PublicLayout>
+        }
+      />
 
       {/* Private Offer Payment Page */}
       <Route
