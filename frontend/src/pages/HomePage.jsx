@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ArrowRight, MapPin, Star, Phone, Calendar, Users, Home, ChevronDown, Waves, UtensilsCrossed, Mountain, Sparkles, Wine, Palmtree, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
 import VillaCard from "../components/VillaCard";
@@ -90,6 +91,20 @@ const HomePage = () => {
 
   return (
     <div data-testid="home-page">
+      <Helmet>
+        <title>Travaholic Stays | Luxury Villa Rentals in Goa, India</title>
+        <meta name="description" content="Experience ultra-luxury villa stays in North Goa & Beyond, India. Handpicked premium villas with private pools, personal concierge, and unforgettable experiences." />
+        <meta property="og:title" content="Travaholic Stays | Luxury Villa Rentals in Goa" />
+        <meta property="og:description" content="Handpicked ultra-luxury villas with private pools, personal concierge, and unforgettable experiences across Goa, Mussoorie & Himachal Pradesh." />
+        <meta property="og:image" content="https://travaholicstays.com/villas/la-selva-6/Villa%20facade.jpeg" />
+        <meta property="og:url" content="https://travaholicstays.com/" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Travaholic Stays | Luxury Villa Rentals in Goa" />
+        <meta name="twitter:description" content="Handpicked ultra-luxury villas with private pools, personal concierge, and unforgettable experiences." />
+        <meta name="twitter:image" content="https://travaholicstays.com/villas/la-selva-6/Villa%20facade.jpeg" />
+        <link rel="canonical" href="https://travaholicstays.com/" />
+      </Helmet>
+
       {/* Hero Section with Slideshow */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         {/* Background Slideshow */}
@@ -391,37 +406,35 @@ const HomePage = () => {
               viewport={{ once: true }}
               className="grid grid-cols-2 gap-4"
             >
-              <div className="space-y-4">
-                <div className="aspect-[3/4] overflow-hidden group">
-                  <img
-                    src="/villas/la-maroma-2/swimming%20pool.jpg"
-                    alt="Luxury villa pool deck"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                </div>
-                <div className="bg-accent text-accent-foreground p-6 flex items-center gap-4">
-                  <Home size={28} className="shrink-0" strokeWidth={1.5} />
+              <div className="relative aspect-[3/4] overflow-hidden group">
+                <img
+                  src="/villas/la-maroma-2/swimming%20pool.jpg"
+                  alt="Luxury villa pool deck"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm px-5 py-3.5 flex items-center gap-3">
+                  <Home size={20} className="text-accent shrink-0" strokeWidth={1.5} />
                   <div>
-                    <p className="text-3xl font-heading leading-none mb-1">20+</p>
-                    <p className="text-xs uppercase tracking-wider">
+                    <p className="text-xl font-semibold leading-none text-foreground mb-1">20+</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                       Luxury Properties
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="space-y-4 pt-12">
-                <div className="aspect-[3/4] overflow-hidden group">
-                  <img
-                    src="/villas/la-sierra-11/Pool%20side%20.jpg"
-                    alt="Luxury villa pool at twilight"
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                </div>
-                <div className="bg-foreground text-background p-6 flex items-center gap-4">
-                  <Users size={28} className="shrink-0" strokeWidth={1.5} />
+              <div className="relative aspect-[3/4] overflow-hidden group mt-12">
+                <img
+                  src="/villas/la-sierra-11/Pool%20side%20.jpg"
+                  alt="Luxury villa pool at twilight"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4 bg-white/90 backdrop-blur-sm px-5 py-3.5 flex items-center gap-3">
+                  <Users size={20} className="text-accent shrink-0" strokeWidth={1.5} />
                   <div>
-                    <p className="text-3xl font-heading leading-none mb-1">25,000+</p>
-                    <p className="text-xs uppercase tracking-wider">
+                    <p className="text-xl font-semibold leading-none text-foreground mb-1">25,000+</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                       Happy Guests
                     </p>
                   </div>

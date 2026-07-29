@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { ArrowRight, Award, Users, Heart, MapPin } from "lucide-react";
 import { Button } from "../components/ui/button";
 
@@ -36,6 +37,20 @@ const AboutPage = () => {
 
   return (
     <div className="pt-24 min-h-screen bg-background" data-testid="about-page">
+      <Helmet>
+        <title>About Us | Travaholic Stays</title>
+        <meta name="description" content="Learn the Travaholic Stays story - a curated collection of ultra-luxury villas across Goa, Mussoorie, and Himachal Pradesh, backed by 25,000+ happy guests and a dedicated concierge team." />
+        <meta property="og:title" content="About Us | Travaholic Stays" />
+        <meta property="og:description" content="The Travaholic Stays story - handpicked luxury villas, 25,000+ happy guests, and a dedicated concierge team." />
+        <meta property="og:image" content="https://travaholicstays.com/about-hero.png" />
+        <meta property="og:url" content="https://travaholicstays.com/about" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="About Us | Travaholic Stays" />
+        <meta name="twitter:description" content="The Travaholic Stays story - handpicked luxury villas, 25,000+ happy guests, and a dedicated concierge team." />
+        <meta name="twitter:image" content="https://travaholicstays.com/about-hero.png" />
+        <link rel="canonical" href="https://travaholicstays.com/about" />
+      </Helmet>
+
       {/* Hero */}
       <section className="relative h-[60vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">

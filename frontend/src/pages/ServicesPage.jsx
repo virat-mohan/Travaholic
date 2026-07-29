@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Helmet } from "react-helmet-async";
 import { Check, Anchor } from "lucide-react";
 import { Button } from "../components/ui/button";
 
@@ -43,6 +44,20 @@ const serviceCategories = [
 const ServicesPage = () => {
   return (
     <div className="pt-24 min-h-screen bg-background" data-testid="services-page">
+      <Helmet>
+        <title>Services | Yacht Charters in Goa | Travaholic Stays</title>
+        <meta name="description" content="Beyond luxury villas, Travaholic Stays offers curated experiences in Goa - including luxury yacht and speedboat charters with a skilled captain and crew." />
+        <meta property="og:title" content="Services | Travaholic Stays" />
+        <meta property="og:description" content="Curated experiences beyond the stay - luxury yacht and speedboat charters in Goa, with more services on the way." />
+        <meta property="og:image" content="https://travaholicstays.com/cruises/falcon-hero.jpg" />
+        <meta property="og:url" content="https://travaholicstays.com/services" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Services | Travaholic Stays" />
+        <meta name="twitter:description" content="Curated experiences beyond the stay - luxury yacht and speedboat charters in Goa, with more services on the way." />
+        <meta name="twitter:image" content="https://travaholicstays.com/cruises/falcon-hero.jpg" />
+        <link rel="canonical" href="https://travaholicstays.com/services" />
+      </Helmet>
+
       {/* Hero */}
       <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">

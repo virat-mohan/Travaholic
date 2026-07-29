@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { MapPin, Phone, Mail, Clock, Send } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -40,6 +41,20 @@ const ContactPage = () => {
 
   return (
     <div className="pt-24 min-h-screen bg-background" data-testid="contact-page">
+      <Helmet>
+        <title>Contact Us | Travaholic Stays</title>
+        <meta name="description" content="Get in touch with Travaholic Stays for villa bookings, enquiries, and personalized travel planning across Goa, Mussoorie & Himachal Pradesh." />
+        <meta property="og:title" content="Contact Us | Travaholic Stays" />
+        <meta property="og:description" content="Get in touch for villa bookings, enquiries, and personalized travel planning." />
+        <meta property="og:image" content="https://travaholicstays.com/villas/clouds-nest/Cottage%20view.jpg" />
+        <meta property="og:url" content="https://travaholicstays.com/contact" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Contact Us | Travaholic Stays" />
+        <meta name="twitter:description" content="Get in touch for villa bookings, enquiries, and personalized travel planning." />
+        <meta name="twitter:image" content="https://travaholicstays.com/villas/clouds-nest/Cottage%20view.jpg" />
+        <link rel="canonical" href="https://travaholicstays.com/contact" />
+      </Helmet>
+
       {/* Hero */}
       <section className="container-luxury section-spacing pb-12">
         <div className="text-center max-w-2xl mx-auto">

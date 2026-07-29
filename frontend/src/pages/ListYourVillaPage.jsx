@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { Check, ArrowRight, Upload, X } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -137,6 +138,20 @@ const ListYourVillaPage = () => {
 
   return (
     <div className="pt-24 min-h-screen bg-background" data-testid="list-villa-page">
+      <Helmet>
+        <title>List Your Villa | Travaholic Stays</title>
+        <meta name="description" content="Partner with Travaholic Stays and list your luxury property. We handle marketing, guest management, and payouts so you earn more with less effort." />
+        <meta property="og:title" content="List Your Villa | Travaholic Stays" />
+        <meta property="og:description" content="Partner with Travaholic Stays - professional marketing, guest management, and transparent payouts for your property." />
+        <meta property="og:image" content="https://travaholicstays.com/villas/dream-villa/Villa%20facade%201.jpg" />
+        <meta property="og:url" content="https://travaholicstays.com/list-your-villa" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="List Your Villa | Travaholic Stays" />
+        <meta name="twitter:description" content="Partner with Travaholic Stays - professional marketing, guest management, and transparent payouts for your property." />
+        <meta name="twitter:image" content="https://travaholicstays.com/villas/dream-villa/Villa%20facade%201.jpg" />
+        <link rel="canonical" href="https://travaholicstays.com/list-your-villa" />
+      </Helmet>
+
       {/* Hero */}
       <section className="relative h-[50vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">

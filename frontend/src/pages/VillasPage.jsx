@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { Search, Filter, X, MapPin, Users, Bed } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -117,6 +118,20 @@ const VillasPage = () => {
 
   return (
     <div className="pt-24 min-h-screen bg-background" data-testid="villas-page">
+      <Helmet>
+        <title>Luxury Villas in Goa, Mussoorie & Himachal | Travaholic Stays</title>
+        <meta name="description" content="Browse our full collection of handpicked luxury villas across Goa, Mussoorie, and Himachal Pradesh. Private pools, personal concierge, filter by dates and location." />
+        <meta property="og:title" content="Luxury Villas | Travaholic Stays" />
+        <meta property="og:description" content="Browse handpicked luxury villas with private pools across Goa, Mussoorie & Himachal Pradesh." />
+        <meta property="og:image" content="https://travaholicstays.com/villas/la-morena-4/Pool%20view.jpg" />
+        <meta property="og:url" content="https://travaholicstays.com/villas" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Luxury Villas | Travaholic Stays" />
+        <meta name="twitter:description" content="Browse handpicked luxury villas with private pools across Goa, Mussoorie & Himachal Pradesh." />
+        <meta name="twitter:image" content="https://travaholicstays.com/villas/la-morena-4/Pool%20view.jpg" />
+        <link rel="canonical" href="https://travaholicstays.com/villas" />
+      </Helmet>
+
       {/* Header */}
       <section className="container-luxury py-12">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
