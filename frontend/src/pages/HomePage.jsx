@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, MapPin, Star, Phone, Calendar, Users, ChevronDown, Waves, UtensilsCrossed, Mountain, Sparkles, Wine, Palmtree, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { ArrowRight, MapPin, Star, Phone, Calendar, Users, Home, ChevronDown, Waves, UtensilsCrossed, Mountain, Sparkles, Wine, Palmtree, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
 import VillaCard from "../components/VillaCard";
 import CallbackModal from "../components/CallbackModal";
@@ -394,24 +394,37 @@ const HomePage = () => {
               <div className="space-y-4">
                 <div className="aspect-[3/4] overflow-hidden group">
                   <img
-                    src="/villas/eagle-nest/Villa%20entrace.JPG"
-                    alt="Luxury Mountain Retreat"
+                    src="/villas/la-maroma-2/swimming%20pool.jpg"
+                    alt="Luxury villa pool deck"
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                   />
                 </div>
-                <div className="bg-accent text-accent-foreground p-6">
-                  <p className="text-4xl font-heading mb-2">20+</p>
-                  <p className="text-sm uppercase tracking-wider">
-                    Luxury Properties
-                  </p>
+                <div className="bg-accent text-accent-foreground p-6 flex items-center gap-4">
+                  <Home size={28} className="shrink-0" strokeWidth={1.5} />
+                  <div>
+                    <p className="text-3xl font-heading leading-none mb-1">20+</p>
+                    <p className="text-xs uppercase tracking-wider">
+                      Luxury Properties
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="space-y-4 pt-12">
-                <div className="bg-foreground text-background p-6">
-                  <p className="text-4xl font-heading mb-2">25,000+</p>
-                  <p className="text-sm uppercase tracking-wider">
-                    Happy Guests
-                  </p>
+                <div className="aspect-[3/4] overflow-hidden group">
+                  <img
+                    src="/villas/la-sierra-11/Pool%20side%20.jpg"
+                    alt="Luxury villa pool at twilight"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                </div>
+                <div className="bg-foreground text-background p-6 flex items-center gap-4">
+                  <Users size={28} className="shrink-0" strokeWidth={1.5} />
+                  <div>
+                    <p className="text-3xl font-heading leading-none mb-1">25,000+</p>
+                    <p className="text-xs uppercase tracking-wider">
+                      Happy Guests
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.div>
