@@ -68,11 +68,16 @@ EMAIL_INK = "#1A1A1A"
 EMAIL_CREAM = "#F9F8F6"
 EMAIL_MUTED = "#6B6B6B"
 
-def pdf_filename(guest_name: str) -> str:
-    """'Travaholic Booking Confirmation_<Guest Name>.pdf' - strips characters
-    that break filenames/Content-Disposition headers, keeps spaces."""
-    safe_name = re.sub(r'[\\/:*?"<>|\r\n]', '', guest_name or "Guest").strip() or "Guest"
-    return f"Travaholic Booking Confirmation_{safe_name}.pdf"
+def pdf_filename(guest_name: str, villa_name: Optional[str] = None) -> str:
+    """'Travaholic Booking - <Guest Name> - <Property Name>.pdf' - strips
+    characters that break filenames/Content-Disposition headers, keeps spaces."""
+    def _safe(value: str, fallback: str) -> str:
+        return re.sub(r'[\\/:*?"<>|\r\n]', '', value or "").strip() or fallback
+    safe_guest = _safe(guest_name, "Guest")
+    safe_villa = _safe(villa_name, "")
+    if safe_villa:
+        return f"Travaholic Booking - {safe_guest} - {safe_villa}.pdf"
+    return f"Travaholic Booking - {safe_guest}.pdf"
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
@@ -1540,7 +1545,7 @@ async def create_booking(booking_data: BookingCreate):
                 "subject": f"Your Booking Proposal - {villa['name']} | Travaholic Stays",
                 "html": generate_booking_received_email(doc, villa),
                 "attachments": [{
-                    "filename": pdf_filename(booking_data.guest_name),
+                    "filename": pdf_filename(booking_data.guest_name, villa.get("name")),
                     "content": list(proposal_pdf.getvalue()),
                 }],
             })
@@ -1580,7 +1585,7 @@ async def get_booking_proposal_pdf(booking_id: str):
         content=pdf_buffer.getvalue(),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'inline; filename="{pdf_filename(booking.get("guest_name"))}"'
+            "Content-Disposition": f'inline; filename="{pdf_filename(booking.get("guest_name"), villa.get("name"))}"'
         }
     )
 
@@ -1973,7 +1978,7 @@ async def get_booking_confirmation_pdf(booking_id: str, user: User = Depends(req
         content=pdf_buffer.getvalue(),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="{pdf_filename(booking.get("guest_name"))}"'
+            "Content-Disposition": f'attachment; filename="{pdf_filename(booking.get("guest_name"), villa.get("name"))}"'
         }
     )
 
@@ -3485,15 +3490,10 @@ async def get_private_offer(offer_id: str):
 
     return {"offer": offer, "villa": villa, "is_expired": False}
 
-@api_router.get("/offer/{offer_id}/pdf")
-async def get_private_offer_pdf(offer_id: str):
-    """Publicly viewable private offer PDF - same proposal document as a
-    regular booking (tariff, bank details, amenities, house rules), built
-    from the offer's own terms whether it's a catalog or custom villa."""
-    offer = await db.private_offers.find_one({"offer_id": offer_id}, {"_id": 0})
-    if not offer:
-        raise HTTPException(status_code=404, detail="Offer not found")
-
+def _offer_pdf_context(offer: dict) -> tuple[dict, dict]:
+    """Shared villa/booking dicts for rendering a private offer through the
+    same PDF generator used for regular bookings - built from the offer's
+    own terms whether it's a catalog or custom villa."""
     villa_for_pdf = {
         "name": offer.get("villa_name"),
         "location": offer.get("villa_location", ""),
@@ -3514,6 +3514,18 @@ async def get_private_offer_pdf(offer_id: str):
         "security_deposit": offer.get("security_deposit"),
         "addons_total": offer.get("addons_total", 0),
     }
+    return villa_for_pdf, booking_like
+
+@api_router.get("/offer/{offer_id}/pdf")
+async def get_private_offer_pdf(offer_id: str):
+    """Publicly viewable private offer PDF - same proposal document as a
+    regular booking (tariff, bank details, amenities, house rules), built
+    from the offer's own terms whether it's a catalog or custom villa."""
+    offer = await db.private_offers.find_one({"offer_id": offer_id}, {"_id": 0})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+
+    villa_for_pdf, booking_like = _offer_pdf_context(offer)
 
     pdf_buffer = generate_booking_confirmation_pdf(
         booking_like, villa_for_pdf,
@@ -3525,9 +3537,139 @@ async def get_private_offer_pdf(offer_id: str):
         content=pdf_buffer.getvalue(),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'inline; filename="{pdf_filename(offer.get("guest_name"))}"'
+            "Content-Disposition": f'inline; filename="{pdf_filename(offer.get("guest_name"), offer.get("villa_name"))}"'
         }
     )
+
+class SendOfferEmailRequest(BaseModel):
+    email: Optional[EmailStr] = None
+
+def generate_private_offer_email(offer: dict, payment_link: str) -> str:
+    """Branded HTML email for sending a private offer link directly to a
+    customer (or anyone else) from the admin panel."""
+    expires_at = offer.get("expires_at", "")
+    try:
+        expires_display = datetime.fromisoformat(expires_at).strftime("%d %b %Y, %I:%M %p")
+    except Exception:
+        expires_display = expires_at
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Helvetica', Arial, sans-serif; color: {EMAIL_INK}; line-height: 1.6; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: {EMAIL_INK}; color: #ffffff; padding: 30px; text-align: center; border-bottom: 3px solid {EMAIL_GOLD}; }}
+            .header img {{ width: 96px; height: 96px; margin-bottom: 10px; }}
+            .header h1 {{ margin: 0; font-size: 22px; letter-spacing: 1px; color: #ffffff; }}
+            .header p {{ color: {EMAIL_GOLD}; }}
+            .content {{ padding: 30px; background: {EMAIL_CREAM}; }}
+            .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid {EMAIL_GOLD}; }}
+            .section h2 {{ color: {EMAIL_GOLD_DARK}; font-size: 16px; margin-top: 0; }}
+            .detail-row {{ padding: 8px 0; border-bottom: 1px solid #eee; }}
+            .label {{ color: {EMAIL_MUTED}; display: inline-block; width: 45%; }}
+            .value {{ font-weight: bold; color: {EMAIL_INK}; }}
+            .footer {{ text-align: center; padding: 20px; color: {EMAIL_MUTED}; font-size: 12px; }}
+            .cta {{ background: {EMAIL_GOLD_DARK}; color: white; padding: 12px 24px; text-decoration: none; display: inline-block; margin: 10px 0; }}
+            .highlight {{ background: #FBF3E3; padding: 15px; border-left: 4px solid {EMAIL_GOLD}; margin: 15px 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <img src="{EMAIL_LOGO_URL}" alt="Travaholic Stays" />
+                <h1>TRAVAHOLIC STAYS</h1>
+                <p style="margin: 5px 0 0 0;">Your Private Offer</p>
+            </div>
+
+            <div class="content">
+                <p>Dear <strong>{offer['guest_name']}</strong>,</p>
+                <p>Here's your private offer from Travaholic Stays - full tariff breakdown, bank details, amenities and house rules are attached as a PDF.</p>
+
+                <div class="section">
+                    <h2>OFFER SUMMARY</h2>
+                    <div class="detail-row">
+                        <span class="label">Villa:</span>
+                        <span class="value">{offer.get('villa_name', '')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Check-in:</span>
+                        <span class="value">{offer['check_in']}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Check-out:</span>
+                        <span class="value">{offer['check_out']}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Guests:</span>
+                        <span class="value">{offer['num_guests']} pax</span>
+                    </div>
+                    <div class="detail-row" style="font-size: 18px; padding-top: 15px;">
+                        <span class="label"><strong>Total Amount:</strong></span>
+                        <span class="value" style="color: {EMAIL_GOLD_DARK};">₹{offer['total_amount']:,.0f}</span>
+                    </div>
+                </div>
+
+                <div class="highlight">
+                    This offer expires on <strong>{expires_display}</strong>. Click below to review and complete payment.
+                </div>
+
+                <p style="text-align: center;">
+                    <a href="{payment_link}" class="cta">View Offer &amp; Pay</a>
+                </p>
+            </div>
+
+            <div class="footer">
+                <p><strong>Travaholic Stays</strong></p>
+                <p>+91 99588 71283 | www.travaholicstays.com</p>
+                <p>@travaholicstays on Instagram</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+@api_router.post("/admin/private-offers/{offer_id}/send-email")
+async def send_private_offer_email(offer_id: str, data: SendOfferEmailRequest, user: User = Depends(require_admin)):
+    """Email a private offer (payment link + PDF) directly to a customer -
+    or anyone else the admin specifies - from the admin panel."""
+    offer = await db.private_offers.find_one({"offer_id": offer_id}, {"_id": 0})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+
+    recipient = data.email or offer.get("guest_email")
+    if not recipient:
+        raise HTTPException(status_code=400, detail="No email address on file for this offer - provide one to send to")
+
+    resend_key = os.environ.get("RESEND_API_KEY")
+    if not resend_key or resend_key.startswith("re_placeholder"):
+        raise HTTPException(status_code=400, detail="Email sending isn't configured yet (RESEND_API_KEY missing)")
+
+    payment_link = offer.get("payment_link") or f"{os.environ.get('FRONTEND_URL', 'https://travaholicstays.com')}/offer/{offer_id}"
+    villa_for_pdf, booking_like = _offer_pdf_context(offer)
+    pdf_buffer = generate_booking_confirmation_pdf(
+        booking_like, villa_for_pdf,
+        document_title="PRIVATE OFFER",
+        intro_text="Thank you for your interest in Travaholic Stays! Please find below your private offer, including the tariff breakdown, bank details for payment, villa amenities and house rules."
+    )
+
+    resend.api_key = resend_key
+    try:
+        resend.Emails.send({
+            "from": SENDER_EMAIL,
+            "to": [recipient],
+            "subject": f"Your Private Offer - {offer.get('villa_name', 'Travaholic Stays')} | Travaholic Stays",
+            "html": generate_private_offer_email(offer, payment_link),
+            "attachments": [{
+                "filename": pdf_filename(offer.get("guest_name"), offer.get("villa_name")),
+                "content": list(pdf_buffer.getvalue()),
+            }],
+        })
+    except Exception as e:
+        logging.error(f"Failed to send private offer email: {e}")
+        raise HTTPException(status_code=502, detail="Failed to send email - please try again")
+
+    return {"message": f"Offer emailed to {recipient}"}
 
 @api_router.post("/offer/{offer_id}/accept")
 async def accept_private_offer(offer_id: str, payment_data: Dict[str, Any]):

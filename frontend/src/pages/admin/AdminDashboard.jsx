@@ -2229,6 +2229,7 @@ const AdminPrivateOffers = () => {
   const [useCustomVilla, setUseCustomVilla] = useState(false);
   const [editingOfferId, setEditingOfferId] = useState(null);
   const [formData, setFormData] = useState(EMPTY_OFFER_FORM);
+  const [sendingOfferId, setSendingOfferId] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -2340,6 +2341,24 @@ const AdminPrivateOffers = () => {
       fetchData();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to delete offer"));
+    }
+  };
+
+  const handleSendOfferEmail = async (offer) => {
+    const email = window.prompt("Send this offer to:", offer.guest_email || "");
+    if (!email) return;
+    setSendingOfferId(offer.offer_id);
+    try {
+      await axios.post(
+        `${API}/admin/private-offers/${offer.offer_id}/send-email`,
+        { email },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(`Offer emailed to ${email}`);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to send email"));
+    } finally {
+      setSendingOfferId(null);
     }
   };
 
@@ -2539,6 +2558,14 @@ const AdminPrivateOffers = () => {
               <div className="mt-4 pt-4 border-t flex flex-wrap items-center gap-2">
                 <Button size="sm" variant="outline" onClick={() => window.open(`${BACKEND_URL}/api/offer/${offer.offer_id}/pdf`, "_blank")}>
                   View PDF
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={sendingOfferId === offer.offer_id}
+                  onClick={() => handleSendOfferEmail(offer)}
+                >
+                  {sendingOfferId === offer.offer_id ? "Sending..." : "Send Email"}
                 </Button>
                 {offer.status === "pending" && (
                   <Button size="sm" variant="outline" onClick={() => openEditDialog(offer)}>
