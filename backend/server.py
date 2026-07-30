@@ -761,6 +761,26 @@ async def get_me(user: User = Depends(require_auth)):
         "role": user.role
     }
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6)
+
+@api_router.post("/auth/change-password")
+async def change_password(data: ChangePasswordRequest, user: User = Depends(require_auth)):
+    """Let any logged-in user (admin, owner, or guest) change their own password."""
+    user_doc = await db.users.find_one({"user_id": user.user_id})
+    if not user_doc or not user_doc.get("hashed_password"):
+        raise HTTPException(status_code=400, detail="This account doesn't have a password set yet")
+    if not bcrypt.checkpw(data.current_password.encode(), user_doc["hashed_password"].encode()):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    new_hashed = bcrypt.hashpw(data.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one(
+        {"user_id": user.user_id},
+        {"$set": {"hashed_password": new_hashed}}
+    )
+    return {"message": "Password updated successfully"}
+
 @api_router.post("/auth/logout")
 async def logout(authorization: str = Header(None), request: Request = None):
     """Logout user"""

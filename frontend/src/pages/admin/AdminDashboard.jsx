@@ -8,6 +8,7 @@ import {
   Upload, Star, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { useAuth, API, BACKEND_URL } from "../../App";
+import ChangePasswordDialog from "../../components/ChangePasswordDialog";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -101,6 +102,10 @@ const AdminDashboard = () => {
                 <p className="text-xs text-background/60 truncate">{user?.email}</p>
               </div>
             </div>
+            <ChangePasswordDialog
+              testIdPrefix="admin-change-password"
+              triggerClassName="flex items-center gap-2 text-sm text-background/60 hover:text-background mb-3"
+            />
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 text-sm text-background/60 hover:text-background"
