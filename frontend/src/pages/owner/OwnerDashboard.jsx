@@ -59,16 +59,16 @@ const OwnerDashboard = () => {
     <div className="min-h-screen bg-muted/30" data-testid="owner-dashboard">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-foreground text-background transform transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-foreground text-background transform transition-transform duration-300 lg:translate-x-0 overflow-y-auto ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col min-h-full">
           {/* Logo */}
           <div className="p-6 border-b border-background/10">
             <Link to="/">
-              <img 
-                src="/Travaholic_color_logo-removebg-preview.png" 
+              <img
+                src="/Travaholic_color_logo-removebg-preview.png"
                 alt="Travaholic Stays"
                 className="h-14 w-auto"
               />
