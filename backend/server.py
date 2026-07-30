@@ -805,6 +805,7 @@ async def get_villas(
     region: Optional[str] = None,
     min_guests: Optional[int] = None,
     max_guests: Optional[int] = None,
+    min_bedrooms: Optional[int] = None,
     has_pool: Optional[bool] = None,
     min_price: Optional[float] = None,
     max_price: Optional[float] = None,
@@ -846,6 +847,8 @@ async def get_villas(
             query["max_guests"]["$lte"] = max_guests
         else:
             query["max_guests"] = {"$lte": max_guests}
+    if min_bedrooms:
+        query["bedrooms"] = {"$gte": min_bedrooms}
     if has_pool is True:
         query["has_pool"] = True
     if min_price:

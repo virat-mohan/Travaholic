@@ -33,6 +33,7 @@ const VillasPage = () => {
     location: searchParams.get("location") || "",
     region: searchParams.get("region") || "",
     minGuests: searchParams.get("minGuests") || "",
+    minBedrooms: searchParams.get("minBedrooms") || "",
     hasPool: searchParams.get("hasPool") === "true",
     priceRange: [0, 100000],
     checkIn: searchParams.get("checkIn") || "",
@@ -65,6 +66,7 @@ const VillasPage = () => {
       if (filters.location) params.append("location", filters.location);
       if (filters.region) params.append("region", filters.region);
       if (filters.minGuests) params.append("min_guests", filters.minGuests);
+      if (filters.minBedrooms) params.append("min_bedrooms", filters.minBedrooms);
       if (filters.hasPool) params.append("has_pool", "true");
       if (filters.priceRange[0] > 0)
         params.append("min_price", filters.priceRange[0]);
@@ -90,6 +92,7 @@ const VillasPage = () => {
       location: "",
       region: "",
       minGuests: "",
+      minBedrooms: "",
       hasPool: false,
       priceRange: [0, 100000],
       checkIn: "",
@@ -110,6 +113,7 @@ const VillasPage = () => {
     filters.location ||
     filters.region ||
     filters.minGuests ||
+    filters.minBedrooms ||
     filters.hasPool ||
     filters.priceRange[0] > 0 ||
     filters.priceRange[1] < 100000 ||
@@ -283,6 +287,29 @@ const VillasPage = () => {
                       <SelectItem value="6">6+ Guests</SelectItem>
                       <SelectItem value="8">8+ Guests</SelectItem>
                       <SelectItem value="10">10+ Guests</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Bedrooms */}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">
+                    Bedrooms
+                  </label>
+                  <Select
+                    value={filters.minBedrooms || "any"}
+                    onValueChange={(value) =>
+                      setFilters({ ...filters, minBedrooms: value === "any" ? "" : value })
+                    }
+                  >
+                    <SelectTrigger data-testid="bedrooms-filter">
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="any">Any</SelectItem>
+                      <SelectItem value="2">2+ Bedrooms</SelectItem>
+                      <SelectItem value="3">3+ Bedrooms</SelectItem>
+                      <SelectItem value="4">4+ Bedrooms</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
