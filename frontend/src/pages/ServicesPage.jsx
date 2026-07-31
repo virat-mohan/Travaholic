@@ -415,9 +415,12 @@ const ServicesPage = () => {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
-            className="font-heading text-2xl md:text-3xl mb-6"
+            className="font-heading text-2xl md:text-3xl mb-6 flex items-center gap-3"
           >
             Breakfast Menu
+            <span className="font-body text-xs uppercase tracking-wider text-accent border border-accent/30 rounded-full px-3 py-1">
+              Complimentary
+            </span>
           </motion.h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             {breakfastMenus.map((menu, index) => (
