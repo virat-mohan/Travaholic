@@ -1,7 +1,16 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Helmet } from "react-helmet-async";
 import { Check, Anchor, Flower2, UtensilsCrossed, Phone } from "lucide-react";
 import { Button } from "../components/ui/button";
+
+// The services sub-index below the hero - lets guests jump straight to
+// the category they came for instead of scrolling through all three.
+const serviceNav = [
+  { id: "cruises", label: "Yacht Charters", icon: Anchor },
+  { id: "spa", label: "Spa", icon: Flower2 },
+  { id: "food", label: "Dining", icon: UtensilsCrossed },
+];
 
 // Each entry is a service category (Yacht Charters today, more to follow -
 // spa, adventure activities, etc.) so new ones can be appended here without
@@ -122,6 +131,28 @@ const mealOptions = [
 ];
 
 const ServicesPage = () => {
+  const [activeSection, setActiveSection] = useState("cruises");
+
+  useEffect(() => {
+    const sections = serviceNav
+      .map((s) => document.getElementById(s.id))
+      .filter(Boolean);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: "-170px 0px -70% 0px", threshold: 0 }
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="pt-24 min-h-screen bg-background" data-testid="services-page">
       <Helmet>
@@ -167,8 +198,35 @@ const ServicesPage = () => {
         </div>
       </section>
 
+      {/* Sub-index */}
+      <div className="sticky top-20 md:top-24 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="container-luxury">
+          <nav className="flex items-center gap-8 overflow-x-auto" data-testid="services-sub-nav">
+            {serviceNav.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className={`flex items-center gap-2 py-4 text-sm uppercase tracking-widest whitespace-nowrap border-b-2 transition-colors ${
+                  activeSection === s.id
+                    ? "border-accent text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <s.icon size={14} />
+                {s.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+      </div>
+
       {serviceCategories.map((category) => (
-        <section key={category.id} className="section-spacing" data-testid={`service-category-${category.id}`}>
+        <section
+          key={category.id}
+          id={category.id}
+          className="section-spacing scroll-mt-[144px] md:scroll-mt-[168px]"
+          data-testid={`service-category-${category.id}`}
+        >
           <div className="container-luxury">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -244,68 +302,78 @@ const ServicesPage = () => {
       ))}
 
       {/* Spa */}
-      <section className="section-spacing bg-muted/30" data-testid="service-category-spa">
+      <section
+        id="spa"
+        className="section-spacing scroll-mt-[144px] md:scroll-mt-[168px] bg-muted/30 border-t border-border"
+        data-testid="service-category-spa"
+      >
         <div className="container-luxury">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 items-center mb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
-              className="max-w-2xl"
             >
               <p className="caption-text mb-4 flex items-center gap-2">
                 <Flower2 size={14} />
                 In-Villa Wellness
               </p>
               <h2 className="font-heading text-4xl md:text-5xl mb-3">Heavenly Massages</h2>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-8">
                 Travaholic has curated an in-villa spa experience for your comfort — a reflection of
                 our commitment to wellness, letting you replenish mind and body with a personal,
                 sensory treatment. Just let your villa attendant know which one you'd like, and it'll
                 be arranged around your schedule.
               </p>
+
+              <div className="bg-card border border-border" data-testid="spa-price-list">
+                {spaTreatments.map((t, i) => (
+                  <div
+                    key={t.name}
+                    className={`flex items-center justify-between gap-4 px-6 md:px-8 py-4 ${
+                      i !== spaTreatments.length - 1 ? "border-b border-border" : ""
+                    }`}
+                  >
+                    <div>
+                      <p className="font-medium">{t.name}</p>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider">{t.duration}</p>
+                    </div>
+                    <p className="font-heading text-xl text-accent whitespace-nowrap">₹{t.price.toLocaleString("en-IN")}</p>
+                  </div>
+                ))}
+              </div>
             </motion.div>
-            <motion.img
+
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
               viewport={{ once: true }}
-              src="/images/spa-essentials.png"
-              alt=""
-              loading="lazy"
-              className="w-32 md:w-40 mx-auto md:mx-0 hidden sm:block"
-            />
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            viewport={{ once: true }}
-            className="bg-card border border-border max-w-2xl"
-            data-testid="spa-price-list"
-          >
-            {spaTreatments.map((t, i) => (
-              <div
-                key={t.name}
-                className={`flex items-center justify-between gap-4 px-6 md:px-8 py-4 ${
-                  i !== spaTreatments.length - 1 ? "border-b border-border" : ""
-                }`}
-              >
-                <div>
-                  <p className="font-medium">{t.name}</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">{t.duration}</p>
-                </div>
-                <p className="font-heading text-xl text-accent whitespace-nowrap">₹{t.price.toLocaleString("en-IN")}</p>
+              className="relative aspect-[2/1] overflow-hidden border border-border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.15)]"
+            >
+              <img
+                src="/images/spa-hero.jpg"
+                alt="In-villa spa setup with towels, oils and fresh lilies"
+                loading="lazy"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <p className="text-white font-heading text-xl">A Personal Wellness Ritual</p>
+                <p className="text-white/75 text-sm">Brought to your villa, on your schedule</p>
               </div>
-            ))}
-          </motion.div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Food */}
-      <section className="section-spacing" data-testid="service-category-food">
+      <section
+        id="food"
+        className="section-spacing scroll-mt-[144px] md:scroll-mt-[168px] border-t border-border"
+        data-testid="service-category-food"
+      >
         <div className="container-luxury">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
             <motion.div
