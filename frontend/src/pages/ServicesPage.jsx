@@ -246,25 +246,37 @@ const ServicesPage = () => {
       {/* Spa */}
       <section className="section-spacing bg-muted/30" data-testid="service-category-spa">
         <div className="container-luxury">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="mb-12 max-w-2xl"
-          >
-            <p className="caption-text mb-4 flex items-center gap-2">
-              <Flower2 size={14} />
-              In-Villa Wellness
-            </p>
-            <h2 className="font-heading text-4xl md:text-5xl mb-3">Heavenly Massages</h2>
-            <p className="text-muted-foreground">
-              Travaholic has curated an in-villa spa experience for your comfort — a reflection of
-              our commitment to wellness, letting you replenish mind and body with a personal,
-              sensory treatment. Just let your villa attendant know which one you'd like, and it'll
-              be arranged around your schedule.
-            </p>
-          </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 items-center mb-12">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className="max-w-2xl"
+            >
+              <p className="caption-text mb-4 flex items-center gap-2">
+                <Flower2 size={14} />
+                In-Villa Wellness
+              </p>
+              <h2 className="font-heading text-4xl md:text-5xl mb-3">Heavenly Massages</h2>
+              <p className="text-muted-foreground">
+                Travaholic has curated an in-villa spa experience for your comfort — a reflection of
+                our commitment to wellness, letting you replenish mind and body with a personal,
+                sensory treatment. Just let your villa attendant know which one you'd like, and it'll
+                be arranged around your schedule.
+              </p>
+            </motion.div>
+            <motion.img
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              viewport={{ once: true }}
+              src="/images/spa-essentials.png"
+              alt=""
+              loading="lazy"
+              className="w-32 md:w-40 mx-auto md:mx-0 hidden sm:block"
+            />
+          </div>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -321,7 +333,7 @@ const ServicesPage = () => {
             >
               <div className="aspect-[4/3] overflow-hidden">
                 <img
-                  src="/villas/dream-villa/Dinning%201A.jpg"
+                  src="/villas/la-sierra-15/Dinning%20area.jpeg"
                   alt="In-villa dining setup"
                   loading="lazy"
                   className="w-full h-full object-cover"
