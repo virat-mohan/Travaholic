@@ -339,9 +339,6 @@ const ServicesPage = () => {
                   className="w-full h-full object-cover"
                 />
               </div>
-              <p className="text-xs text-muted-foreground italic mt-2">
-                Image for illustration purposes only — actual dishes and presentation may vary.
-              </p>
             </motion.div>
           </div>
 
