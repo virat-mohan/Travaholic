@@ -160,6 +160,7 @@ class Villa(BaseModel):
     amenities: List[str] = []
     images: List[str] = []
     thumbnail: Optional[str] = None
+    photo_captions: Optional[Dict[str, str]] = None  # {image_url: custom display caption}
     video_url: Optional[str] = None
     bookings_open_from: Optional[str] = None  # YYYY-MM-DD - no check-ins accepted before this date
     airbnb_ical_url: Optional[str] = None  # Airbnb's private "export calendar" link for this listing
@@ -203,6 +204,7 @@ class VillaCreate(BaseModel):
     amenities: List[str] = []
     images: List[str] = []
     thumbnail: Optional[str] = None
+    photo_captions: Optional[Dict[str, str]] = None
     video_url: Optional[str] = None
     bookings_open_from: Optional[str] = None
     airbnb_ical_url: Optional[str] = None

@@ -45,7 +45,7 @@ const VillaCard = ({ villa, index = 0, showCaption = false }) => {
     : [villa.thumbnail || "/villas/la-sierra-12/Pool area.jpeg"];
   const images = orderedImages.slice(0, 5);
   const currentImage = images[currentImageIndex] || images[0];
-  const imageCaption = showCaption ? getImageCaption(currentImage) : "";
+  const imageCaption = showCaption ? (villa.photo_captions?.[currentImage] || getImageCaption(currentImage)) : "";
 
   const nextImage = (e) => {
     e.preventDefault();

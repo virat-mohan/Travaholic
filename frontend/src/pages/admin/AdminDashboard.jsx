@@ -605,6 +605,7 @@ const VillaForm = ({ villa, onSuccess }) => {
     amenities: villa?.amenities || [],
     thumbnail: villa?.thumbnail || "",
     images: villa?.images || [],
+    photo_captions: villa?.photo_captions || {},
     video_url: villa?.video_url || "",
     bookings_open_from: villa?.bookings_open_from || "",
     airbnb_ical_url: villa?.airbnb_ical_url || "",
@@ -660,11 +661,14 @@ const VillaForm = ({ villa, onSuccess }) => {
     }));
   };
 
-  // The label shown under each photo is just its filename, decoded from
-  // the URL - editing it renames that last path segment (directory/host
-  // untouched). Only meaningful for statically-hosted villa photos; images
-  // uploaded through this form get an opaque /api/images/{id} URL with no
-  // real filename to rename.
+  // The label shown under each photo defaults to its filename, decoded
+  // from the URL. Editing it does NOT rename the actual file - villa
+  // photos are static files deployed with the frontend, which this
+  // (Render-hosted) backend has no filesystem access to, so renaming the
+  // URL itself would just produce a broken link. Instead the edited label
+  // is saved as a per-photo caption override (photo_captions, keyed by
+  // the image's own URL) that's used wherever this photo's caption is
+  // displayed on the site.
   const labelFromUrl = (url) => {
     try {
       const path = new URL(url, window.location.origin).pathname;
@@ -676,12 +680,10 @@ const VillaForm = ({ villa, onSuccess }) => {
 
   const handleRelabelImage = (url, newLabel) => {
     const trimmed = newLabel.trim();
-    if (!trimmed || trimmed === labelFromUrl(url)) return;
-    const newUrl = url.replace(/[^/]+$/, encodeURIComponent(trimmed));
+    if (!trimmed) return;
     setFormData((prev) => ({
       ...prev,
-      images: prev.images.map((i) => (i === url ? newUrl : i)),
-      thumbnail: prev.thumbnail === url ? newUrl : prev.thumbnail,
+      photo_captions: { ...prev.photo_captions, [url]: trimmed },
     }));
   };
 
@@ -959,61 +961,70 @@ const VillaForm = ({ villa, onSuccess }) => {
         {formData.images.length > 0 && (
           <div className="grid grid-cols-4 gap-3 mt-4">
             {formData.images.map((url, index) => (
-              <div key={url} className="relative group">
-                <button
-                  type="button"
-                  onClick={() => handleSetThumbnail(url)}
-                  className={`block w-full aspect-square overflow-hidden rounded-md border-2 ${
-                    formData.thumbnail === url ? "border-accent" : "border-transparent"
-                  }`}
-                >
-                  <img src={url} alt="" className="w-full h-full object-cover" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetThumbnail(url)}
-                  title={formData.thumbnail === url ? "Opens first on the villa page" : "Set as opening photo"}
-                  className={`absolute top-1 left-1 rounded-full p-1 transition-colors ${
-                    formData.thumbnail === url
-                      ? "bg-accent text-accent-foreground"
-                      : "bg-foreground/60 text-background/80 opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  <Star size={10} fill={formData.thumbnail === url ? "currentColor" : "none"} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveImage(url)}
-                  title="Remove photo"
-                  className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 hover:bg-destructive transition-colors"
-                >
-                  <X size={10} />
-                </button>
-                <div className="absolute bottom-1 left-1 right-1 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+              <div key={url} className="group">
+                {/* Photo + its hover overlay controls live in their own
+                    positioning context, scoped to just the square image -
+                    previously "absolute bottom-1" resolved against the
+                    whole tile (photo + label input below it), so the
+                    invisible reorder buttons sat on top of the label input
+                    and intercepted clicks meant for it. */}
+                <div className="relative">
                   <button
                     type="button"
-                    onClick={() => moveImage(index, -1)}
-                    disabled={index === 0}
-                    title="Move earlier"
-                    className="bg-foreground/80 text-background rounded-full p-1 disabled:opacity-30 hover:bg-accent"
+                    onClick={() => handleSetThumbnail(url)}
+                    className={`block w-full aspect-square overflow-hidden rounded-md border-2 ${
+                      formData.thumbnail === url ? "border-accent" : "border-transparent"
+                    }`}
                   >
-                    <ChevronLeft size={10} />
+                    <img src={url} alt="" className="w-full h-full object-cover" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => moveImage(index, 1)}
-                    disabled={index === formData.images.length - 1}
-                    title="Move later"
-                    className="bg-foreground/80 text-background rounded-full p-1 disabled:opacity-30 hover:bg-accent"
+                    onClick={() => handleSetThumbnail(url)}
+                    title={formData.thumbnail === url ? "Opens first on the villa page" : "Set as opening photo"}
+                    className={`absolute top-1 left-1 rounded-full p-1 transition-colors ${
+                      formData.thumbnail === url
+                        ? "bg-accent text-accent-foreground"
+                        : "bg-foreground/60 text-background/80 opacity-0 group-hover:opacity-100 hover:bg-accent hover:text-accent-foreground"
+                    }`}
                   >
-                    <ChevronRight size={10} />
+                    <Star size={10} fill={formData.thumbnail === url ? "currentColor" : "none"} />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(url)}
+                    title="Remove photo"
+                    className="absolute top-1 right-1 bg-foreground/80 text-background rounded-full p-1 hover:bg-destructive transition-colors"
+                  >
+                    <X size={10} />
+                  </button>
+                  <div className="absolute bottom-1 left-1 right-1 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <button
+                      type="button"
+                      onClick={() => moveImage(index, -1)}
+                      disabled={index === 0}
+                      title="Move earlier"
+                      className="bg-foreground/80 text-background rounded-full p-1 disabled:opacity-30 hover:bg-accent pointer-events-auto"
+                    >
+                      <ChevronLeft size={10} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveImage(index, 1)}
+                      disabled={index === formData.images.length - 1}
+                      title="Move later"
+                      className="bg-foreground/80 text-background rounded-full p-1 disabled:opacity-30 hover:bg-accent pointer-events-auto"
+                    >
+                      <ChevronRight size={10} />
+                    </button>
+                  </div>
                 </div>
                 <input
                   type="text"
-                  defaultValue={labelFromUrl(url)}
+                  key={url}
+                  defaultValue={formData.photo_captions?.[url] || labelFromUrl(url)}
                   onBlur={(e) => handleRelabelImage(url, e.target.value)}
-                  title="Filename shown in the image URL - edit to rename"
+                  title="Custom caption shown for this photo on the villa page"
                   className="mt-1 w-full text-[10px] text-muted-foreground bg-transparent border-none px-0 truncate focus:outline-none focus:ring-1 focus:ring-accent rounded"
                 />
               </div>
@@ -1021,7 +1032,7 @@ const VillaForm = ({ villa, onSuccess }) => {
           </div>
         )}
         <p className="text-xs text-muted-foreground mt-2">
-          Click the star to set which photo opens first on the villa page. Hover a photo to reveal arrows for reordering the rest of the gallery.
+          Click the star to set which photo opens first on the villa page. Hover a photo to reveal arrows for reordering the rest of the gallery. Edit the text under a photo to set its caption.
         </p>
       </div>
 

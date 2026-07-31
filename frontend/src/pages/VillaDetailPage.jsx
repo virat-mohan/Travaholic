@@ -406,7 +406,7 @@ const VillaDetailPage = () => {
             {villa.images?.[selectedImageIndex] && (
               <div className="bg-muted/50 px-4 py-3 border-x border-b border-border">
                 <p className="text-foreground font-medium">
-                  {getImageCaption(villa.images[selectedImageIndex])}
+                  {villa.photo_captions?.[villa.images[selectedImageIndex]] || getImageCaption(villa.images[selectedImageIndex])}
                 </p>
                 <p className="text-muted-foreground text-sm">
                   Image {selectedImageIndex + 1} of {villa.images?.length || 1}
@@ -431,7 +431,7 @@ const VillaDetailPage = () => {
                 </div>
                 {/* Thumbnail Caption Below */}
                 <p className="text-sm text-muted-foreground mt-2 truncate">
-                  {getImageCaption(img)}
+                  {villa.photo_captions?.[img] || getImageCaption(img)}
                 </p>
               </div>
             ))}
