@@ -5,6 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import re
+import json
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
@@ -108,10 +109,42 @@ TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_WHATSAPP_FROM = os.environ.get('TWILIO_WHATSAPP_FROM', '')  # e.g. "whatsapp:+14155238886"
 
+# Content SIDs for Meta-approved WhatsApp templates (see
+# backend/whatsapp_templates.md for the template text to submit and get
+# these from). Each is optional - until a given SID is set, the matching
+# send falls back to a free-text message instead of no-op'ing entirely,
+# so sends keep working before/while a template is pending approval. Note
+# free-text only actually delivers within Twilio's WhatsApp sandbox or
+# within 24h of the guest messaging first; in production once you're off
+# the sandbox, business-initiated sends require the template.
+TWILIO_TEMPLATE_BOOKING_PROPOSAL = os.environ.get('TWILIO_TEMPLATE_BOOKING_PROPOSAL', '')
+TWILIO_TEMPLATE_ADVANCE_PAYMENT = os.environ.get('TWILIO_TEMPLATE_ADVANCE_PAYMENT', '')
+TWILIO_TEMPLATE_BOOKING_CONFIRMED = os.environ.get('TWILIO_TEMPLATE_BOOKING_CONFIRMED', '')
+TWILIO_TEMPLATE_PRIVATE_OFFER = os.environ.get('TWILIO_TEMPLATE_PRIVATE_OFFER', '')
+
 twilio_client = None
 if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
     from twilio.rest import Client as TwilioClient
     twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+
+def _send_whatsapp(to_number: str, content_sid: str, content_variables: dict, fallback_body: str):
+    """Send a WhatsApp message via an approved Content template when
+    content_sid is configured, otherwise fall back to a free-text body.
+    Shared by every guest-facing WhatsApp send below."""
+    if content_sid:
+        twilio_client.messages.create(
+            from_=TWILIO_WHATSAPP_FROM,
+            to=f"whatsapp:+{to_number}",
+            content_sid=content_sid,
+            content_variables=json.dumps(content_variables),
+        )
+    else:
+        twilio_client.messages.create(
+            from_=TWILIO_WHATSAPP_FROM,
+            to=f"whatsapp:+{to_number}",
+            body=fallback_body,
+        )
 
 app = FastAPI(title="Travaholic Stays API")
 api_router = APIRouter(prefix="/api")
@@ -1145,9 +1178,18 @@ async def get_villa_ical_feed(villa_id: str):
 def _parse_ical_events(ics_text: str) -> List[Dict[str, str]]:
     """Minimal VEVENT extractor - pulls UID/DTSTART/DTEND out of raw iCal
     text with regex rather than pulling in a full icalendar dependency.
-    Handles both DATE (YYYYMMDD) and DATE-TIME (YYYYMMDDTHHMMSSZ) forms."""
+    Handles both DATE (YYYYMMDD) and DATE-TIME (YYYYMMDDTHHMMSSZ) forms.
+    Also pulls the "Reservation URL" out of DESCRIPTION when present -
+    Airbnb's export calendar doesn't include guest name/phone/email (a
+    platform privacy restriction), but it does link each reservation back
+    to its detail page on the Airbnb host dashboard, which is the closest
+    thing to "more booking details" we can surface from this feed."""
+    # Unfold RFC 5545 line continuations (CRLF/LF followed by a space)
+    # before matching DESCRIPTION, since Airbnb wraps long values -
+    # without this, a folded Reservation URL line would get truncated.
+    unfolded = re.sub(r"\r?\n[ \t]", "", ics_text)
     events = []
-    for block in re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", ics_text, re.DOTALL):
+    for block in re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", unfolded, re.DOTALL):
         uid_m = re.search(r"UID:(.+)", block)
         start_m = re.search(r"DTSTART[^:]*:(\d{8})", block)
         end_m = re.search(r"DTEND[^:]*:(\d{8})", block)
@@ -1156,10 +1198,12 @@ def _parse_ical_events(ics_text: str) -> List[Dict[str, str]]:
         start_date = f"{start_m.group(1)[:4]}-{start_m.group(1)[4:6]}-{start_m.group(1)[6:8]}"
         end_raw = end_m.group(1)
         end_dt = datetime.strptime(end_raw, "%Y%m%d") - timedelta(days=1)  # DTEND is exclusive
+        url_m = re.search(r"Reservation URL:\s*(\S+)", block)
         events.append({
             "uid": uid_m.group(1).strip(),
             "start_date": start_date,
             "end_date": end_dt.strftime("%Y-%m-%d"),
+            "reservation_url": url_m.group(1).strip() if url_m else None,
         })
     return events
 
@@ -1195,6 +1239,7 @@ async def sync_airbnb_calendar(villa_id: str, user: User = Depends(require_admin
             "end_date": e["end_date"],
             "reason": "airbnb_sync",
             "booking_id": None,
+            "reservation_url": e.get("reservation_url"),
             "created_by": user.user_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
         } for e in events]
@@ -1437,7 +1482,7 @@ def send_whatsapp_booking_confirmation(booking: dict, villa: dict):
         security = booking.get("security_deposit") or 20000
         maps_link = villa_maps_link(villa)
         address = villa.get("address") or ", ".join(p for p in [villa.get("location", ""), villa.get("region", "")] if p)
-        message = (
+        fallback_message = (
             f"Thank you for your booking at {villa.get('name')}, Travaholic Stays!\n\n"
             f"This is subject to receipt of payment.\n\n"
             f"Villa: {villa.get('name')}\n"
@@ -1452,14 +1497,131 @@ def send_whatsapp_booking_confirmation(booking: dict, villa: dict):
             + f"Your full proposal - tariff breakdown, bank details for payment, "
             f"amenities and house rules - has been emailed to you."
         )
-        twilio_client.messages.create(
-            from_=TWILIO_WHATSAPP_FROM,
-            to=f"whatsapp:+{to_number}",
-            body=message,
+        _send_whatsapp(
+            to_number,
+            TWILIO_TEMPLATE_BOOKING_PROPOSAL,
+            {
+                "1": villa.get("name", ""),
+                "2": booking.get("check_in", ""),
+                "3": booking.get("check_out", ""),
+                "4": str(booking.get("num_guests", "")),
+                "5": f"{total:,.0f}",
+                "6": f"{security:,.0f}",
+                "7": booking.get("booking_id", ""),
+            },
+            fallback_message,
         )
         logging.info(f"WhatsApp confirmation sent to +{to_number}")
     except Exception as e:
         logging.error(f"Failed to send WhatsApp confirmation: {e}")
+
+
+def send_whatsapp_payment_update(booking: dict, villa: dict, payment_type: str, amount: float):
+    """Best-effort WhatsApp receipt for an advance or full payment. Same
+    no-op-if-unconfigured pattern as send_whatsapp_booking_confirmation."""
+    if not twilio_client or not TWILIO_WHATSAPP_FROM:
+        return
+    try:
+        digits = "".join(ch for ch in booking.get("guest_phone", "") if ch.isdigit())
+        if not digits:
+            return
+        to_number = digits if len(digits) > 10 else f"91{digits}"
+        guest_first_name = (booking.get("guest_name") or "there").split(" ")[0]
+        villa_name = villa.get("name", "")
+
+        if payment_type == "advance":
+            balance = booking.get("balance_amount", 0)
+            fallback_message = (
+                f"Hi {guest_first_name}, we've received your advance payment of "
+                f"Rs. {amount:,.0f} for {villa_name}.\n\n"
+                f"Balance due: Rs. {balance:,.0f}\n"
+                f"Check-in: {booking.get('check_in')}\n"
+                f"Check-out: {booking.get('check_out')}\n\n"
+                f"Thank you for choosing Travaholic Stays!"
+            )
+            _send_whatsapp(
+                to_number,
+                TWILIO_TEMPLATE_ADVANCE_PAYMENT,
+                {
+                    "1": guest_first_name,
+                    "2": f"{amount:,.0f}",
+                    "3": villa_name,
+                    "4": f"{balance:,.0f}",
+                    "5": booking.get("check_in", ""),
+                    "6": booking.get("check_out", ""),
+                },
+                fallback_message,
+            )
+        else:
+            fallback_message = (
+                f"Hi {guest_first_name}, your booking at {villa_name} is now confirmed!\n\n"
+                f"Full payment of Rs. {amount:,.0f} received.\n"
+                f"Check-in: {booking.get('check_in')}\n"
+                f"Check-out: {booking.get('check_out')}\n"
+                f"Booking ID: {booking.get('booking_id')}\n\n"
+                f"We can't wait to host you. Full details have been emailed to you."
+            )
+            _send_whatsapp(
+                to_number,
+                TWILIO_TEMPLATE_BOOKING_CONFIRMED,
+                {
+                    "1": guest_first_name,
+                    "2": villa_name,
+                    "3": f"{amount:,.0f}",
+                    "4": booking.get("check_in", ""),
+                    "5": booking.get("check_out", ""),
+                    "6": booking.get("booking_id", ""),
+                },
+                fallback_message,
+            )
+        logging.info(f"WhatsApp payment update sent to +{to_number}")
+    except Exception as e:
+        logging.error(f"Failed to send WhatsApp payment update: {e}")
+
+
+def send_whatsapp_private_offer(offer: dict, payment_link: str):
+    """Best-effort WhatsApp notification when a private offer is sent to a
+    guest. Same no-op-if-unconfigured pattern as the other WhatsApp sends."""
+    if not twilio_client or not TWILIO_WHATSAPP_FROM:
+        return
+    try:
+        digits = "".join(ch for ch in offer.get("guest_phone", "") if ch.isdigit())
+        if not digits:
+            return
+        to_number = digits if len(digits) > 10 else f"91{digits}"
+        guest_first_name = (offer.get("guest_name") or "there").split(" ")[0]
+        expires_at = offer.get("expires_at", "")
+        try:
+            expires_display = datetime.fromisoformat(expires_at).strftime("%d %b %Y, %I:%M %p")
+        except Exception:
+            expires_display = expires_at
+
+        fallback_message = (
+            f"Hi {guest_first_name}, we've put together a private offer for "
+            f"{offer.get('villa_name', '')}.\n\n"
+            f"Check-in: {offer.get('check_in')}\n"
+            f"Check-out: {offer.get('check_out')}\n"
+            f"Total: Rs. {offer.get('total_amount', 0):,.0f}\n\n"
+            f"View and confirm your offer: {payment_link}\n"
+            f"This offer expires on {expires_display}."
+        )
+        _send_whatsapp(
+            to_number,
+            TWILIO_TEMPLATE_PRIVATE_OFFER,
+            {
+                "1": guest_first_name,
+                "2": offer.get("villa_name", ""),
+                "3": offer.get("check_in", ""),
+                "4": offer.get("check_out", ""),
+                "5": f"{offer.get('total_amount', 0):,.0f}",
+                "6": payment_link,
+                "7": expires_display,
+            },
+            fallback_message,
+        )
+        logging.info(f"WhatsApp private offer sent to +{to_number}")
+    except Exception as e:
+        logging.error(f"Failed to send WhatsApp private offer: {e}")
 
 @api_router.post("/bookings")
 async def create_booking(booking_data: BookingCreate):
@@ -1957,7 +2119,12 @@ async def mark_payment_received(
                 confirmation_sent = True
         except Exception as e:
             logging.error(f"Failed to send email: {e}")
-    
+
+        try:
+            send_whatsapp_payment_update(updated_booking, villa, payment_type, received_amount)
+        except Exception as e:
+            logging.error(f"Failed to send WhatsApp payment update: {e}")
+
     return {
         "message": f"Payment marked as {payment_type}",
         "confirmation_sent": confirmation_sent,
@@ -2395,6 +2562,11 @@ async def get_admin_calendar(villa_id: Optional[str] = None, user: User = Depend
             "booking_status": None,
             "payment_status": None,
             "total_amount": None,
+            # Airbnb's export calendar never includes guest identity (a
+            # platform privacy restriction) but does link each reservation
+            # back to its detail page on the Airbnb host dashboard when
+            # the calendar was synced after that field was added.
+            "reservation_url": blk.get("reservation_url"),
         })
 
     return {"events": events}
@@ -3735,6 +3907,11 @@ async def send_private_offer_email(offer_id: str, data: SendOfferEmailRequest, u
     except Exception as e:
         logging.error(f"Failed to send private offer email: {e}")
         raise HTTPException(status_code=502, detail="Failed to send email - please try again")
+
+    try:
+        send_whatsapp_private_offer(offer, payment_link)
+    except Exception as e:
+        logging.error(f"Failed to send WhatsApp private offer: {e}")
 
     return {"message": f"Offer emailed to {recipient}"}
 

@@ -5,7 +5,7 @@ import {
   Settings, LogOut, Menu, X, Plus, ChevronDown, FileText, Building,
   Edit, Trash2, Eye, Check, Phone, Mail, Search, Filter, Download,
   AlertCircle, Clock, CheckCircle, XCircle, RefreshCw, BookOpen, Image, Tag, Ticket, Percent,
-  Upload, Star, ChevronLeft, ChevronRight
+  Upload, Star, ChevronLeft, ChevronRight, ExternalLink
 } from "lucide-react";
 import { useAuth, API, BACKEND_URL } from "../../App";
 import ChangePasswordDialog from "../../components/ChangePasswordDialog";
@@ -2097,6 +2097,22 @@ const AdminBookingCalendar = () => {
                             </a>
                           )}
                         </div>
+                      )}
+                      {e.reservation_url && (
+                        <a
+                          href={e.reservation_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-accent mt-1"
+                        >
+                          <ExternalLink size={14} />
+                          View reservation on Airbnb
+                        </a>
+                      )}
+                      {e.source === "airbnb" && !e.reservation_url && (
+                        <p className="text-xs text-muted-foreground italic mt-1">
+                          No further details available - Airbnb's calendar export doesn't include guest identity.
+                        </p>
                       )}
                     </div>
                     {e.total_amount != null && (

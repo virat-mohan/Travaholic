@@ -40,9 +40,15 @@ if not MONGO_URL or not DB_NAME:
 
 def parse_ical_events(ics_text):
     """Minimal VEVENT extractor - pulls UID/DTSTART/DTEND out of raw iCal
-    text with regex rather than pulling in a full icalendar dependency."""
+    text with regex rather than pulling in a full icalendar dependency.
+    Also pulls the "Reservation URL" out of DESCRIPTION when present, so
+    the admin calendar can link back to the reservation on Airbnb's own
+    host dashboard - Airbnb's export feed never includes guest name/
+    phone/email (a platform privacy restriction), so this link is the
+    closest thing to "more booking details" available from this feed."""
+    unfolded = re.sub(r"\r?\n[ \t]", "", ics_text)  # RFC 5545 line unfolding
     events = []
-    for block in re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", ics_text, re.DOTALL):
+    for block in re.findall(r"BEGIN:VEVENT(.*?)END:VEVENT", unfolded, re.DOTALL):
         uid_m = re.search(r"UID:(.+)", block)
         start_m = re.search(r"DTSTART[^:]*:(\d{8})", block)
         end_m = re.search(r"DTEND[^:]*:(\d{8})", block)
@@ -50,10 +56,12 @@ def parse_ical_events(ics_text):
             continue
         start_date = f"{start_m.group(1)[:4]}-{start_m.group(1)[4:6]}-{start_m.group(1)[6:8]}"
         end_dt = datetime.strptime(end_m.group(1), "%Y%m%d") - timedelta(days=1)  # DTEND is exclusive
+        url_m = re.search(r"Reservation URL:\s*(\S+)", block)
         events.append({
             "uid": uid_m.group(1).strip(),
             "start_date": start_date,
             "end_date": end_dt.strftime("%Y-%m-%d"),
+            "reservation_url": url_m.group(1).strip() if url_m else None,
         })
     return events
 
@@ -89,6 +97,7 @@ for villa in villas:
             "end_date": e["end_date"],
             "reason": "airbnb_sync",
             "booking_id": None,
+            "reservation_url": e.get("reservation_url"),
             "created_by": "airbnb_sync_cron",
             "created_at": datetime.now(timezone.utc).isoformat(),
         } for e in events]
