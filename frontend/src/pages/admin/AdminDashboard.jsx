@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Home, Calendar, Users, DollarSign, MessageSquare,
+  LayoutDashboard, Home, Calendar, CalendarDays, Users, DollarSign, MessageSquare,
   Settings, LogOut, Menu, X, Plus, ChevronDown, FileText, Building,
   Edit, Trash2, Eye, Check, Phone, Mail, Search, Filter, Download,
   AlertCircle, Clock, CheckCircle, XCircle, RefreshCw, BookOpen, Image, Tag, Ticket, Percent,
@@ -16,11 +16,13 @@ import { Checkbox } from "../../components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose
 } from "../../components/ui/dialog";
-import { 
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "../../components/ui/select";
+import { Calendar as CalendarComponent } from "../../components/ui/calendar";
 import { toast } from "sonner";
 import axios from "axios";
+import { format, addMonths, subMonths, eachDayOfInterval, parseISO, subDays } from "date-fns";
 import { getErrorMessage } from "@/lib/utils";
 
 // Admin Dashboard Component
@@ -34,6 +36,7 @@ const AdminDashboard = () => {
     { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
     { icon: Home, label: "Villas", path: "/admin/villas" },
     { icon: Calendar, label: "Bookings", path: "/admin/bookings" },
+    { icon: CalendarDays, label: "Booking Calendar", path: "/admin/calendar" },
     { icon: FileText, label: "Private Offers", path: "/admin/offers" },
     { icon: Ticket, label: "Coupons", path: "/admin/coupons" },
     { icon: MessageSquare, label: "Leads", path: "/admin/leads" },
@@ -151,6 +154,7 @@ const AdminDashboard = () => {
             <Route index element={<AdminOverview />} />
             <Route path="villas" element={<AdminVillas />} />
             <Route path="bookings" element={<AdminBookings />} />
+            <Route path="calendar" element={<AdminBookingCalendar />} />
             <Route path="offers" element={<AdminPrivateOffers />} />
             <Route path="coupons" element={<AdminCoupons />} />
             <Route path="leads" element={<AdminLeads />} />
@@ -1773,10 +1777,18 @@ const ManualBookingForm = ({ villas, onSuccess }) => {
 };
 
 // Admin Leads with status management
+const LEAD_NATURE_LABELS = {
+  booking: "Booking",
+  listing_villa: "Listing Villa",
+  general_enquiry: "General Enquiry",
+  other: "Other",
+};
+
 const AdminLeads = () => {
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState("all");
+  const [natureFilter, setNatureFilter] = useState("all");
 
   useEffect(() => {
     fetchLeads();
@@ -1793,9 +1805,9 @@ const AdminLeads = () => {
     }
   };
 
-  const updateLeadStatus = async (leadId, status) => {
+  const updateLead = async (leadId, data) => {
     try {
-      await axios.put(`${API}/leads/${leadId}`, { status }, { headers: getAuthHeaders() });
+      await axios.put(`${API}/leads/${leadId}`, data, { headers: getAuthHeaders() });
       toast.success("Lead updated");
       fetchLeads();
     } catch (error) {
@@ -1803,22 +1815,40 @@ const AdminLeads = () => {
     }
   };
 
-  const filteredLeads = leads.filter(l => typeFilter === "all" || l.lead_type === typeFilter);
+  const filteredLeads = leads.filter(
+    (l) =>
+      (typeFilter === "all" || l.lead_type === typeFilter) &&
+      (natureFilter === "all" || (l.nature || "general_enquiry") === natureFilter)
+  );
 
   return (
     <div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <h1 className="font-heading text-3xl">Leads & Callbacks</h1>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Filter" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="callback">Callbacks</SelectItem>
-            <SelectItem value="homeowner">Homeowners</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-3">
+          <Select value={natureFilter} onValueChange={setNatureFilter}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Nature" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Enquiries</SelectItem>
+              <SelectItem value="booking">Booking</SelectItem>
+              <SelectItem value="listing_villa">Listing Villa</SelectItem>
+              <SelectItem value="general_enquiry">General Enquiry</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="callback">Callbacks</SelectItem>
+              <SelectItem value="homeowner">Homeowners</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {loading ? (
@@ -1833,12 +1863,15 @@ const AdminLeads = () => {
             <div key={lead.lead_id} className="bg-card border border-border p-6">
               <div className="flex flex-col md:flex-row justify-between gap-4">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <h3 className="font-medium text-lg">{lead.name}</h3>
                     <span className={`px-2 py-1 text-xs rounded ${
                       lead.lead_type === 'homeowner' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
                     }`}>
                       {lead.lead_type}
+                    </span>
+                    <span className="px-2 py-1 text-xs rounded bg-orange-100 text-orange-800">
+                      {LEAD_NATURE_LABELS[lead.nature] || LEAD_NATURE_LABELS.general_enquiry}
                     </span>
                     <span className={`px-2 py-1 text-xs rounded ${
                       lead.status === 'new' ? 'bg-green-100 text-green-800' :
@@ -1869,8 +1902,22 @@ const AdminLeads = () => {
                   )}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Select value={lead.status || 'new'} onValueChange={(v) => updateLeadStatus(lead.lead_id, v)}>
-                    <SelectTrigger className="w-32">
+                  <Select
+                    value={lead.nature || 'general_enquiry'}
+                    onValueChange={(v) => updateLead(lead.lead_id, { nature: v })}
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="booking">Booking</SelectItem>
+                      <SelectItem value="listing_villa">Listing Villa</SelectItem>
+                      <SelectItem value="general_enquiry">General Enquiry</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={lead.status || 'new'} onValueChange={(v) => updateLead(lead.lead_id, { status: v })}>
+                    <SelectTrigger className="w-40">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1889,6 +1936,189 @@ const AdminLeads = () => {
         <div className="text-center py-12 bg-card border border-border">
           <p className="text-muted-foreground">No leads yet</p>
         </div>
+      )}
+    </div>
+  );
+};
+
+// Admin Booking Calendar - merges website/private-offer bookings with
+// Airbnb-synced blocked dates (from GET /admin/calendar) into one
+// month-grid view per villa, plus a flat list with full guest details.
+const CALENDAR_SOURCE_META = {
+  website: { label: "Website", dot: "bg-blue-500", badge: "bg-blue-100 text-blue-800" },
+  private_offer: { label: "Private Offer", dot: "bg-purple-500", badge: "bg-purple-100 text-purple-800" },
+  airbnb: { label: "Airbnb", dot: "bg-rose-500", badge: "bg-rose-100 text-rose-800" },
+};
+
+const AdminBookingCalendar = () => {
+  const [events, setEvents] = useState([]);
+  const [villas, setVillas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedVillaId, setSelectedVillaId] = useState("all");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [eventsRes, villasRes] = await Promise.all([
+        axios.get(`${API}/admin/calendar`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/villas`, { headers: getAuthHeaders() }),
+      ]);
+      setEvents(eventsRes.data.events || []);
+      setVillas(villasRes.data.villas || []);
+    } catch (error) {
+      console.error("Error fetching calendar:", error);
+      toast.error("Failed to load booking calendar");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const villaEvents = selectedVillaId === "all"
+    ? events
+    : events.filter((e) => e.villa_id === selectedVillaId);
+
+  const sortedEvents = [...villaEvents].sort((a, b) => a.check_in.localeCompare(b.check_in));
+
+  // react-day-picker modifiers: arrays of Date objects per source, expanded
+  // from each event's stay range (excluding the checkout/departure day,
+  // since the guest isn't occupying the villa that night).
+  const modifiers = { website: [], privateOffer: [], airbnb: [] };
+  if (selectedVillaId !== "all") {
+    villaEvents.forEach((e) => {
+      try {
+        const start = parseISO(e.check_in);
+        const end = subDays(parseISO(e.check_out), 1);
+        if (end < start) return;
+        const days = eachDayOfInterval({ start, end });
+        const key = e.source === "private_offer" ? "privateOffer" : e.source;
+        if (modifiers[key]) modifiers[key].push(...days);
+      } catch {
+        // malformed date on one event shouldn't break the whole grid
+      }
+    });
+  }
+
+  const selectedVilla = villas.find((v) => v.villa_id === selectedVillaId);
+
+  return (
+    <div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <h1 className="font-heading text-3xl">Booking Calendar</h1>
+        <Select value={selectedVillaId} onValueChange={setSelectedVillaId}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Select a villa" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Villas (list only)</SelectItem>
+            {villas.map((v) => (
+              <SelectItem key={v.villa_id} value={v.villa_id}>{v.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {loading ? (
+        <div className="animate-pulse space-y-4">
+          <div className="h-96 bg-muted" />
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-5 mb-6 text-sm text-muted-foreground">
+            {Object.entries(CALENDAR_SOURCE_META).map(([key, meta]) => (
+              <span key={key} className="flex items-center gap-2">
+                <span className={`w-3 h-3 rounded-full ${meta.dot}`} />
+                {meta.label}
+              </span>
+            ))}
+          </div>
+
+          {selectedVillaId !== "all" ? (
+            <div className="bg-card border border-border p-6 mb-8 flex justify-center" data-testid="booking-calendar-grid">
+              <CalendarComponent
+                month={currentMonth}
+                onMonthChange={setCurrentMonth}
+                modifiers={modifiers}
+                modifiersClassNames={{
+                  website: "bg-blue-100 text-blue-900 rounded-none",
+                  privateOffer: "bg-purple-100 text-purple-900 rounded-none",
+                  airbnb: "bg-rose-100 text-rose-900 rounded-none",
+                }}
+              />
+            </div>
+          ) : (
+            <div className="bg-muted/50 border border-border p-4 mb-8 text-sm text-muted-foreground">
+              Select a villa above to see its monthly calendar grid. Showing all upcoming bookings across every villa below.
+            </div>
+          )}
+
+          <h2 className="font-heading text-xl mb-4">
+            {selectedVilla ? `${selectedVilla.name} – All Bookings` : "All Bookings"}
+          </h2>
+
+          {sortedEvents.length > 0 ? (
+            <div className="space-y-3">
+              {sortedEvents.map((e) => {
+                const meta = CALENDAR_SOURCE_META[e.source] || CALENDAR_SOURCE_META.website;
+                return (
+                  <div
+                    key={e.id}
+                    className="bg-card border border-border p-5 flex flex-col md:flex-row md:items-center justify-between gap-3"
+                    data-testid="calendar-event-row"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1 flex-wrap">
+                        <h3 className="font-medium">
+                          {e.guest_name || (e.source === "airbnb" ? "Airbnb Guest" : "Guest")}
+                        </h3>
+                        <span className={`px-2 py-1 text-xs rounded ${meta.badge}`}>{meta.label}</span>
+                        {e.booking_status && (
+                          <span className="px-2 py-1 text-xs rounded bg-gray-100 text-gray-800">{e.booking_status}</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {e.villa_name} &middot; {format(parseISO(e.check_in), "d MMM yyyy")} - {format(parseISO(e.check_out), "d MMM yyyy")}
+                      </p>
+                      {(e.guest_phone || e.guest_email) && (
+                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mt-1">
+                          {e.guest_phone && (
+                            <a href={`tel:${e.guest_phone}`} className="flex items-center gap-1 hover:text-accent">
+                              <Phone size={14} />
+                              {e.guest_phone}
+                            </a>
+                          )}
+                          {e.guest_email && (
+                            <a href={`mailto:${e.guest_email}`} className="flex items-center gap-1 hover:text-accent">
+                              <Mail size={14} />
+                              {e.guest_email}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {e.total_amount != null && (
+                      <div className="text-right">
+                        <p className="font-heading text-lg">
+                          {new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(e.total_amount)}
+                        </p>
+                        {e.payment_status && (
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider">{e.payment_status}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-card border border-border">
+              <p className="text-muted-foreground">No bookings found{selectedVilla ? ` for ${selectedVilla.name}` : ""}.</p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

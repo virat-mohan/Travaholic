@@ -574,6 +574,7 @@ class Lead(BaseModel):
     villa_id: Optional[str] = None
     villa_name: Optional[str] = None
     lead_type: str = "guest"  # guest, homeowner
+    nature: str = "general_enquiry"  # booking, listing_villa, general_enquiry, other
     message: Optional[str] = None
     status: str = "new"  # new, contacted, converted, closed
     notes: Optional[str] = None
@@ -586,6 +587,7 @@ class LeadCreate(BaseModel):
     preferred_time: Optional[str] = None
     villa_id: Optional[str] = None
     lead_type: str = "guest"
+    nature: str = "general_enquiry"
     message: Optional[str] = None
 
 class HomeownerListing(BaseModel):
@@ -2334,6 +2336,69 @@ async def get_bookings(
     
     return {"bookings": bookings, "total": total}
 
+@api_router.get("/admin/calendar")
+async def get_admin_calendar(villa_id: Optional[str] = None, user: User = Depends(require_admin)):
+    """Unified calendar feed for the admin booking calendar: every booking
+    (website or private-offer sourced) plus every Airbnb-synced blocked
+    date range, in one shape the frontend can render without knowing
+    which collection each event came from. Airbnb's export calendar
+    doesn't include guest identity, so airbnb_block events carry no
+    guest_name/phone/email - that's a platform limitation, not a gap
+    in this endpoint."""
+    booking_query: Dict[str, Any] = {}
+    if villa_id:
+        booking_query["villa_id"] = villa_id
+    bookings = await db.bookings.find(booking_query, {"_id": 0}).sort("check_in", 1).to_list(2000)
+
+    block_query: Dict[str, Any] = {"reason": "airbnb_sync"}
+    if villa_id:
+        block_query["villa_id"] = villa_id
+    airbnb_blocks = await db.blocked_dates.find(block_query, {"_id": 0}).sort("start_date", 1).to_list(2000)
+
+    villa_ids_needed = {b["villa_id"] for b in airbnb_blocks}
+    villa_names = {}
+    if villa_ids_needed:
+        villas = await db.villas.find(
+            {"villa_id": {"$in": list(villa_ids_needed)}}, {"villa_id": 1, "name": 1, "_id": 0}
+        ).to_list(1000)
+        villa_names = {v["villa_id"]: v["name"] for v in villas}
+
+    events = []
+    for b in bookings:
+        events.append({
+            "id": b["booking_id"],
+            "type": "booking",
+            "source": "private_offer" if b.get("private_offer_id") else "website",
+            "villa_id": b["villa_id"],
+            "villa_name": b.get("villa_name"),
+            "guest_name": b.get("guest_name"),
+            "guest_phone": b.get("guest_phone"),
+            "guest_email": b.get("guest_email"),
+            "check_in": b["check_in"],
+            "check_out": b["check_out"],
+            "booking_status": b.get("booking_status"),
+            "payment_status": b.get("payment_status"),
+            "total_amount": b.get("total_amount"),
+        })
+    for blk in airbnb_blocks:
+        events.append({
+            "id": blk["block_id"],
+            "type": "airbnb_block",
+            "source": "airbnb",
+            "villa_id": blk["villa_id"],
+            "villa_name": villa_names.get(blk["villa_id"]),
+            "guest_name": None,
+            "guest_phone": None,
+            "guest_email": None,
+            "check_in": blk["start_date"],
+            "check_out": blk["end_date"],
+            "booking_status": None,
+            "payment_status": None,
+            "total_amount": None,
+        })
+
+    return {"events": events}
+
 @api_router.get("/bookings/{booking_id}")
 async def get_booking(booking_id: str, user: User = Depends(require_owner_or_admin)):
     """Get booking details"""
@@ -2607,9 +2672,9 @@ async def create_lead(lead_data: LeadCreate):
             await asyncio.to_thread(resend.Emails.send, {
                 "from": SENDER_EMAIL,
                 "to": [os.environ.get("ADMIN_EMAIL", "Travaholicstays@gmail.com")],
-                "subject": f"New Lead: {lead.name} ({lead.lead_type})",
+                "subject": f"New Lead: {lead.name} ({lead.nature.replace('_', ' ').title()})",
                 "html": f"""
-                    <h2>New {lead.lead_type.title()} Lead</h2>
+                    <h2>New {lead.nature.replace('_', ' ').title()} Lead</h2>
                     <p><strong>Name:</strong> {lead.name}</p>
                     <p><strong>Phone:</strong> {lead.phone}</p>
                     <p><strong>Email:</strong> {lead.email or 'Not provided'}</p>

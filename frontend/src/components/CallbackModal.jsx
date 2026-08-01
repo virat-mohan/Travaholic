@@ -21,6 +21,7 @@ const CallbackModal = ({ isOpen, onClose, villaId = null, villaName = null }) =>
     name: "",
     phone: "",
     preferredTime: "",
+    nature: villaId ? "booking" : "general_enquiry",
     message: "",
   });
 
@@ -33,13 +34,14 @@ const CallbackModal = ({ isOpen, onClose, villaId = null, villaName = null }) =>
         name: formData.name,
         phone: formData.phone,
         preferred_time: formData.preferredTime,
+        nature: formData.nature,
         message: formData.message,
         villa_id: villaId,
         lead_type: "guest",
       });
 
       toast.success("Request submitted successfully! We'll call you back soon.");
-      setFormData({ name: "", phone: "", preferredTime: "", message: "" });
+      setFormData({ name: "", phone: "", preferredTime: "", nature: villaId ? "booking" : "general_enquiry", message: "" });
       onClose();
     } catch (error) {
       console.error("Error submitting lead:", error);
@@ -115,6 +117,25 @@ const CallbackModal = ({ isOpen, onClose, villaId = null, villaName = null }) =>
                   className="input-luxury"
                   data-testid="callback-phone-input"
                 />
+              </div>
+
+              <div>
+                <Select
+                  value={formData.nature}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, nature: value })
+                  }
+                >
+                  <SelectTrigger className="input-luxury" data-testid="callback-nature-select">
+                    <SelectValue placeholder="What's this about?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="booking">Booking a Villa</SelectItem>
+                    <SelectItem value="listing_villa">Listing My Villa</SelectItem>
+                    <SelectItem value="general_enquiry">General Enquiry</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

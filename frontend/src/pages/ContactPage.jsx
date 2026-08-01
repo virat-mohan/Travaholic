@@ -4,6 +4,13 @@ import { MapPin, Phone, Mail, Clock, Send } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import { toast } from "sonner";
 import axios from "axios";
 import { API } from "../App";
@@ -15,6 +22,7 @@ const ContactPage = () => {
     name: "",
     phone: "",
     email: "",
+    nature: "general_enquiry",
     message: "",
   });
 
@@ -27,11 +35,12 @@ const ContactPage = () => {
         name: formData.name,
         phone: formData.phone,
         email: formData.email,
+        nature: formData.nature,
         message: formData.message,
         lead_type: "guest",
       });
       toast.success("Message sent successfully! We'll get back to you soon.");
-      setFormData({ name: "", phone: "", email: "", message: "" });
+      setFormData({ name: "", phone: "", email: "", nature: "general_enquiry", message: "" });
     } catch (error) {
       toast.error("Failed to send message. Please try again.");
     } finally {
@@ -197,6 +206,25 @@ const ContactPage = () => {
                   className="input-luxury"
                   data-testid="contact-email-input"
                 />
+              </div>
+
+              <div>
+                <Select
+                  value={formData.nature}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, nature: value })
+                  }
+                >
+                  <SelectTrigger className="input-luxury" data-testid="contact-nature-select">
+                    <SelectValue placeholder="What's this about?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="booking">Booking a Villa</SelectItem>
+                    <SelectItem value="listing_villa">Listing My Villa</SelectItem>
+                    <SelectItem value="general_enquiry">General Enquiry</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
