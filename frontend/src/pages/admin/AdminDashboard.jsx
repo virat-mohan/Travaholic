@@ -411,7 +411,10 @@ const AdminVillas = () => {
 
   const fetchVillas = async () => {
     try {
-      const response = await axios.get(`${API}/villas`);
+      const response = await axios.get(`${API}/villas`, {
+        params: { limit: 1000, include_unlisted: true },
+        headers: getAuthHeaders(),
+      });
       setVillas(response.data.villas);
     } catch (error) {
       console.error("Error fetching villas:", error);
@@ -433,7 +436,7 @@ const AdminVillas = () => {
 
   const handleToggleStatus = async (villa) => {
     try {
-      await axios.put(`${API}/villas/${villa.villa_id}`, 
+      await axios.put(`${API}/villas/${villa.villa_id}`,
         { is_active: !villa.is_active },
         { headers: getAuthHeaders() }
       );
@@ -441,6 +444,19 @@ const AdminVillas = () => {
       fetchVillas();
     } catch (error) {
       toast.error("Failed to update villa status");
+    }
+  };
+
+  const handleToggleListed = async (villa) => {
+    try {
+      await axios.put(`${API}/villas/${villa.villa_id}`,
+        { is_off_market: !villa.is_off_market },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(villa.is_off_market ? "Villa is now listed on the website" : "Villa hidden from the website");
+      fetchVillas();
+    } catch (error) {
+      toast.error("Failed to update listing visibility");
     }
   };
 
@@ -497,6 +513,7 @@ const AdminVillas = () => {
                 <th className="text-left p-4 text-sm font-medium">Price/Night</th>
                 <th className="text-left p-4 text-sm font-medium">Commission</th>
                 <th className="text-left p-4 text-sm font-medium">Status</th>
+                <th className="text-left p-4 text-sm font-medium">Listed</th>
                 <th className="text-left p-4 text-sm font-medium">Actions</th>
               </tr>
             </thead>
@@ -534,6 +551,19 @@ const AdminVillas = () => {
                       }`}
                     >
                       {villa.is_active ? "Active" : "Inactive"}
+                    </button>
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => handleToggleListed(villa)}
+                      title={villa.is_off_market ? "Hidden from the public website" : "Visible on the public website"}
+                      className={`px-2 py-1 text-xs rounded cursor-pointer ${
+                        villa.is_off_market
+                          ? "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                          : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                      }`}
+                    >
+                      {villa.is_off_market ? "Off-Market" : "Listed"}
                     </button>
                   </td>
                   <td className="p-4">
@@ -613,10 +643,23 @@ const VillaForm = ({ villa, onSuccess }) => {
     video_url: villa?.video_url || "",
     bookings_open_from: villa?.bookings_open_from || "",
     airbnb_ical_url: villa?.airbnb_ical_url || "",
+    is_off_market: villa?.is_off_market || false,
+    owner_id: villa?.owner_id || "",
+    owner_contact_name: villa?.owner_contact_name || "",
+    owner_contact_phone: villa?.owner_contact_phone || "",
+    owner_contact_email: villa?.owner_contact_email || "",
+    owner_contact_address: villa?.owner_contact_address || "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [syncingAirbnb, setSyncingAirbnb] = useState(false);
+  const [owners, setOwners] = useState([]);
+
+  useEffect(() => {
+    axios.get(`${API}/owners`, { headers: getAuthHeaders() })
+      .then((res) => setOwners(res.data.owners || []))
+      .catch((error) => console.error("Error fetching owners:", error));
+  }, []);
 
   const syncAirbnbCalendar = async () => {
     setSyncingAirbnb(true);
@@ -917,6 +960,77 @@ const VillaForm = ({ villa, onSuccess }) => {
         </div>
       </div>
 
+      <div className="border border-border rounded-md p-4 space-y-3">
+        <p className="text-sm font-medium">Villa Owner</p>
+        <div>
+          <label className="text-xs text-muted-foreground">Assign to a registered owner (has portal login)</label>
+          <Select
+            value={formData.owner_id || "none"}
+            onValueChange={(v) => setFormData({ ...formData, owner_id: v === "none" ? "" : v })}
+          >
+            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None - enter contact details manually</SelectItem>
+              {owners.map((o) => (
+                <SelectItem key={o.user_id} value={o.user_id}>{o.name} ({o.email})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">
+            Manage registered owners and invites from the Owners page.
+          </p>
+        </div>
+
+        {!formData.owner_id && (
+          <div className="space-y-3 pt-1">
+            <p className="text-xs text-muted-foreground">
+              No portal login for this owner - just keep their contact details on file (e.g. a villa only booked via private offers).
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                placeholder="Owner name"
+                value={formData.owner_contact_name}
+                onChange={(e) => setFormData({ ...formData, owner_contact_name: e.target.value })}
+              />
+              <Input
+                type="tel"
+                placeholder="Owner phone"
+                value={formData.owner_contact_phone}
+                onChange={(e) => setFormData({ ...formData, owner_contact_phone: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                type="email"
+                placeholder="Owner email"
+                value={formData.owner_contact_email}
+                onChange={(e) => setFormData({ ...formData, owner_contact_email: e.target.value })}
+              />
+              <Input
+                placeholder="Owner address / company"
+                value={formData.owner_contact_address}
+                onChange={(e) => setFormData({ ...formData, owner_contact_address: e.target.value })}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-start gap-3 border border-border rounded-md p-4">
+        <Checkbox
+          id="is_off_market"
+          checked={formData.is_off_market}
+          onCheckedChange={(checked) => setFormData({ ...formData, is_off_market: checked === true })}
+        />
+        <label htmlFor="is_off_market" className="cursor-pointer">
+          <p className="text-sm font-medium">Off-market (hide from public website)</p>
+          <p className="text-xs text-muted-foreground">
+            Keep this villa in the catalog for private offers and manual bookings without showing it on
+            the public Villas page. Toggle this anytime from the Villas list too.
+          </p>
+        </label>
+      </div>
+
       <div>
         <label className="text-sm font-medium">Amenities</label>
         <p className="text-xs text-muted-foreground mb-2">
@@ -1085,7 +1199,10 @@ const AdminBookings = () => {
 
   const fetchVillas = async () => {
     try {
-      const response = await axios.get(`${API}/villas`);
+      const response = await axios.get(`${API}/villas`, {
+        params: { limit: 1000, include_unlisted: true },
+        headers: getAuthHeaders(),
+      });
       setVillas(response.data.villas || []);
     } catch (error) {
       console.error("Error fetching villas:", error);
@@ -1965,7 +2082,7 @@ const AdminBookingCalendar = () => {
     try {
       const [eventsRes, villasRes] = await Promise.all([
         axios.get(`${API}/admin/calendar`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/villas`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/villas`, { params: { limit: 1000, include_unlisted: true }, headers: getAuthHeaders() }),
       ]);
       setEvents(eventsRes.data.events || []);
       setVillas(villasRes.data.villas || []);
@@ -2141,9 +2258,14 @@ const AdminBookingCalendar = () => {
 };
 
 // Admin Owners
+const EMPTY_OWNER_INVITE_FORM = { name: "", email: "", phone: "", address: "", company_name: "" };
+
 const AdminOwners = () => {
   const [owners, setOwners] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [inviting, setInviting] = useState(false);
+  const [form, setForm] = useState(EMPTY_OWNER_INVITE_FORM);
+  const [inviteLink, setInviteLink] = useState(null);
 
   useEffect(() => {
     fetchOwners();
@@ -2160,10 +2282,105 @@ const AdminOwners = () => {
     }
   };
 
+  const handleInvite = async (e) => {
+    e.preventDefault();
+    setInviting(true);
+    setInviteLink(null);
+    try {
+      const response = await axios.post(`${API}/admin/invite-owner`, form, { headers: getAuthHeaders() });
+      const link = `${window.location.origin}/accept-invite/${response.data.invite_token}`;
+      setInviteLink(link);
+      toast.success("Owner added - share the invite link below");
+      setForm(EMPTY_OWNER_INVITE_FORM);
+      fetchOwners();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to add owner"));
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    toast.success("Copied to clipboard");
+  };
+
+  const handleRemove = async (owner) => {
+    if (!window.confirm(`Remove ${owner.name} (${owner.email})?`)) return;
+    try {
+      await axios.delete(`${API}/admin/owners/${owner.user_id}`, { headers: getAuthHeaders() });
+      toast.success("Removed");
+      fetchOwners();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to remove owner"));
+    }
+  };
+
   return (
     <div>
       <h1 className="font-heading text-3xl mb-8">Villa Owners</h1>
 
+      <div className="bg-card border border-border p-6 mb-8 max-w-xl">
+        <h2 className="font-medium mb-4">Add a villa owner</h2>
+        <form onSubmit={handleInvite} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              placeholder="Name *"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+            <Input
+              type="email"
+              placeholder="Email *"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              type="tel"
+              placeholder="Phone"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+            <Input
+              placeholder="Company name (optional)"
+              value={form.company_name}
+              onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+            />
+          </div>
+          <Input
+            placeholder="Address"
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+          />
+          <Button type="submit" className="btn-luxury" disabled={inviting}>
+            {inviting ? "Adding..." : "Add Owner & Create Invite"}
+          </Button>
+        </form>
+        <p className="text-xs text-muted-foreground mt-3">
+          The owner sets their own password from the invite link - you won't see or set it here.
+          Once added, assign villas to them from the villa's edit form.
+        </p>
+
+        {inviteLink && (
+          <div className="mt-4 p-4 bg-muted/50 border border-border">
+            <p className="text-sm text-muted-foreground mb-2">
+              Share this link with them (it's not emailed automatically unless email sending is configured):
+            </p>
+            <div className="flex gap-2">
+              <Input value={inviteLink} readOnly className="text-xs" />
+              <Button type="button" variant="outline" onClick={copyLink}>
+                Copy
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <h2 className="font-medium mb-4">Current owners</h2>
       {loading ? (
         <div className="animate-pulse space-y-4">
           {[...Array(3)].map((_, i) => (
@@ -2171,14 +2388,15 @@ const AdminOwners = () => {
           ))}
         </div>
       ) : owners.length > 0 ? (
-        <div className="bg-card border border-border overflow-hidden">
+        <div className="bg-card border border-border overflow-x-auto">
           <table className="w-full">
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-left p-4 text-sm font-medium">Owner</th>
-                <th className="text-left p-4 text-sm font-medium">Email</th>
+                <th className="text-left p-4 text-sm font-medium">Contact</th>
                 <th className="text-left p-4 text-sm font-medium">Villas</th>
-                <th className="text-left p-4 text-sm font-medium">Actions</th>
+                <th className="text-left p-4 text-sm font-medium">Status</th>
+                <th className="text-left p-4 text-sm font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -2189,14 +2407,37 @@ const AdminOwners = () => {
                       {owner.picture && (
                         <img src={owner.picture} alt="" className="w-8 h-8 rounded-full" />
                       )}
-                      <span className="font-medium">{owner.name}</span>
+                      <div>
+                        <span className="font-medium">{owner.name}</span>
+                        {owner.company_name && (
+                          <p className="text-xs text-muted-foreground">{owner.company_name}</p>
+                        )}
+                      </div>
                     </div>
                   </td>
-                  <td className="p-4 text-muted-foreground">{owner.email}</td>
+                  <td className="p-4 text-muted-foreground text-sm">
+                    <p>{owner.email}</p>
+                    {owner.phone && <p>{owner.phone}</p>}
+                  </td>
                   <td className="p-4 text-muted-foreground">{owner.villa_count || 0}</td>
                   <td className="p-4">
-                    <Button variant="ghost" size="sm">
-                      View Details
+                    {owner.invite_pending ? (
+                      <span className="text-xs uppercase tracking-wider text-accent">Invite Pending</span>
+                    ) : (
+                      <span className="text-xs uppercase tracking-wider text-green-600">Active</span>
+                    )}
+                  </td>
+                  <td className="p-4 text-right">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={owner.villa_count > 0}
+                      title={owner.villa_count > 0 ? "Reassign their villas before removing" : undefined}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                      onClick={() => handleRemove(owner)}
+                    >
+                      Remove
                     </Button>
                   </td>
                 </tr>
@@ -2496,7 +2737,7 @@ const AdminPrivateOffers = () => {
     try {
       const [offersRes, villasRes] = await Promise.all([
         axios.get(`${API}/admin/private-offers`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/villas`, { headers: getAuthHeaders() })
+        axios.get(`${API}/villas`, { params: { limit: 1000, include_unlisted: true }, headers: getAuthHeaders() })
       ]);
       setOffers(offersRes.data.offers || []);
       setVillas(villasRes.data.villas || []);

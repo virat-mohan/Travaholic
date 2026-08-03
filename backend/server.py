@@ -163,6 +163,8 @@ class User(BaseModel):
     picture: Optional[str] = None
     role: str = "guest"  # guest, owner, admin
     phone: Optional[str] = None
+    address: Optional[str] = None
+    company_name: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserSession(BaseModel):
@@ -203,7 +205,15 @@ class Villa(BaseModel):
     minimum_nights: int = 1
     security_deposit: float = 0
     commission_percent: float = 30.0
-    owner_id: Optional[str] = None
+    owner_id: Optional[str] = None  # links to a registered owner User account
+    # Manual owner contact info, used instead of owner_id when the owner
+    # doesn't have (or need) a Travaholic login - e.g. a villa only ever
+    # booked via private offers, where the admin just needs to know who
+    # to pay/contact.
+    owner_contact_name: Optional[str] = None
+    owner_contact_phone: Optional[str] = None
+    owner_contact_email: Optional[str] = None
+    owner_contact_address: Optional[str] = None
     cancellation_policy: str = "Standard"
     meta_title: Optional[str] = None
     meta_description: Optional[str] = None
@@ -248,6 +258,10 @@ class VillaCreate(BaseModel):
     security_deposit: float = 0
     commission_percent: float = 30.0
     owner_id: Optional[str] = None
+    owner_contact_name: Optional[str] = None
+    owner_contact_phone: Optional[str] = None
+    owner_contact_email: Optional[str] = None
+    owner_contact_address: Optional[str] = None
     cancellation_policy: str = "Standard"
     meta_title: Optional[str] = None
     meta_description: Optional[str] = None
@@ -854,12 +868,20 @@ async def get_villas(
     check_in: Optional[str] = None,
     check_out: Optional[str] = None,
     limit: int = 50,
-    skip: int = 0
+    skip: int = 0,
+    include_unlisted: bool = False,
+    user: Optional[User] = Depends(get_current_user),
 ):
-    """Get all active villas with optional filters"""
-    query = {"$or": [{"is_active": True}, {"is_active": {"$exists": False}}]}
-    # Exclude off-market villas from public listing
-    query["$and"] = [{"$or": [{"is_off_market": False}, {"is_off_market": {"$exists": False}}]}]
+    """Get all active villas with optional filters. Admins passing
+    include_unlisted=true (the admin Villas page does) also see inactive
+    and off-market villas - everyone else only ever sees what's actually
+    live on the public site, regardless of this flag."""
+    is_admin = bool(user and user.role == "admin")
+    query: Dict[str, Any] = {"$and": []}
+    if not (is_admin and include_unlisted):
+        query["$or"] = [{"is_active": True}, {"is_active": {"$exists": False}}]
+        # Exclude off-market villas from public listing
+        query["$and"].append({"$or": [{"is_off_market": False}, {"is_off_market": {"$exists": False}}]})
 
     if check_in and check_out:
         # Villas whose "accepting bookings from" date is still in the future
@@ -900,7 +922,10 @@ async def get_villas(
             query["base_price"]["$lte"] = max_price
         else:
             query["base_price"] = {"$lte": max_price}
-    
+
+    if not query["$and"]:
+        del query["$and"]  # MongoDB rejects an empty $and array
+
     villas = await db.villas.find(query, {"_id": 0}).skip(skip).limit(limit).to_list(limit)
     total = await db.villas.count_documents(query)
     
@@ -2945,8 +2970,12 @@ async def update_homeowner_listing(listing_id: str, data: Dict[str, Any], user: 
 
 @api_router.get("/owners")
 async def get_owners(user: User = Depends(require_admin)):
-    """Get all villa owners (admin only)"""
+    """Get all villa owners (admin only), each with how many villas are
+    currently assigned to them and whether their invite is still pending."""
     owners = await db.users.find({"role": "owner"}, {"_id": 0, "hashed_password": 0}).to_list(1000)
+    for o in owners:
+        o["villa_count"] = await db.villas.count_documents({"owner_id": o["user_id"]})
+        o["invite_pending"] = bool(o.get("invite_token"))
     return {"owners": owners}
 
 @api_router.put("/users/{user_id}/role")
@@ -3407,6 +3436,93 @@ async def invite_admin(data: InviteAdminRequest, admin: User = Depends(require_a
         logger.error(f"Failed to send invite email: {e}")
 
     return {"message": "Invite created", "invite_token": invite_token, "email": data.email}
+
+class InviteOwnerRequest(BaseModel):
+    email: EmailStr
+    name: str
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    company_name: Optional[str] = None
+
+@api_router.post("/admin/invite-owner")
+async def invite_owner(data: InviteOwnerRequest, admin: User = Depends(require_admin)):
+    """Add a villa owner and invite them to log into the owner portal.
+    Same one-time invite-link pattern as invite_admin: the owner sets
+    their own password when they open the link - the admin never sees
+    or sets it. Villas can then be assigned to this owner (owner_id) from
+    the villa admin form. Also attempts to email it if Resend is configured."""
+    existing = await db.users.find_one({"email": data.email})
+    invite_token = uuid.uuid4().hex
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+
+    profile_fields = {
+        "name": data.name,
+        "role": "owner",
+        "phone": data.phone,
+        "address": data.address,
+        "company_name": data.company_name,
+    }
+
+    if existing:
+        if existing.get("hashed_password"):
+            raise HTTPException(status_code=400, detail="A user with this email already has an account.")
+        await db.users.update_one(
+            {"user_id": existing["user_id"]},
+            {"$set": {
+                **profile_fields,
+                "invite_token": invite_token,
+                "invite_expires_at": expires_at.isoformat(),
+            }}
+        )
+        owner_user_id = existing["user_id"]
+    else:
+        owner_user_id = f"user_{uuid.uuid4().hex[:12]}"
+        await db.users.insert_one({
+            "user_id": owner_user_id,
+            "email": data.email,
+            "picture": None,
+            "hashed_password": None,
+            "invite_token": invite_token,
+            "invite_expires_at": expires_at.isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            **profile_fields,
+        })
+
+    try:
+        resend_key = os.environ.get("RESEND_API_KEY")
+        if resend_key and not resend_key.startswith("re_placeholder"):
+            resend.api_key = resend_key
+            resend.Emails.send({
+                "from": "Travaholic Stays <onboarding@travaholicstays.com>",
+                "to": [data.email],
+                "subject": "You've been invited to the Travaholic Stays owner portal",
+                "html": f"<p>Hi {data.name},</p><p>You've been added as a villa owner on Travaholic Stays. Use the link the person who invited you shared with you to set your password and log in to view your villa's bookings and payouts.</p>"
+            })
+        else:
+            logger.info(f"Resend not configured - skipped invite email to {data.email}")
+    except Exception as e:
+        logger.error(f"Failed to send invite email: {e}")
+
+    return {"message": "Owner invited", "invite_token": invite_token, "email": data.email, "user_id": owner_user_id}
+
+@api_router.delete("/admin/owners/{owner_id}")
+async def remove_owner(owner_id: str, admin: User = Depends(require_admin)):
+    """Remove an owner account (or revoke a pending invite). Blocked while
+    villas are still assigned to them, so a villa never ends up pointing
+    at an owner_id that no longer resolves to anything."""
+    target = await db.users.find_one({"user_id": owner_id, "role": "owner"})
+    if not target:
+        raise HTTPException(status_code=404, detail="Owner not found")
+
+    assigned_count = await db.villas.count_documents({"owner_id": owner_id})
+    if assigned_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Reassign or unassign this owner's {assigned_count} villa(s) before removing them."
+        )
+
+    await db.users.delete_one({"user_id": owner_id})
+    return {"message": "Removed"}
 
 @api_router.get("/auth/invite/{token}")
 async def get_invite(token: str):
