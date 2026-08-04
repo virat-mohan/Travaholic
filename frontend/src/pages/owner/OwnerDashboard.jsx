@@ -948,6 +948,7 @@ const OwnerEarnings = () => {
                       <th className="text-left p-4 text-sm font-medium">Villa</th>
                       <th className="text-left p-4 text-sm font-medium">Guest</th>
                       <th className="text-left p-4 text-sm font-medium">Dates</th>
+                      <th className="text-right p-4 text-sm font-medium">Nights</th>
                       <th className="text-left p-4 text-sm font-medium">Status</th>
                       <th className="text-right p-4 text-sm font-medium">Revenue</th>
                       <th className="text-right p-4 text-sm font-medium">Commission</th>
@@ -962,6 +963,7 @@ const OwnerEarnings = () => {
                         <td className="p-4 text-muted-foreground text-sm">
                           {booking.check_in} - {booking.check_out}
                         </td>
+                        <td className="p-4 text-right text-muted-foreground">{booking.num_nights ?? "-"}</td>
                         <td className="p-4">
                           <span className={`px-2 py-1 text-xs rounded ${
                             booking.booking_status === "confirmed" ? "bg-green-100 text-green-800" :

@@ -37,7 +37,9 @@ const AdminDashboard = () => {
     { icon: Home, label: "Villas", path: "/admin/villas" },
     { icon: Calendar, label: "Bookings", path: "/admin/bookings" },
     { icon: CalendarDays, label: "Booking Calendar", path: "/admin/calendar" },
-    { icon: FileText, label: "Private Offers", path: "/admin/offers" },
+    // Private Offers is hidden from navigation (manual bookings now cover
+    // custom villas + discounts) but the route/page/backend are left in
+    // place untouched - go to /admin/offers directly if ever needed.
     { icon: Ticket, label: "Coupons", path: "/admin/coupons" },
     { icon: MessageSquare, label: "Leads", path: "/admin/leads" },
     { icon: Users, label: "Owners", path: "/admin/owners" },
@@ -1327,6 +1329,44 @@ const AdminBookings = () => {
     }
   };
 
+  const [sendingProposalId, setSendingProposalId] = useState(null);
+  const sendProposalEmail = async (bookingId) => {
+    setSendingProposalId(bookingId);
+    try {
+      const response = await axios.post(`${API}/admin/bookings/${bookingId}/send-proposal-email`, {}, {
+        headers: getAuthHeaders()
+      });
+      toast.success(response.data.message || "Proposal emailed to guest");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to send proposal email"));
+    } finally {
+      setSendingProposalId(null);
+    }
+  };
+
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
+  const [clearConfirmText, setClearConfirmText] = useState("");
+  const [clearing, setClearing] = useState(false);
+  const CLEAR_ALL_PHRASE = "DELETE ALL BOOKINGS";
+
+  const clearAllBookings = async () => {
+    setClearing(true);
+    try {
+      const response = await axios.delete(`${API}/admin/bookings/clear-all`, {
+        params: { confirm: clearConfirmText },
+        headers: getAuthHeaders(),
+      });
+      toast.success(response.data.message);
+      setShowClearAllModal(false);
+      setClearConfirmText("");
+      fetchBookings();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to clear bookings"));
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const filteredBookings = bookings.filter(b => {
     const matchesStatus = statusFilter === "all" || b.booking_status === statusFilter;
     const matchesSearch = b.guest_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1468,17 +1508,27 @@ const AdminBookings = () => {
                       </Button>
                     )}
                   </div>
-                  {/* Confirmation Actions */}
-                  {booking.booking_status === 'confirmed' && (
-                    <div className="flex gap-2 mt-2 pt-2 border-t border-border">
-                      <Button size="sm" variant="ghost" onClick={() => downloadConfirmationPDF(booking.booking_id)} title="Download PDF">
-                        <Download size={14} />
-                      </Button>
+                  {/* Document Actions - available regardless of status, so a
+                      proposal can be reviewed/sent before payment too */}
+                  <div className="flex gap-2 mt-2 pt-2 border-t border-border">
+                    <Button size="sm" variant="ghost" onClick={() => downloadConfirmationPDF(booking.booking_id)} title="Download PDF">
+                      <Download size={14} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => sendProposalEmail(booking.booking_id)}
+                      disabled={sendingProposalId === booking.booking_id}
+                      title="Email proposal PDF to guest"
+                    >
+                      <Mail size={14} className="text-accent" />
+                    </Button>
+                    {booking.booking_status === 'confirmed' && (
                       <Button size="sm" variant="ghost" onClick={() => getWhatsAppLink(booking.booking_id)} title="Send WhatsApp">
                         <MessageSquare size={14} className="text-green-600" />
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
               {/* Extra details for manual bookings */}
@@ -1636,14 +1686,64 @@ const AdminBookings = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Danger Zone */}
+      <div className="mt-16 border border-destructive/30 rounded-md p-6 bg-destructive/5">
+        <h3 className="font-medium text-destructive mb-1">Danger Zone</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Permanently delete every booking and its blocked dates - for wiping demo/test data before going live.
+          This cannot be undone.
+        </p>
+        <Dialog open={showClearAllModal} onOpenChange={(open) => { setShowClearAllModal(open); if (!open) setClearConfirmText(""); }}>
+          <DialogTrigger asChild>
+            <Button variant="destructive" size="sm">
+              <Trash2 size={14} className="mr-2" />
+              Clear All Bookings
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Clear All Bookings</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              This permanently deletes all {bookings.length} booking(s) and their blocked dates. Villa listings,
+              owners, and leads are not affected. There is no undo.
+            </p>
+            <p className="text-sm">
+              Type <strong>{CLEAR_ALL_PHRASE}</strong> to confirm:
+            </p>
+            <Input
+              value={clearConfirmText}
+              onChange={(e) => setClearConfirmText(e.target.value)}
+              placeholder={CLEAR_ALL_PHRASE}
+            />
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Cancel</Button>
+              </DialogClose>
+              <Button
+                variant="destructive"
+                disabled={clearConfirmText !== CLEAR_ALL_PHRASE || clearing}
+                onClick={clearAllBookings}
+              >
+                {clearing ? "Deleting..." : "Permanently Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 };
 
 // Manual Booking Form Component
 const ManualBookingForm = ({ villas, onSuccess }) => {
+  const [isCustomVilla, setIsCustomVilla] = useState(false);
   const [formData, setFormData] = useState({
     villa_id: "",
+    custom_villa_name: "",
+    custom_villa_location: "",
+    commission_percent: 30,
     guest_name: "",
     guest_email: "",
     guest_phone: "",
@@ -1652,6 +1752,8 @@ const ManualBookingForm = ({ villas, onSuccess }) => {
     num_guests: 6,
     tariff_per_night: 0,
     total_nights: 1,
+    discount_percent: 0,
+    discount_amount: 0,
     total_booking_amount: 0,
     security_deposit: 20000,
     advance_amount: 0,
@@ -1673,16 +1775,21 @@ const ManualBookingForm = ({ villas, onSuccess }) => {
       const nights = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
       if (nights > 0) {
         const baseAmount = formData.tariff_per_night * nights;
-        const total = baseAmount + formData.extra_pax_charge;
+        const preDiscount = baseAmount + formData.extra_pax_charge;
+        const discountAmount = formData.discount_percent > 0
+          ? (preDiscount * formData.discount_percent) / 100
+          : 0;
+        const total = preDiscount - discountAmount;
         setFormData(prev => ({
           ...prev,
           total_nights: nights,
+          discount_amount: discountAmount,
           total_booking_amount: total,
           balance_amount: total - prev.advance_amount
         }));
       }
     }
-  }, [formData.check_in, formData.check_out, formData.tariff_per_night, formData.extra_pax_charge, formData.advance_amount]);
+  }, [formData.check_in, formData.check_out, formData.tariff_per_night, formData.extra_pax_charge, formData.discount_percent, formData.advance_amount]);
 
   // Set default tariff when villa is selected
   useEffect(() => {
@@ -1698,9 +1805,16 @@ const ManualBookingForm = ({ villas, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    
+
     try {
-      await axios.post(`${API}/admin/manual-booking`, formData, { headers: getAuthHeaders() });
+      const payload = { ...formData };
+      if (isCustomVilla) {
+        payload.villa_id = null;
+      } else {
+        payload.custom_villa_name = "";
+        payload.custom_villa_location = "";
+      }
+      await axios.post(`${API}/admin/manual-booking`, payload, { headers: getAuthHeaders() });
       toast.success("Booking created successfully");
       onSuccess();
     } catch (error) {
@@ -1714,17 +1828,48 @@ const ManualBookingForm = ({ villas, onSuccess }) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Villa Selection */}
       <div>
-        <label className="text-sm font-medium">Select Villa *</label>
-        <Select value={formData.villa_id} onValueChange={(v) => setFormData({ ...formData, villa_id: v })}>
-          <SelectTrigger><SelectValue placeholder="Choose a villa" /></SelectTrigger>
-          <SelectContent>
-            {villas.map((villa) => (
-              <SelectItem key={villa.villa_id} value={villa.villa_id}>
-                {villa.name} - {villa.location}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center justify-between mb-1">
+          <label className="text-sm font-medium">{isCustomVilla ? "Custom Villa" : "Select Villa *"}</label>
+          <button
+            type="button"
+            className="text-xs text-accent hover:underline"
+            onClick={() => setIsCustomVilla(!isCustomVilla)}
+          >
+            {isCustomVilla ? "Choose from catalog instead" : "Not in the catalog? Enter manually"}
+          </button>
+        </div>
+        {isCustomVilla ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              placeholder="Villa name *"
+              value={formData.custom_villa_name}
+              onChange={(e) => setFormData({ ...formData, custom_villa_name: e.target.value })}
+              required
+            />
+            <Input
+              placeholder="Location"
+              value={formData.custom_villa_location}
+              onChange={(e) => setFormData({ ...formData, custom_villa_location: e.target.value })}
+            />
+            <Input
+              type="number"
+              placeholder="Commission %"
+              value={formData.commission_percent}
+              onChange={(e) => setFormData({ ...formData, commission_percent: parseFloat(e.target.value) || 0 })}
+            />
+          </div>
+        ) : (
+          <Select value={formData.villa_id} onValueChange={(v) => setFormData({ ...formData, villa_id: v })}>
+            <SelectTrigger><SelectValue placeholder="Choose a villa" /></SelectTrigger>
+            <SelectContent>
+              {villas.map((villa) => (
+                <SelectItem key={villa.villa_id} value={villa.villa_id}>
+                  {villa.name} - {villa.location}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Guest Details */}
@@ -1792,48 +1937,59 @@ const ManualBookingForm = ({ villas, onSuccess }) => {
       {/* Pricing */}
       <div className="bg-muted/50 p-4 rounded space-y-4">
         <h4 className="font-medium">Pricing Details</h4>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
             <label className="text-sm font-medium">Tariff per Night (₹)</label>
-            <Input 
+            <Input
               type="number"
-              value={formData.tariff_per_night} 
+              value={formData.tariff_per_night}
               onChange={(e) => setFormData({ ...formData, tariff_per_night: parseFloat(e.target.value) || 0 })}
             />
           </div>
           <div>
             <label className="text-sm font-medium">Total Nights</label>
-            <Input 
+            <Input
               type="number"
-              value={formData.total_nights} 
+              value={formData.total_nights}
               readOnly
               className="bg-muted"
             />
           </div>
           <div>
             <label className="text-sm font-medium">Extra Pax Charge (₹)</label>
-            <Input 
+            <Input
               type="number"
-              value={formData.extra_pax_charge} 
+              value={formData.extra_pax_charge}
               onChange={(e) => setFormData({ ...formData, extra_pax_charge: parseFloat(e.target.value) || 0 })}
             />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Discount (%)</label>
+            <Input
+              type="number"
+              value={formData.discount_percent}
+              onChange={(e) => setFormData({ ...formData, discount_percent: parseFloat(e.target.value) || 0 })}
+            />
+            {formData.discount_amount > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">-₹{formData.discount_amount.toLocaleString("en-IN")}</p>
+            )}
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div>
             <label className="text-sm font-medium">Total Booking Amount (₹)</label>
-            <Input 
+            <Input
               type="number"
-              value={formData.total_booking_amount} 
+              value={formData.total_booking_amount}
               onChange={(e) => setFormData({ ...formData, total_booking_amount: parseFloat(e.target.value) || 0 })}
               className="font-bold"
             />
           </div>
           <div>
             <label className="text-sm font-medium">Security Deposit (₹)</label>
-            <Input 
+            <Input
               type="number"
-              value={formData.security_deposit} 
+              value={formData.security_deposit}
               onChange={(e) => setFormData({ ...formData, security_deposit: parseFloat(e.target.value) || 0 })}
             />
           </div>
@@ -2063,9 +2219,11 @@ const AdminLeads = () => {
 // month-grid view per villa, plus a flat list with full guest details.
 const CALENDAR_SOURCE_META = {
   website: { label: "Website", dot: "bg-blue-500", badge: "bg-blue-100 text-blue-800" },
+  manual: { label: "Manual", dot: "bg-amber-500", badge: "bg-amber-100 text-amber-800" },
   private_offer: { label: "Private Offer", dot: "bg-purple-500", badge: "bg-purple-100 text-purple-800" },
   airbnb: { label: "Airbnb", dot: "bg-rose-500", badge: "bg-rose-100 text-rose-800" },
 };
+const ALL_CALENDAR_SOURCES = Object.keys(CALENDAR_SOURCE_META);
 
 const AdminBookingCalendar = () => {
   const [events, setEvents] = useState([]);
@@ -2073,6 +2231,13 @@ const AdminBookingCalendar = () => {
   const [loading, setLoading] = useState(true);
   const [selectedVillaId, setSelectedVillaId] = useState("all");
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [activeSources, setActiveSources] = useState(ALL_CALENDAR_SOURCES);
+
+  const toggleSource = (key) => {
+    setActiveSources((prev) =>
+      prev.includes(key) ? prev.filter((s) => s !== key) : [...prev, key]
+    );
+  };
 
   useEffect(() => {
     fetchData();
@@ -2094,16 +2259,17 @@ const AdminBookingCalendar = () => {
     }
   };
 
-  const villaEvents = selectedVillaId === "all"
+  const villaEvents = (selectedVillaId === "all"
     ? events
-    : events.filter((e) => e.villa_id === selectedVillaId);
+    : events.filter((e) => e.villa_id === selectedVillaId)
+  ).filter((e) => activeSources.includes(e.source));
 
   const sortedEvents = [...villaEvents].sort((a, b) => a.check_in.localeCompare(b.check_in));
 
   // react-day-picker modifiers: arrays of Date objects per source, expanded
   // from each event's stay range (excluding the checkout/departure day,
   // since the guest isn't occupying the villa that night).
-  const modifiers = { website: [], privateOffer: [], airbnb: [] };
+  const modifiers = { website: [], manual: [], privateOffer: [], airbnb: [] };
   if (selectedVillaId !== "all") {
     villaEvents.forEach((e) => {
       try {
@@ -2144,13 +2310,25 @@ const AdminBookingCalendar = () => {
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-5 mb-6 text-sm text-muted-foreground">
-            {Object.entries(CALENDAR_SOURCE_META).map(([key, meta]) => (
-              <span key={key} className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${meta.dot}`} />
-                {meta.label}
-              </span>
-            ))}
+          <div className="flex flex-wrap items-center gap-2 mb-6" data-testid="calendar-source-filter">
+            {Object.entries(CALENDAR_SOURCE_META).map(([key, meta]) => {
+              const active = activeSources.includes(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleSource(key)}
+                  className={`flex items-center gap-2 px-3 py-1.5 text-sm border rounded-full transition-colors ${
+                    active
+                      ? "border-border bg-card text-foreground"
+                      : "border-border/50 bg-transparent text-muted-foreground/50"
+                  }`}
+                >
+                  <span className={`w-3 h-3 rounded-full ${meta.dot} ${active ? "" : "opacity-40"}`} />
+                  {meta.label}
+                </button>
+              );
+            })}
           </div>
 
           {selectedVillaId !== "all" ? (
@@ -2161,6 +2339,7 @@ const AdminBookingCalendar = () => {
                 modifiers={modifiers}
                 modifiersClassNames={{
                   website: "bg-blue-100 text-blue-900 rounded-none",
+                  manual: "bg-amber-100 text-amber-900 rounded-none",
                   privateOffer: "bg-purple-100 text-purple-900 rounded-none",
                   airbnb: "bg-rose-100 text-rose-900 rounded-none",
                 }}

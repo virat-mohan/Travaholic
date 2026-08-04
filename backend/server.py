@@ -585,7 +585,10 @@ class BookingCreate(BaseModel):
 
 class ManualBookingCreate(BaseModel):
     """Model for admin-created manual bookings"""
-    villa_id: str
+    villa_id: Optional[str] = None  # omit + set custom_villa_name for an off-catalog villa
+    custom_villa_name: Optional[str] = None
+    custom_villa_location: Optional[str] = None
+    commission_percent: Optional[float] = None  # required when villa_id is omitted; otherwise defaults to the villa's own rate
     guest_name: str
     guest_email: EmailStr
     guest_phone: str
@@ -595,6 +598,8 @@ class ManualBookingCreate(BaseModel):
     # Custom pricing (admin can override)
     tariff_per_night: float
     total_nights: int
+    discount_percent: float = 0
+    discount_amount: float = 0
     total_booking_amount: float
     security_deposit: float = 20000
     advance_amount: float = 0
@@ -1996,33 +2001,43 @@ def generate_booking_confirmation_pdf(
 
 @api_router.post("/admin/manual-booking")
 async def create_manual_booking(booking_data: ManualBookingCreate, user: User = Depends(require_admin)):
-    """Create a manual booking (admin only)"""
-    villa = await db.villas.find_one({"villa_id": booking_data.villa_id}, {"_id": 0})
-    if not villa:
-        raise HTTPException(status_code=404, detail="Villa not found")
-    
-    # Check availability
-    blocked = await db.blocked_dates.find_one({
-        "villa_id": booking_data.villa_id,
-        "$or": [
-            {"start_date": {"$lte": booking_data.check_out}, "end_date": {"$gte": booking_data.check_in}}
-        ]
-    })
-    if blocked:
-        raise HTTPException(status_code=400, detail="Dates not available")
-    
-    # Calculate commission
-    commission_percent = villa.get("commission_percent", 30)
+    """Create a manual booking (admin only) - for a catalog villa
+    (villa_id) or an off-catalog property (custom_villa_name), mirroring
+    how private offers handle both cases."""
+    villa = None
+    if booking_data.villa_id:
+        villa = await db.villas.find_one({"villa_id": booking_data.villa_id}, {"_id": 0})
+        if not villa:
+            raise HTTPException(status_code=404, detail="Villa not found")
+
+        # Check availability
+        blocked = await db.blocked_dates.find_one({
+            "villa_id": booking_data.villa_id,
+            "$or": [
+                {"start_date": {"$lte": booking_data.check_out}, "end_date": {"$gte": booking_data.check_in}}
+            ]
+        })
+        if blocked:
+            raise HTTPException(status_code=400, detail="Dates not available")
+    elif not booking_data.custom_villa_name:
+        raise HTTPException(status_code=400, detail="custom_villa_name is required when no villa_id is given")
+
+    villa_name = villa["name"] if villa else booking_data.custom_villa_name
+    commission_percent = (
+        villa.get("commission_percent", 30) if villa
+        else (booking_data.commission_percent if booking_data.commission_percent is not None else 30.0)
+    )
     commission_amount = booking_data.total_booking_amount * (commission_percent / 100)
     owner_payout = booking_data.total_booking_amount - commission_amount
-    
+
     # Create booking ID
     booking_id = f"booking_{uuid.uuid4().hex[:12]}"
-    
+
     booking = {
         "booking_id": booking_id,
         "villa_id": booking_data.villa_id,
-        "villa_name": villa["name"],
+        "villa_name": villa_name,
+        "custom_villa_location": None if villa else booking_data.custom_villa_location,
         "guest_name": booking_data.guest_name,
         "guest_email": booking_data.guest_email,
         "guest_phone": booking_data.guest_phone,
@@ -2036,6 +2051,8 @@ async def create_manual_booking(booking_data: ManualBookingCreate, user: User = 
         "extra_pax_charge": booking_data.extra_pax_charge,
         "extra_pax_count": booking_data.extra_pax_count,
         "addons_total": 0,
+        "discount_percent": booking_data.discount_percent,
+        "discount_amount": booking_data.discount_amount,
         "subtotal": booking_data.total_booking_amount,
         "security_deposit": booking_data.security_deposit,
         "total_amount": booking_data.total_booking_amount,
@@ -2058,22 +2075,24 @@ async def create_manual_booking(booking_data: ManualBookingCreate, user: User = 
         "created_at": datetime.now(timezone.utc).isoformat(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
-    
+
     await db.bookings.insert_one(booking)
-    
-    # Block the dates
-    block = {
-        "block_id": f"block_{uuid.uuid4().hex[:12]}",
-        "villa_id": booking_data.villa_id,
-        "start_date": booking_data.check_in,
-        "end_date": booking_data.check_out,
-        "reason": "booking",
-        "booking_id": booking_id,
-        "created_by": user.user_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
-    await db.blocked_dates.insert_one(block)
-    
+
+    if booking_data.villa_id:
+        # Block the dates - only meaningful for a catalog villa, since
+        # availability is only ever checked against real villa_ids.
+        block = {
+            "block_id": f"block_{uuid.uuid4().hex[:12]}",
+            "villa_id": booking_data.villa_id,
+            "start_date": booking_data.check_in,
+            "end_date": booking_data.check_out,
+            "reason": "booking",
+            "booking_id": booking_id,
+            "created_by": user.user_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.blocked_dates.insert_one(block)
+
     # Remove _id from response
     booking.pop("_id", None)
     return booking
@@ -2157,19 +2176,36 @@ async def mark_payment_received(
         "payment_status": update_data.get("payment_status")
     }
 
+async def _villa_for_booking_pdf(booking: dict) -> dict:
+    """Resolve a villa dict suitable for generate_booking_confirmation_pdf -
+    the real catalog villa when booking has a villa_id, or a synthetic one
+    built from the booking's own custom_villa_* fields for a manual
+    booking against an off-catalog property."""
+    if booking.get("villa_id"):
+        villa = await db.villas.find_one({"villa_id": booking["villa_id"]}, {"_id": 0})
+        if not villa:
+            raise HTTPException(status_code=404, detail="Villa not found")
+        return villa
+    return {
+        "name": booking.get("villa_name", ""),
+        "location": booking.get("custom_villa_location", ""),
+        "region": "",
+        "bedrooms": None,
+        "amenities": [],
+        "security_deposit": booking.get("security_deposit"),
+    }
+
 @api_router.get("/admin/bookings/{booking_id}/confirmation-pdf")
 async def get_booking_confirmation_pdf(booking_id: str, user: User = Depends(require_admin)):
     """Generate and download booking confirmation PDF"""
     booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
-    villa = await db.villas.find_one({"villa_id": booking["villa_id"]}, {"_id": 0})
-    if not villa:
-        raise HTTPException(status_code=404, detail="Villa not found")
-    
+
+    villa = await _villa_for_booking_pdf(booking)
+
     pdf_buffer = generate_booking_confirmation_pdf(booking, villa)
-    
+
     return Response(
         content=pdf_buffer.getvalue(),
         media_type="application/pdf",
@@ -2177,6 +2213,126 @@ async def get_booking_confirmation_pdf(booking_id: str, user: User = Depends(req
             "Content-Disposition": f'attachment; filename="{pdf_filename(booking.get("guest_name"), villa.get("name"))}"'
         }
     )
+
+def generate_booking_proposal_email(booking: dict, villa: dict) -> str:
+    """Branded HTML email for sending a booking's proposal PDF straight to
+    the guest from the admin panel - same visual language and PDF as the
+    private offer email, minus a payment link (there's no public
+    per-booking payment page; bank details are in the attached PDF)."""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: 'Helvetica', Arial, sans-serif; color: {EMAIL_INK}; line-height: 1.6; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: {EMAIL_INK}; color: #ffffff; padding: 30px; text-align: center; border-bottom: 3px solid {EMAIL_GOLD}; }}
+            .header img {{ width: 96px; height: 96px; margin-bottom: 10px; }}
+            .header h1 {{ margin: 0; font-size: 22px; letter-spacing: 1px; color: #ffffff; }}
+            .header p {{ color: {EMAIL_GOLD}; }}
+            .content {{ padding: 30px; background: {EMAIL_CREAM}; }}
+            .section {{ background: white; padding: 20px; margin-bottom: 20px; border-left: 4px solid {EMAIL_GOLD}; }}
+            .section h2 {{ color: {EMAIL_GOLD_DARK}; font-size: 16px; margin-top: 0; }}
+            .detail-row {{ padding: 8px 0; border-bottom: 1px solid #eee; }}
+            .label {{ color: {EMAIL_MUTED}; display: inline-block; width: 45%; }}
+            .value {{ font-weight: bold; color: {EMAIL_INK}; }}
+            .footer {{ text-align: center; padding: 20px; color: {EMAIL_MUTED}; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <img src="{EMAIL_LOGO_URL}" alt="Travaholic Stays" />
+                <h1>TRAVAHOLIC STAYS</h1>
+                <p style="margin: 5px 0 0 0;">Your Booking Proposal</p>
+            </div>
+
+            <div class="content">
+                <p>Dear <strong>{booking.get('guest_name', '')}</strong>,</p>
+                <p>Please find attached your booking proposal from Travaholic Stays - full tariff breakdown, bank details, amenities and house rules.</p>
+
+                <div class="section">
+                    <h2>BOOKING SUMMARY</h2>
+                    <div class="detail-row">
+                        <span class="label">Villa:</span>
+                        <span class="value">{villa.get('name', '')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Check-in:</span>
+                        <span class="value">{booking.get('check_in', '')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Check-out:</span>
+                        <span class="value">{booking.get('check_out', '')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Guests:</span>
+                        <span class="value">{booking.get('num_guests', '')} pax</span>
+                    </div>
+                    <div class="detail-row" style="font-size: 18px; padding-top: 15px;">
+                        <span class="label"><strong>Total Amount:</strong></span>
+                        <span class="value" style="color: {EMAIL_GOLD_DARK};">₹{booking.get('total_booking_amount', booking.get('total_amount', 0)):,.0f}</span>
+                    </div>
+                </div>
+
+                <p>For any questions or to confirm payment, just reply to this email or reach out on WhatsApp.</p>
+            </div>
+
+            <div class="footer">
+                <p><strong>Travaholic Stays</strong></p>
+                <p>+91 99588 71283 | www.travaholicstays.com</p>
+                <p>@travaholicstays on Instagram</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+@api_router.post("/admin/bookings/{booking_id}/send-proposal-email")
+async def send_booking_proposal_email(booking_id: str, user: User = Depends(require_admin)):
+    """Email the booking's proposal PDF (tariff, bank details, amenities,
+    house rules) to the guest, and a WhatsApp confirmation alongside it -
+    the same PDF/email capability private offers have, available for any
+    booking including manual ones against a custom (off-catalog) villa."""
+    booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if not booking.get("guest_email"):
+        raise HTTPException(status_code=400, detail="No email address on file for this booking")
+
+    resend_key = os.environ.get("RESEND_API_KEY")
+    if not resend_key or resend_key.startswith("re_placeholder"):
+        raise HTTPException(status_code=400, detail="Email sending isn't configured yet (RESEND_API_KEY missing)")
+
+    villa = await _villa_for_booking_pdf(booking)
+    pdf_buffer = generate_booking_confirmation_pdf(
+        booking, villa,
+        document_title="BOOKING PROPOSAL",
+        intro_text="Thank you for your interest in Travaholic Stays! Please find below your booking proposal, including the tariff breakdown, bank details for payment, villa amenities and house rules."
+    )
+
+    resend.api_key = resend_key
+    try:
+        resend.Emails.send({
+            "from": SENDER_EMAIL,
+            "to": [booking["guest_email"]],
+            "subject": f"Your Booking Proposal - {villa.get('name', 'Travaholic Stays')} | Travaholic Stays",
+            "html": generate_booking_proposal_email(booking, villa),
+            "attachments": [{
+                "filename": pdf_filename(booking.get("guest_name"), villa.get("name")),
+                "content": list(pdf_buffer.getvalue()),
+            }],
+        })
+    except Exception as e:
+        logging.error(f"Failed to send booking proposal email: {e}")
+        raise HTTPException(status_code=502, detail="Failed to send email - please try again")
+
+    try:
+        send_whatsapp_booking_confirmation(booking, villa)
+    except Exception as e:
+        logging.error(f"Failed to send WhatsApp booking confirmation: {e}")
+
+    return {"message": f"Proposal emailed to {booking['guest_email']}"}
 
 def generate_confirmation_email_html(
     booking: dict, villa: dict,
@@ -2557,10 +2713,16 @@ async def get_admin_calendar(villa_id: Optional[str] = None, user: User = Depend
 
     events = []
     for b in bookings:
+        if b.get("is_manual_booking"):
+            source = "manual"
+        elif b.get("private_offer_id"):
+            source = "private_offer"
+        else:
+            source = "website"
         events.append({
             "id": b["booking_id"],
             "type": "booking",
-            "source": "private_offer" if b.get("private_offer_id") else "website",
+            "source": source,
             "villa_id": b["villa_id"],
             "villa_name": b.get("villa_name"),
             "guest_name": b.get("guest_name"),
@@ -2649,8 +2811,28 @@ async def cancel_booking(booking_id: str, user: User = Depends(require_admin)):
     
     # Remove blocked dates
     await db.blocked_dates.delete_one({"booking_id": booking_id})
-    
+
     return {"message": "Booking cancelled successfully"}
+
+@api_router.delete("/admin/bookings/clear-all")
+async def clear_all_bookings(confirm: str = Query(...), user: User = Depends(require_admin)):
+    """Danger zone: permanently delete every booking and every booking-
+    linked blocked date range, for wiping demo/test data before going
+    live. Requires the exact confirmation phrase as a safety check against
+    an accidental click - there is no undo. Leaves owner_block,
+    maintenance, and airbnb_sync blocked dates untouched, since those
+    aren't bookings."""
+    if confirm != "DELETE ALL BOOKINGS":
+        raise HTTPException(status_code=400, detail='Confirmation phrase must be exactly "DELETE ALL BOOKINGS"')
+
+    bookings_result = await db.bookings.delete_many({})
+    blocks_result = await db.blocked_dates.delete_many({"reason": {"$in": ["booking"]}})
+
+    return {
+        "message": f"Deleted {bookings_result.deleted_count} booking(s) and {blocks_result.deleted_count} blocked date range(s)",
+        "bookings_deleted": bookings_result.deleted_count,
+        "blocks_deleted": blocks_result.deleted_count,
+    }
 
 # ==================== PAYMENT ROUTES ====================
 
@@ -3021,7 +3203,10 @@ async def get_financial_summary(
     user: User = Depends(require_admin)
 ):
     """Get financial summary (admin only)"""
-    query = {"payment_status": "paid"}
+    # "paid" = online Razorpay success; "full_received" = admin manually
+    # marked full payment received (e.g. bank transfer) - both mean the
+    # booking's revenue is actually realized.
+    query = {"payment_status": {"$in": ["paid", "full_received"]}}
     
     if start_date:
         query["check_in"] = {"$gte": start_date}
@@ -3062,7 +3247,7 @@ async def get_villa_financials(
     if user.role == "owner" and villa.get("owner_id") != user.user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    query = {"villa_id": villa_id, "payment_status": "paid"}
+    query = {"villa_id": villa_id, "payment_status": {"$in": ["paid", "full_received"]}}
     
     if start_date:
         query["check_in"] = {"$gte": start_date}
@@ -3103,7 +3288,7 @@ async def get_owner_financials(
     villas = await db.villas.find({"owner_id": owner_id}, {"villa_id": 1, "name": 1, "_id": 0}).to_list(1000)
     villa_ids = [v["villa_id"] for v in villas]
     
-    query = {"villa_id": {"$in": villa_ids}, "payment_status": "paid"}
+    query = {"villa_id": {"$in": villa_ids}, "payment_status": {"$in": ["paid", "full_received"]}}
     
     if start_date:
         query["check_in"] = {"$gte": start_date}
@@ -3136,7 +3321,7 @@ async def export_financials(
     user: User = Depends(require_admin)
 ):
     """Export financial data as CSV-ready JSON (admin only)"""
-    query = {"payment_status": "paid"}
+    query = {"payment_status": {"$in": ["paid", "full_received"]}}
     
     if start_date:
         query["check_in"] = {"$gte": start_date}
@@ -4372,7 +4557,7 @@ async def generate_payouts_from_bookings(user: User = Depends(require_admin)):
     # Find confirmed bookings without payout records
     bookings = await db.bookings.find({
         "booking_status": {"$in": ["confirmed", "completed"]},
-        "payment_status": "paid"
+        "payment_status": {"$in": ["paid", "full_received"]}
     }, {"_id": 0}).to_list(1000)
     
     generated = 0
