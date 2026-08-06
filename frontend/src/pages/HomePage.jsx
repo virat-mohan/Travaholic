@@ -5,7 +5,6 @@ import { ArrowRight, MapPin, Star, Phone, Calendar, Users, Home, MessageCircle, 
 import { Button } from "../components/ui/button";
 import VillaCard from "../components/VillaCard";
 import CallbackModal from "../components/CallbackModal";
-import BackgroundAudio from "../components/BackgroundAudio";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { API } from "../App";
@@ -92,7 +91,6 @@ const HomePage = () => {
 
   return (
     <div data-testid="home-page">
-      <BackgroundAudio />
       <Helmet>
         <title>Travaholic Stays | Luxury Villa Rentals in Goa, India</title>
         <meta name="description" content="Experience ultra-luxury villa stays in North Goa & Beyond, India. Handpicked premium villas with private pools, personal concierge, and unforgettable experiences." />
@@ -226,7 +224,7 @@ const HomePage = () => {
             <h2 className="font-heading text-4xl md:text-5xl">Explore by Destination</h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-10 md:gap-6">
             {destinations.map((dest, index) => (
               <motion.div
                 key={dest.name}
@@ -237,23 +235,24 @@ const HomePage = () => {
               >
                 <Link
                   to={`/villas?${dest.filterType}=${encodeURIComponent(dest.filterValue)}`}
-                  className="group relative block aspect-[4/5] overflow-hidden"
+                  className="group flex flex-col items-center text-center"
                   data-testid={`destination-card-${dest.name.toLowerCase().replace(/\s+/g, "-")}`}
                 >
-                  <img
-                    src={dest.image}
-                    alt={dest.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <h3 className="font-heading text-2xl text-white mb-1">{dest.name}</h3>
-                    <p className="text-white/80 text-sm">{dest.tagline}</p>
-                    <span className="inline-flex items-center gap-2 text-white text-xs uppercase tracking-wider mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                      View Villas
-                      <ArrowRight size={14} />
-                    </span>
+                  <div className="relative w-52 h-52 md:w-60 md:h-60 mb-6 rounded-full p-[3px] bg-gradient-to-br from-accent via-accent/30 to-transparent shadow-[0_20px_45px_-12px_rgba(0,0,0,0.35)] transition-transform duration-500 group-hover:scale-[1.03]">
+                    <div className="w-full h-full rounded-full overflow-hidden ring-4 ring-background">
+                      <img
+                        src={dest.image}
+                        alt={dest.name}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                    </div>
                   </div>
+                  <h3 className="font-heading text-2xl mb-1 group-hover:text-accent transition-colors">{dest.name}</h3>
+                  <p className="text-muted-foreground text-sm">{dest.tagline}</p>
+                  <span className="inline-flex items-center gap-2 text-accent text-xs uppercase tracking-wider mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                    View Villas
+                    <ArrowRight size={14} />
+                  </span>
                 </Link>
               </motion.div>
             ))}
