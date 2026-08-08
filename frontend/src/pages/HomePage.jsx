@@ -159,7 +159,7 @@ const HomePage = () => {
             transition={{ duration: 0.8, delay: 0.1 }}
             className="font-heading text-5xl md:text-7xl lg:text-8xl tracking-tight mb-6 leading-[1.1]"
           >
-            Escape to
+            Escape to the
             <br />
             <span className="italic font-light">Extraordinary</span>
           </motion.h1>
