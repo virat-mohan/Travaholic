@@ -1248,17 +1248,24 @@ const AdminBookings = () => {
     setShowEditModal(true);
   };
 
-  const saveEditedBooking = async () => {
+  const [savingAndResending, setSavingAndResending] = useState(false);
+  const saveEditedBooking = async (andResendProposal = false) => {
+    if (andResendProposal) setSavingAndResending(true);
     try {
       const { booking_id, ...payload } = editFormData;
       if (payload.commission_percent === "") delete payload.commission_percent;
       else payload.commission_percent = parseFloat(payload.commission_percent);
       await axios.put(`${API}/bookings/${booking_id}`, payload, { headers: getAuthHeaders() });
       toast.success("Booking updated");
+      if (andResendProposal) {
+        await sendProposalEmail(booking_id);
+      }
       setShowEditModal(false);
       fetchBookings();
     } catch (error) {
       toast.error(getErrorMessage(error, "Failed to update booking"));
+    } finally {
+      setSavingAndResending(false);
     }
   };
 
@@ -1680,7 +1687,15 @@ const AdminBookings = () => {
             <DialogClose asChild>
               <Button variant="outline">Cancel</Button>
             </DialogClose>
-            <Button onClick={saveEditedBooking} className="btn-luxury">
+            <Button
+              variant="outline"
+              onClick={() => saveEditedBooking(true)}
+              disabled={savingAndResending}
+              title="Save changes and email the guest an updated proposal PDF"
+            >
+              {savingAndResending ? "Sending..." : "Save & Resend PDF"}
+            </Button>
+            <Button onClick={() => saveEditedBooking(false)} className="btn-luxury">
               Save Changes
             </Button>
           </DialogFooter>

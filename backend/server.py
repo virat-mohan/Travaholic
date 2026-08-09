@@ -1710,20 +1710,12 @@ async def create_booking(booking_data: BookingCreate):
     doc["updated_at"] = doc["updated_at"].isoformat()
     doc["is_online_booking"] = True
     await db.bookings.insert_one(doc)
-    
-    # Block the dates
-    block = BlockedDate(
-        villa_id=booking_data.villa_id,
-        start_date=booking_data.check_in,
-        end_date=booking_data.check_out,
-        reason="booking",
-        booking_id=booking.booking_id,
-        created_by="system"
-    )
-    block_doc = block.model_dump()
-    block_doc["created_at"] = block_doc["created_at"].isoformat()
-    await db.blocked_dates.insert_one(block_doc)
-    
+
+    # Dates are NOT blocked yet - this is a proposal, not a confirmed
+    # reservation. The calendar only holds a booking's dates once payment
+    # is actually received (see mark_payment_received), so an unpaid
+    # proposal never keeps another guest from booking the same dates.
+
     # Send booking proposal email (booking details, bank details, amenities,
     # house rules as a PDF attachment) for online bookings
     try:
@@ -2078,9 +2070,19 @@ async def create_manual_booking(booking_data: ManualBookingCreate, user: User = 
 
     await db.bookings.insert_one(booking)
 
-    if booking_data.villa_id:
-        # Block the dates - only meaningful for a catalog villa, since
-        # availability is only ever checked against real villa_ids.
+    # Dates are only blocked once payment has actually been received - a
+    # freshly-created proposal shouldn't hold dates against other guests.
+    # The one exception is entering a booking that's already paid (e.g.
+    # backfilling a historical stay), which this form also allows via the
+    # payment-tracking fields - in that case, block immediately.
+    already_paid = (
+        booking_data.advance_received
+        or booking_data.full_payment_received
+        or booking_data.payment_status in ("advance_received", "full_received")
+    )
+    if booking_data.villa_id and already_paid:
+        # Only meaningful for a catalog villa, since availability is only
+        # ever checked against real villa_ids.
         block = {
             "block_id": f"block_{uuid.uuid4().hex[:12]}",
             "villa_id": booking_data.villa_id,
@@ -2106,15 +2108,19 @@ async def mark_payment_received(
     payment_mode: str = Query("upi", description="upi, online, card, cash, cheque"),
     user: User = Depends(require_admin)
 ):
-    """Mark payment as received and optionally send confirmation"""
+    """Mark payment as received and optionally send confirmation. This is
+    also the moment a booking's dates actually get blocked on the calendar
+    - an unpaid proposal never held the dates (see create_booking /
+    create_manual_booking), so the first payment received is what turns a
+    proposal into a real hold against other guests."""
     booking = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
-    villa = await db.villas.find_one({"villa_id": booking["villa_id"]}, {"_id": 0})
-    
+
+    villa = await _villa_for_booking_pdf(booking)
+
     update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
-    
+
     if payment_type == "advance":
         update_data["advance_received"] = True
         update_data["advance_received_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -2130,8 +2136,26 @@ async def mark_payment_received(
         update_data["payment_status"] = "full_received"
         update_data["booking_status"] = "confirmed"
         update_data["balance_amount"] = 0
-    
+
     await db.bookings.update_one({"booking_id": booking_id}, {"$set": update_data})
+
+    # First payment of any kind blocks the dates - only meaningful for a
+    # catalog villa, since availability is only ever checked against real
+    # villa_ids. Guarded on an existing block so this stays a no-op on the
+    # second payment (e.g. advance then full).
+    if payment_type in ("advance", "full") and booking.get("villa_id"):
+        existing_block = await db.blocked_dates.find_one({"booking_id": booking_id})
+        if not existing_block:
+            await db.blocked_dates.insert_one({
+                "block_id": f"block_{uuid.uuid4().hex[:12]}",
+                "villa_id": booking["villa_id"],
+                "start_date": booking["check_in"],
+                "end_date": booking["check_out"],
+                "reason": "booking",
+                "booking_id": booking_id,
+                "created_by": user.user_id,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
 
     # Send a payment-receipt email whenever a payment is recorded - advance
     # or full - not just once at final confirmation.
@@ -2792,7 +2816,21 @@ async def update_booking(booking_id: str, data: Dict[str, Any], user: User = Dep
     result = await db.bookings.update_one({"booking_id": booking_id}, {"$set": data})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+
+    # If this booking's dates are actually blocked (i.e. it's paid), keep
+    # that block in sync with an edited check-in/check-out - otherwise the
+    # calendar would still show the old dates as unavailable and the new
+    # ones as open.
+    if "check_in" in data or "check_out" in data:
+        updated_for_block = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+        await db.blocked_dates.update_many(
+            {"booking_id": booking_id},
+            {"$set": {
+                "start_date": updated_for_block["check_in"],
+                "end_date": updated_for_block["check_out"],
+            }}
+        )
+
     updated = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
     return updated
 
