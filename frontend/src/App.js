@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, createContext, useContext, Suspense, lazy 
 import "@/App.css";
 import { BrowserRouter, Routes, Route, useLocation, useNavigate, Link } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
+import { Analytics } from "@vercel/analytics/react";
 import axios from "axios";
 
 // Pages - lazy-loaded per route so a villa-page visitor's browser never has
@@ -387,6 +388,7 @@ function App() {
             <AppRouter />
             <Toaster position="top-right" richColors />
             <SplashGate />
+            <Analytics />
           </div>
         </AuthProvider>
       </BrowserRouter>
