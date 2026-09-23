@@ -1911,10 +1911,21 @@ def generate_booking_confirmation_pdf(
         pricing_rows.insert(1, ("Add-ons", f"₹{booking_data['addons_total']:,.0f}"))
     if booking_data.get('extra_pax_charge', 0) > 0:
         pricing_rows.insert(1, ("Extra Pax Charge", f"₹{booking_data['extra_pax_charge']:,.0f}"))
-    if booking_data.get('advance_amount', 0) > 0:
-        pricing_rows.append(("Advance Paid", f"₹{booking_data['advance_amount']:,.0f}"))
-        balance = booking_data.get('balance_amount', total_amount - booking_data['advance_amount'])
-        pricing_rows.append(("Balance Due", f"₹{balance:,.0f}"))
+    payment_status = booking_data.get('payment_status', 'pending')
+    advance_amount = booking_data.get('advance_amount', 0)
+    if payment_status == 'full_received':
+        pricing_rows.append(("Payment Status", "Paid in Full"))
+    elif advance_amount > 0:
+        balance = booking_data.get('balance_amount', total_amount - advance_amount)
+        if payment_status == 'advance_received':
+            # Advance has actually been received - reflect that on the PDF.
+            pricing_rows.append(("Advance Paid", f"₹{advance_amount:,.0f}"))
+            pricing_rows.append(("Balance Due", f"₹{balance:,.0f}"))
+        else:
+            # This is still just a proposal - the advance is planned, not
+            # collected yet, so don't claim it's "paid" on the document.
+            pricing_rows.append(("Advance Due", f"₹{advance_amount:,.0f}"))
+            pricing_rows.append(("Balance Due (after advance)", f"₹{balance:,.0f}"))
 
     pricing_data = [[Paragraph(l, styles['TableLabel']), Paragraph(v, styles['TableValue'])] for l, v in pricing_rows]
     pricing_table = Table(pricing_data, colWidths=[220, 250])
