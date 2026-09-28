@@ -7,6 +7,7 @@ import os
 import re
 import json
 import logging
+import calendar
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional, Dict, Any
@@ -409,6 +410,62 @@ class SeasonalPricing(BaseModel):
     is_active: bool = True
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SeasonalPricingRule(BaseModel):
+    """Internal quoting-calculator rule (Admin > Seasonal Pricing) - NOT
+    read by calculate_booking_price or any public/guest-facing endpoint.
+    Lets the ops team define a season (which calendar months it covers)
+    and three % adjustments over the villa's base_price - one each for a
+    weekday, a weekend, and a date that falls inside an active
+    FestivalDate range - so the team has a fast reference for quoting
+    guests over WhatsApp/private offers instead of working out each
+    date's rate by hand."""
+    model_config = ConfigDict(extra="ignore")
+    rule_id: str = Field(default_factory=lambda: f"seasonrule_{uuid.uuid4().hex[:12]}")
+    villa_id: Optional[str] = None  # None = default rule used by any villa without its own rule for this season
+    season: str  # "peak" | "shoulder" | "off_season" (free-form key, just used to group rules in the UI)
+    season_label: str  # display name, e.g. "Peak Season"
+    months: List[int]  # 1-12, which calendar months this season covers
+    weekday_percent: float = 0  # % adjustment vs base_price for a Mon-Fri date in this season
+    weekend_percent: float = 0  # % adjustment vs base_price for a Sat/Sun date in this season
+    festival_percent: float = 0  # % adjustment vs base_price for a date inside a FestivalDate range
+    is_active: bool = True
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SeasonalPricingRuleCreate(BaseModel):
+    villa_id: Optional[str] = None
+    season: str
+    season_label: str
+    months: List[int]
+    weekday_percent: float = 0
+    weekend_percent: float = 0
+    festival_percent: float = 0
+    is_active: bool = True
+
+class FestivalDate(BaseModel):
+    """A named date range (festival/long weekend) that the seasonal pricing
+    calculator treats as 'festival' rather than plain weekday/weekend when
+    computing a quote. Independent of the existing EventPricing model,
+    which drives the live public booking price - this one only feeds the
+    internal calculator."""
+    model_config = ConfigDict(extra="ignore")
+    festival_id: str = Field(default_factory=lambda: f"festival_{uuid.uuid4().hex[:12]}")
+    name: str
+    start_date: str  # YYYY-MM-DD
+    end_date: str  # YYYY-MM-DD
+    villa_id: Optional[str] = None  # None = applies to all villas
+    is_active: bool = True
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class FestivalDateCreate(BaseModel):
+    name: str
+    start_date: str
+    end_date: str
+    villa_id: Optional[str] = None
+    is_active: bool = True
 
 class OwnerPayout(BaseModel):
     """Track payouts to villa owners"""
@@ -4736,6 +4793,200 @@ async def delete_event_pricing(event_id: str, user: User = Depends(require_admin
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Event not found")
     return {"message": "Event pricing deleted"}
+
+# ==================== SEASONAL PRICING CALCULATOR (ADMIN-ONLY QUOTING TOOL) ====================
+#
+# Requested by the Travaholic team (Sept 2026) as a way to work out what to
+# quote a guest across peak/shoulder/off-season without hand-calculating
+# each date. This is deliberately NOT wired into calculate_booking_price or
+# any guest-facing endpoint - the public site keeps showing each villa's
+# flat base_price/weekend_price as a "starting from" figure, unchanged.
+# Admins use this page to compute a rate for a given villa + month, then
+# quote that number manually (WhatsApp, private offer, manual booking) or
+# lock a specific date in with the existing per-date pricing override.
+
+def _resolve_seasonal_rule(villa_id: str, month: int, rules: List[dict]) -> Optional[dict]:
+    """A villa-specific rule for this month wins; otherwise fall back to a
+    global (villa_id=None) rule covering this month."""
+    villa_rule = next(
+        (r for r in rules if r.get("villa_id") == villa_id and month in r.get("months", []) and r.get("is_active", True)),
+        None
+    )
+    if villa_rule:
+        return villa_rule
+    return next(
+        (r for r in rules if not r.get("villa_id") and month in r.get("months", []) and r.get("is_active", True)),
+        None
+    )
+
+def _matching_festival(date_str: str, villa_id: str, festivals: List[dict]) -> Optional[str]:
+    for f in festivals:
+        if not f.get("is_active", True):
+            continue
+        if f.get("villa_id") and f["villa_id"] != villa_id:
+            continue
+        if f["start_date"] <= date_str <= f["end_date"]:
+            return f["name"]
+    return None
+
+@api_router.get("/admin/seasonal-pricing-rules")
+async def list_seasonal_pricing_rules(villa_id: Optional[str] = None, user: User = Depends(require_admin)):
+    """List seasonal pricing rules - villa-specific plus global defaults."""
+    query: Dict[str, Any] = {}
+    if villa_id:
+        query["$or"] = [{"villa_id": villa_id}, {"villa_id": None}, {"villa_id": {"$exists": False}}]
+    rules = await db.seasonal_pricing_rules.find(query, {"_id": 0}).sort("season", 1).to_list(1000)
+    return {"rules": rules}
+
+@api_router.post("/admin/seasonal-pricing-rules")
+async def create_seasonal_pricing_rule(data: SeasonalPricingRuleCreate, user: User = Depends(require_admin)):
+    """Create a seasonal pricing rule (admin only)"""
+    rule = SeasonalPricingRule(**data.model_dump(), created_by=user.user_id)
+    doc = rule.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    doc["updated_at"] = doc["updated_at"].isoformat()
+    await db.seasonal_pricing_rules.insert_one(doc)
+    return {"rule_id": rule.rule_id, "message": "Seasonal pricing rule created"}
+
+@api_router.put("/admin/seasonal-pricing-rules/{rule_id}")
+async def update_seasonal_pricing_rule(rule_id: str, data: Dict[str, Any], user: User = Depends(require_admin)):
+    """Update a seasonal pricing rule (admin only)"""
+    data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.seasonal_pricing_rules.update_one({"rule_id": rule_id}, {"$set": data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    updated = await db.seasonal_pricing_rules.find_one({"rule_id": rule_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/admin/seasonal-pricing-rules/{rule_id}")
+async def delete_seasonal_pricing_rule(rule_id: str, user: User = Depends(require_admin)):
+    """Delete a seasonal pricing rule (admin only)"""
+    result = await db.seasonal_pricing_rules.delete_one({"rule_id": rule_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    return {"message": "Seasonal pricing rule deleted"}
+
+@api_router.get("/admin/festival-dates")
+async def list_festival_dates(villa_id: Optional[str] = None, user: User = Depends(require_admin)):
+    """List festival/long-weekend date ranges used by the seasonal pricing calculator."""
+    query: Dict[str, Any] = {}
+    if villa_id:
+        query["$or"] = [{"villa_id": villa_id}, {"villa_id": None}, {"villa_id": {"$exists": False}}]
+    festivals = await db.festival_dates.find(query, {"_id": 0}).sort("start_date", 1).to_list(1000)
+    return {"festival_dates": festivals}
+
+@api_router.post("/admin/festival-dates")
+async def create_festival_date(data: FestivalDateCreate, user: User = Depends(require_admin)):
+    """Add a festival/long-weekend date range (admin only)"""
+    festival = FestivalDate(**data.model_dump(), created_by=user.user_id)
+    doc = festival.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    await db.festival_dates.insert_one(doc)
+    return {"festival_id": festival.festival_id, "message": "Festival date added"}
+
+@api_router.delete("/admin/festival-dates/{festival_id}")
+async def delete_festival_date(festival_id: str, user: User = Depends(require_admin)):
+    """Delete a festival/long-weekend date range (admin only)"""
+    result = await db.festival_dates.delete_one({"festival_id": festival_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Festival date not found")
+    return {"message": "Festival date deleted"}
+
+@api_router.get("/admin/seasonal-pricing-preview")
+async def preview_seasonal_pricing(
+    villa_id: str,
+    month: str = Query(..., description="YYYY-MM"),
+    user: User = Depends(require_admin)
+):
+    """Compute the calculator's rate for every date in a given month for a
+    given villa: season bucket -> weekday/weekend/festival %, over the
+    villa's base_price. A date with an existing manual PricingOverride
+    (the same per-date override used elsewhere in the app) always wins
+    over the computed rule, so admins can still hand-correct a single
+    date. This is read-only reference data - it does not write anything
+    and is never consulted by the real booking/pricing flow."""
+    villa = await db.villas.find_one({"villa_id": villa_id}, {"_id": 0})
+    if not villa:
+        raise HTTPException(status_code=404, detail="Villa not found")
+
+    try:
+        year_str, month_str = month.split("-")
+        year, mon = int(year_str), int(month_str)
+        if not (1 <= mon <= 12):
+            raise ValueError
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="month must be in YYYY-MM format")
+
+    rules = await db.seasonal_pricing_rules.find({
+        "$or": [{"villa_id": villa_id}, {"villa_id": None}, {"villa_id": {"$exists": False}}]
+    }, {"_id": 0}).to_list(1000)
+    festivals = await db.festival_dates.find({
+        "$or": [{"villa_id": villa_id}, {"villa_id": None}, {"villa_id": {"$exists": False}}]
+    }, {"_id": 0}).to_list(1000)
+    overrides = await db.pricing_overrides.find({"villa_id": villa_id}, {"_id": 0}).to_list(1000)
+
+    override_map: Dict[str, float] = {}
+    for o in overrides:
+        cur = datetime.strptime(o["start_date"], "%Y-%m-%d")
+        end = datetime.strptime(o["end_date"], "%Y-%m-%d")
+        while cur <= end:
+            override_map[cur.strftime("%Y-%m-%d")] = o["price"]
+            cur += timedelta(days=1)
+
+    base_price = villa.get("base_price", 0)
+    days_in_month = calendar.monthrange(year, mon)[1]
+    first_day = datetime(year, mon, 1)
+
+    days = []
+    for offset in range(days_in_month):
+        date = first_day + timedelta(days=offset)
+        date_str = date.strftime("%Y-%m-%d")
+
+        if date_str in override_map:
+            days.append({
+                "date": date_str,
+                "rate": override_map[date_str],
+                "rate_type": "manual_override",
+                "season_label": None,
+                "festival_name": None,
+            })
+            continue
+
+        rule = _resolve_seasonal_rule(villa_id, date.month, rules)
+        festival_name = _matching_festival(date_str, villa_id, festivals)
+
+        if not rule:
+            days.append({
+                "date": date_str,
+                "rate": base_price,
+                "rate_type": "no_rule",
+                "season_label": None,
+                "festival_name": festival_name,
+            })
+            continue
+
+        if festival_name:
+            percent, rate_type = rule.get("festival_percent", 0), "festival"
+        elif date.weekday() >= 5:  # Sat/Sun, matches calculate_booking_price's weekend convention
+            percent, rate_type = rule.get("weekend_percent", 0), "weekend"
+        else:
+            percent, rate_type = rule.get("weekday_percent", 0), "weekday"
+
+        days.append({
+            "date": date_str,
+            "rate": round(base_price * (1 + percent / 100), 2),
+            "rate_type": rate_type,
+            "season_label": rule.get("season_label"),
+            "festival_name": festival_name,
+        })
+
+    return {
+        "villa_id": villa_id,
+        "villa_name": villa.get("name"),
+        "base_price": base_price,
+        "month": month,
+        "days": days,
+    }
 
 # ==================== BLOG MANAGEMENT ====================
 

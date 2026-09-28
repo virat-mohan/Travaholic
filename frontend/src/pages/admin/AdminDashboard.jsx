@@ -46,6 +46,7 @@ const AdminDashboard = () => {
     { icon: Users, label: "Team", path: "/admin/team" },
     { icon: DollarSign, label: "Payouts", path: "/admin/payouts" },
     { icon: Clock, label: "Event Pricing", path: "/admin/pricing" },
+    { icon: Percent, label: "Seasonal Pricing", path: "/admin/seasonal-pricing" },
     { icon: BookOpen, label: "Blog", path: "/admin/blog" },
     { icon: Building, label: "Listings", path: "/admin/listings" },
     { icon: Settings, label: "Razorpay Setup", path: "/admin/razorpay" },
@@ -164,6 +165,7 @@ const AdminDashboard = () => {
             <Route path="team" element={<AdminTeam />} />
             <Route path="payouts" element={<AdminPayouts />} />
             <Route path="pricing" element={<AdminEventPricing />} />
+            <Route path="seasonal-pricing" element={<AdminSeasonalPricing />} />
             <Route path="blog" element={<AdminBlog />} />
             <Route path="listings" element={<AdminListings />} />
             <Route path="razorpay" element={<RazorpaySetup />} />
@@ -4416,6 +4418,554 @@ const AdminEventPricing = () => {
           ))}
         </div>
       </div>
+    </div>
+  );
+};
+
+// Admin Seasonal Pricing Calculator - an internal quoting reference tool
+// (Admin > Seasonal Pricing). Lets the team define peak/shoulder/off-season
+// rules (which months, plus a weekday/weekend/festival % over base_price)
+// and preview the resulting rate for every date in a chosen month, so they
+// can quote guests accurately over WhatsApp/private offers instead of
+// working it out by hand. This does NOT change the live public price shown
+// on the villa pages or the real booking flow - it only reads/writes its
+// own rules and festival dates, plus the existing per-date pricing-override
+// endpoint when the team wants to lock in one specific date.
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const SEASON_PRESETS = [
+  { season: "peak", season_label: "Peak Season", months: [11, 12, 1, 2], weekday_percent: 30, weekend_percent: 30, festival_percent: 30 },
+  { season: "shoulder", season_label: "Shoulder Season", months: [3, 10], weekday_percent: 5, weekend_percent: 5, festival_percent: 5 },
+  { season: "off_season", season_label: "Off-Season", months: [4, 5, 6, 7, 8, 9], weekday_percent: 0, weekend_percent: 0, festival_percent: 0 },
+];
+
+const FESTIVAL_PRESETS = [
+  { name: "New Year's Eve", start_date: "2025-12-28", end_date: "2026-01-02" },
+  { name: "Christmas", start_date: "2025-12-22", end_date: "2025-12-27" },
+  { name: "Diwali", start_date: "2025-10-18", end_date: "2025-10-25" },
+  { name: "Holi", start_date: "2025-03-12", end_date: "2025-03-16" },
+  { name: "Sunburn Festival", start_date: "2025-12-28", end_date: "2025-12-31" },
+];
+
+const EMPTY_RULE_FORM = {
+  villa_id: "",
+  season: "peak",
+  season_label: "Peak Season",
+  months: [],
+  weekday_percent: 0,
+  weekend_percent: 0,
+  festival_percent: 0,
+};
+
+const EMPTY_FESTIVAL_FORM = { name: "", start_date: "", end_date: "", villa_id: "" };
+
+const RATE_TYPE_BADGE = {
+  weekday: { label: "Weekday", className: "bg-blue-100 text-blue-800" },
+  weekend: { label: "Weekend", className: "bg-purple-100 text-purple-800" },
+  festival: { label: "Festival", className: "bg-amber-100 text-amber-800" },
+  manual_override: { label: "Manual Override", className: "bg-green-100 text-green-800" },
+  no_rule: { label: "No Rule", className: "bg-gray-100 text-gray-600" },
+};
+
+const AdminSeasonalPricing = () => {
+  const [villas, setVillas] = useState([]);
+  const [rules, setRules] = useState([]);
+  const [festivals, setFestivals] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [showRuleDialog, setShowRuleDialog] = useState(false);
+  const [ruleForm, setRuleForm] = useState(EMPTY_RULE_FORM);
+
+  const [showFestivalDialog, setShowFestivalDialog] = useState(false);
+  const [festivalForm, setFestivalForm] = useState(EMPTY_FESTIVAL_FORM);
+
+  const [previewVillaId, setPreviewVillaId] = useState("");
+  const [previewMonth, setPreviewMonth] = useState(format(new Date(), "yyyy-MM"));
+  const [previewData, setPreviewData] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const [overrideDate, setOverrideDate] = useState(null);
+  const [overridePrice, setOverridePrice] = useState("");
+  const [savingOverride, setSavingOverride] = useState(false);
+
+  useEffect(() => {
+    fetchAll();
+  }, []);
+
+  const fetchAll = async () => {
+    try {
+      const [villasRes, rulesRes, festivalsRes] = await Promise.all([
+        axios.get(`${API}/villas`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/admin/seasonal-pricing-rules`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/admin/festival-dates`, { headers: getAuthHeaders() }),
+      ]);
+      setVillas(villasRes.data.villas || []);
+      setRules(rulesRes.data.rules || []);
+      setFestivals(festivalsRes.data.festival_dates || []);
+      if (villasRes.data.villas?.length > 0) {
+        setPreviewVillaId((prev) => prev || villasRes.data.villas[0].villa_id);
+      }
+    } catch (error) {
+      console.error("Error fetching seasonal pricing data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (previewVillaId && previewMonth) fetchPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewVillaId, previewMonth]);
+
+  const fetchPreview = async () => {
+    setPreviewLoading(true);
+    try {
+      const response = await axios.get(`${API}/admin/seasonal-pricing-preview`, {
+        params: { villa_id: previewVillaId, month: previewMonth },
+        headers: getAuthHeaders(),
+      });
+      setPreviewData(response.data);
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to load preview"));
+      setPreviewData(null);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const toggleMonth = (m) => {
+    setRuleForm((prev) => ({
+      ...prev,
+      months: prev.months.includes(m) ? prev.months.filter((x) => x !== m) : [...prev.months, m].sort((a, b) => a - b),
+    }));
+  };
+
+  const handleSaveRule = async () => {
+    if (!ruleForm.season_label || ruleForm.months.length === 0) {
+      toast.error("Give the season a name and select at least one month");
+      return;
+    }
+    try {
+      await axios.post(
+        `${API}/admin/seasonal-pricing-rules`,
+        { ...ruleForm, villa_id: ruleForm.villa_id || null },
+        { headers: getAuthHeaders() }
+      );
+      toast.success("Seasonal pricing rule saved");
+      setShowRuleDialog(false);
+      setRuleForm(EMPTY_RULE_FORM);
+      fetchAll();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to save rule"));
+    }
+  };
+
+  const handleDeleteRule = async (ruleId) => {
+    if (!window.confirm("Delete this seasonal pricing rule?")) return;
+    try {
+      await axios.delete(`${API}/admin/seasonal-pricing-rules/${ruleId}`, { headers: getAuthHeaders() });
+      toast.success("Rule deleted");
+      fetchAll();
+    } catch (error) {
+      toast.error("Failed to delete rule");
+    }
+  };
+
+  const handleSaveFestival = async () => {
+    if (!festivalForm.name || !festivalForm.start_date || !festivalForm.end_date) {
+      toast.error("Please fill name, start date and end date");
+      return;
+    }
+    try {
+      await axios.post(
+        `${API}/admin/festival-dates`,
+        { ...festivalForm, villa_id: festivalForm.villa_id || null },
+        { headers: getAuthHeaders() }
+      );
+      toast.success("Festival date added");
+      setShowFestivalDialog(false);
+      setFestivalForm(EMPTY_FESTIVAL_FORM);
+      fetchAll();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to add festival date"));
+    }
+  };
+
+  const handleDeleteFestival = async (festivalId) => {
+    if (!window.confirm("Delete this festival date?")) return;
+    try {
+      await axios.delete(`${API}/admin/festival-dates/${festivalId}`, { headers: getAuthHeaders() });
+      toast.success("Festival date deleted");
+      fetchAll();
+    } catch (error) {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const openOverride = (day) => {
+    setOverrideDate(day.date);
+    setOverridePrice(day.rate ? String(day.rate) : "");
+  };
+
+  const handleSaveOverride = async () => {
+    const price = parseFloat(overridePrice);
+    if (!price || price <= 0) {
+      toast.error("Enter a valid rate");
+      return;
+    }
+    setSavingOverride(true);
+    try {
+      await axios.post(
+        `${API}/villas/${previewVillaId}/pricing-override`,
+        { start_date: overrideDate, end_date: overrideDate, price, reason: "Seasonal pricing calculator override" },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(`Rate locked for ${overrideDate}`);
+      setOverrideDate(null);
+      fetchPreview();
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to save override"));
+    } finally {
+      setSavingOverride(false);
+    }
+  };
+
+  const villaName = (id) => villas.find((v) => v.villa_id === id)?.name;
+
+  return (
+    <div data-testid="admin-seasonal-pricing">
+      <div className="mb-8">
+        <h1 className="font-heading text-3xl">Seasonal Pricing Calculator</h1>
+        <p className="text-muted-foreground mt-1">
+          Internal reference for quoting guests across peak/shoulder/off-season - weekday, weekend and festival
+          rates as a % over each villa's base price. This does not change the price shown on the public site.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="animate-pulse space-y-4">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-muted" />)}
+        </div>
+      ) : (
+        <>
+          {/* Season Rules */}
+          <div className="bg-card border border-border p-6 mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="font-heading text-xl">Season Rules</h2>
+                <p className="text-sm text-muted-foreground">
+                  A villa-specific rule wins over a global one for the same month. Leave "Applies to" empty for a
+                  default that covers every villa without its own rule.
+                </p>
+              </div>
+              <Dialog open={showRuleDialog} onOpenChange={(open) => { setShowRuleDialog(open); if (!open) setRuleForm(EMPTY_RULE_FORM); }}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2"><Plus size={16} />Add Rule</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>New Season Rule</DialogTitle></DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Season Name *</label>
+                      <Input
+                        placeholder="e.g., Peak Season"
+                        value={ruleForm.season_label}
+                        onChange={(e) => setRuleForm({ ...ruleForm, season_label: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Applies to (leave empty for all villas)</label>
+                      <Select value={ruleForm.villa_id} onValueChange={(v) => setRuleForm({ ...ruleForm, villa_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="All villas (default)" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Villas (default)</SelectItem>
+                          {villas.map((v) => <SelectItem key={v.villa_id} value={v.villa_id}>{v.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Months *</label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {MONTH_NAMES.map((name, i) => {
+                          const m = i + 1;
+                          const active = ruleForm.months.includes(m);
+                          return (
+                            <button
+                              type="button"
+                              key={m}
+                              onClick={() => toggleMonth(m)}
+                              className={`px-2 py-1.5 text-sm border rounded transition-colors ${
+                                active ? "bg-accent text-accent-foreground border-accent" : "border-border hover:border-accent"
+                              }`}
+                            >
+                              {name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Weekday %</label>
+                        <Input
+                          type="number" step="0.1"
+                          value={ruleForm.weekday_percent}
+                          onChange={(e) => setRuleForm({ ...ruleForm, weekday_percent: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Weekend %</label>
+                        <Input
+                          type="number" step="0.1"
+                          value={ruleForm.weekend_percent}
+                          onChange={(e) => setRuleForm({ ...ruleForm, weekend_percent: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Festival %</label>
+                        <Input
+                          type="number" step="0.1"
+                          value={ruleForm.festival_percent}
+                          onChange={(e) => setRuleForm({ ...ruleForm, festival_percent: parseFloat(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">% adjustment over the villa's base price, e.g. 30 = base price + 30%.</p>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <Button onClick={handleSaveRule}>Save Rule</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* Quick-add starting point for the 3 standard seasons */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              <span className="text-xs text-muted-foreground self-center mr-1">Quick add (starting point - tune weekend/festival % after):</span>
+              {SEASON_PRESETS.map((preset) => (
+                <Button
+                  key={preset.season}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setRuleForm({ ...EMPTY_RULE_FORM, ...preset }); setShowRuleDialog(true); }}
+                >
+                  + {preset.season_label}
+                </Button>
+              ))}
+            </div>
+
+            {rules.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">No season rules yet - use "Add Rule" or a quick-add preset above.</div>
+            ) : (
+              <div className="space-y-3">
+                {rules.map((rule) => (
+                  <div key={rule.rule_id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 border border-border">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{rule.season_label}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {rule.villa_id ? villaName(rule.villa_id) || "Specific villa" : "All villas"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {rule.months.map((m) => MONTH_NAMES[m - 1]).join(", ")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <p className="font-heading text-lg">+{rule.weekday_percent}%</p>
+                        <p className="text-xs text-muted-foreground">Weekday</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-heading text-lg">+{rule.weekend_percent}%</p>
+                        <p className="text-xs text-muted-foreground">Weekend</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="font-heading text-lg">+{rule.festival_percent}%</p>
+                        <p className="text-xs text-muted-foreground">Festival</p>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => handleDeleteRule(rule.rule_id)}>
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Festival / long-weekend dates */}
+          <div className="bg-card border border-border p-6 mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="font-heading text-xl">Festival &amp; Long-Weekend Dates</h2>
+                <p className="text-sm text-muted-foreground">Any date inside one of these ranges uses the "Festival %" from the season rule instead of weekday/weekend.</p>
+              </div>
+              <Dialog open={showFestivalDialog} onOpenChange={(open) => { setShowFestivalDialog(open); if (!open) setFestivalForm(EMPTY_FESTIVAL_FORM); }}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2"><Plus size={16} />Add Date</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>New Festival Date</DialogTitle></DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Name *</label>
+                      <Input
+                        placeholder="e.g., New Year's Eve"
+                        value={festivalForm.name}
+                        onChange={(e) => setFestivalForm({ ...festivalForm, name: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Applies to (leave empty for all villas)</label>
+                      <Select value={festivalForm.villa_id} onValueChange={(v) => setFestivalForm({ ...festivalForm, villa_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="All villas" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Villas</SelectItem>
+                          {villas.map((v) => <SelectItem key={v.villa_id} value={v.villa_id}>{v.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Start Date *</label>
+                        <Input type="date" value={festivalForm.start_date} onChange={(e) => setFestivalForm({ ...festivalForm, start_date: e.target.value })} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">End Date *</label>
+                        <Input type="date" value={festivalForm.end_date} onChange={(e) => setFestivalForm({ ...festivalForm, end_date: e.target.value })} />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                    <Button onClick={handleSaveFestival}>Add</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-6">
+              <span className="text-xs text-muted-foreground self-center mr-1">Quick add:</span>
+              {FESTIVAL_PRESETS.map((preset) => (
+                <Button
+                  key={preset.name}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setFestivalForm({ ...EMPTY_FESTIVAL_FORM, ...preset }); setShowFestivalDialog(true); }}
+                >
+                  + {preset.name}
+                </Button>
+              ))}
+            </div>
+
+            {festivals.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No festival dates yet.</div>
+            ) : (
+              <div className="space-y-2">
+                {festivals.map((f) => (
+                  <div key={f.festival_id} className="flex items-center justify-between p-3 border border-border text-sm">
+                    <div>
+                      <span className="font-medium">{f.name}</span>{" "}
+                      <span className="text-muted-foreground">
+                        {f.start_date} → {f.end_date} · {f.villa_id ? villaName(f.villa_id) || "Specific villa" : "All villas"}
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteFestival(f.festival_id)}>
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Calculator / preview */}
+          <div className="bg-card border border-border p-6">
+            <h2 className="font-heading text-xl mb-4">Calculate a Rate</h2>
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-1">Villa</label>
+                <Select value={previewVillaId} onValueChange={setPreviewVillaId}>
+                  <SelectTrigger><SelectValue placeholder="Select a villa" /></SelectTrigger>
+                  <SelectContent>
+                    {villas.map((v) => <SelectItem key={v.villa_id} value={v.villa_id}>{v.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Month</label>
+                <Input type="month" value={previewMonth} onChange={(e) => setPreviewMonth(e.target.value)} />
+              </div>
+            </div>
+
+            {previewLoading ? (
+              <div className="animate-pulse h-64 bg-muted" />
+            ) : previewData ? (
+              <div className="overflow-x-auto">
+                <p className="text-sm text-muted-foreground mb-3">
+                  Base price for {previewData.villa_name}: <span className="font-medium text-foreground">{formatPrice(previewData.base_price)}</span>/night
+                </p>
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left p-3 font-medium">Date</th>
+                      <th className="text-left p-3 font-medium">Season</th>
+                      <th className="text-left p-3 font-medium">Type</th>
+                      <th className="text-right p-3 font-medium">Rate</th>
+                      <th className="text-right p-3 font-medium">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewData.days.map((day) => {
+                      const badge = RATE_TYPE_BADGE[day.rate_type] || RATE_TYPE_BADGE.no_rule;
+                      const dateObj = parseISO(day.date);
+                      return (
+                        <tr key={day.date} className="border-t border-border hover:bg-muted/30">
+                          <td className="p-3">{format(dateObj, "EEE, MMM d")}</td>
+                          <td className="p-3 text-muted-foreground">{day.festival_name || day.season_label || "—"}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-0.5 text-xs rounded ${badge.className}`}>{badge.label}</span>
+                          </td>
+                          <td className="p-3 text-right font-medium">{formatPrice(day.rate)}</td>
+                          <td className="p-3 text-right">
+                            <Button variant="ghost" size="sm" onClick={() => openOverride(day)}>
+                              {day.rate_type === "manual_override" ? "Edit" : "Lock in"}
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">Select a villa and month to calculate rates.</div>
+            )}
+          </div>
+
+          {/* Override a single date */}
+          <Dialog open={!!overrideDate} onOpenChange={(open) => !open && setOverrideDate(null)}>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Lock in a rate for {overrideDate}</DialogTitle></DialogHeader>
+              <div className="py-4">
+                <label className="block text-sm font-medium mb-1">Rate (₹/night)</label>
+                <Input type="number" min="0" value={overridePrice} onChange={(e) => setOverridePrice(e.target.value)} />
+                <p className="text-xs text-muted-foreground mt-2">
+                  This writes a manual pricing override for this one date, the same override mechanism used elsewhere in the app - it takes priority over any season rule.
+                </p>
+              </div>
+              <DialogFooter>
+                <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                <Button onClick={handleSaveOverride} disabled={savingOverride}>
+                  {savingOverride ? "Saving..." : "Save"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 };
